@@ -1,0 +1,1 @@
+-keep,allowobfuscation,allowshrinking class com.quizmaker.android.ui.quizlist.QuizListViewModel

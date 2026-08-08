@@ -1,0 +1,13 @@
+R_DEF: Internal format may change without notice
+local
+color quiz_purple
+color white
+drawable ic_launcher
+font poppins_bold
+font poppins_extrabold
+font poppins_medium
+font poppins_regular
+font poppins_semibold
+string app_name
+style Theme.QuizMaker
+xml file_paths

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="quiz_purple">#8B5CF6</color>
+    <color name="white">#FFFFFF</color>
+    <string name="app_name">YunoLMS</string>
+    <style name="Theme.QuizMaker" parent="android:Theme.Material.Light.NoActionBar"/>
+</resources>

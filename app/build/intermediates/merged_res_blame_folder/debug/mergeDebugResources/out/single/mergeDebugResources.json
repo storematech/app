@@ -1,0 +1,30 @@
+[
+    {
+        "merged": "com.quizmaker.android.app-debug-4:/font_poppins_extrabold.ttf.flat",
+        "source": "com.quizmaker.android.app-main-6:/font/poppins_extrabold.ttf"
+    },
+    {
+        "merged": "com.quizmaker.android.app-debug-4:/drawable_ic_launcher.xml.flat",
+        "source": "com.quizmaker.android.app-main-6:/drawable/ic_launcher.xml"
+    },
+    {
+        "merged": "com.quizmaker.android.app-debug-4:/xml_file_paths.xml.flat",
+        "source": "com.quizmaker.android.app-main-6:/xml/file_paths.xml"
+    },
+    {
+        "merged": "com.quizmaker.android.app-debug-4:/font_poppins_medium.ttf.flat",
+        "source": "com.quizmaker.android.app-main-6:/font/poppins_medium.ttf"
+    },
+    {
+        "merged": "com.quizmaker.android.app-debug-4:/font_poppins_semibold.ttf.flat",
+        "source": "com.quizmaker.android.app-main-6:/font/poppins_semibold.ttf"
+    },
+    {
+        "merged": "com.quizmaker.android.app-debug-4:/font_poppins_regular.ttf.flat",
+        "source": "com.quizmaker.android.app-main-6:/font/poppins_regular.ttf"
+    },
+    {
+        "merged": "com.quizmaker.android.app-debug-4:/font_poppins_bold.ttf.flat",
+        "source": "com.quizmaker.android.app-main-6:/font/poppins_bold.ttf"
+    }
+]
