@@ -24,6 +24,8 @@ zxing = "3.5.3"
 zxingEmbedded = "4.3.0"
 exifinterface = "1.4.1"
 razorpay = "1.6.40"
+fastexcel = "0.20.2"
+splashscreen = "1.2.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -67,8 +69,12 @@ datastore-preferences = { group = "androidx.datastore", name = "datastore-prefer
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingEmbedded" }
 androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 
 razorpay-checkout = { group = "com.razorpay", name = "checkout", version.ref = "razorpay" }
+
+fastexcel-reader = { group = "org.dhatim", name = "fastexcel-reader", version.ref = "fastexcel" }
+fastexcel-writer = { group = "org.dhatim", name = "fastexcel", version.ref = "fastexcel" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

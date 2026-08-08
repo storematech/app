@@ -1,6 +1,7 @@
 package com.quizmaker.android
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -9,6 +10,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -37,6 +39,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     lateinit var razorpayResultBus: RazorpayResultBus
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must run before super.onCreate() — applies Theme.QuizMaker.Splash's branded splash
+        // (blue background + the "Y" mark) and then switches to Theme.QuizMaker once ready.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         // Default enableEdgeToEdge() draws a translucent white/dark scrim behind the status bar
         // for contrast, which washes out full-bleed colored headers like Dashboard's banner into
@@ -46,6 +51,13 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
         )
+        // Belt-and-braces: on API 29+ the system can still paint its own translucent contrast
+        // scrim behind a transparent status/nav bar regardless of the style above, which is
+        // exactly what was washing Dashboard's colored banner out to white/gray on some devices.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
         setContent {
             QuizMakerTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {

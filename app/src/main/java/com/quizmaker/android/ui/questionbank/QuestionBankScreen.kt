@@ -8,12 +8,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -25,13 +27,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.ChecklistRtl
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -63,6 +68,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
+import com.quizmaker.android.core.theme.BrandIndigoLight
 import com.quizmaker.android.core.theme.ErrorRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
@@ -71,6 +77,7 @@ import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionDifficulty
 import com.quizmaker.android.data.model.QuestionType
+import com.quizmaker.android.ui.common.AiQuestionsBanner
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.FilledPill
@@ -84,18 +91,30 @@ import com.quizmaker.android.util.formatShortDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuestionBankScreen(onOpenAi: () -> Unit = {}, viewModel: QuestionBankViewModel = hiltViewModel()) {
+fun QuestionBankScreen(
+    onOpenAi: () -> Unit = {},
+    onCreateQuizFromSelection: (List<String>) -> Unit = {},
+    viewModel: QuestionBankViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
     var questionPendingDelete by remember { mutableStateOf<Question?>(null) }
 
-    Scaffold(containerColor = AppBackground) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+    // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset;
+    // reserving it again here would leave a redundant empty strip above the tab bar.
+    Scaffold(containerColor = AppBackground, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Column(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Spacer(Modifier.height(20.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     RoundIconButton(icon = Icons.Default.Refresh, onClick = { viewModel.loadQuestions() })
-                    RoundIconButton(icon = Icons.Default.Sort, onClick = {})
+                    RoundIconButton(icon = Icons.Default.FilterList, onClick = { viewModel.openFilterSheet() })
+                    RoundIconButton(
+                        icon = Icons.Default.ChecklistRtl,
+                        onClick = { viewModel.toggleSelectionMode() },
+                        isActive = uiState.isSelectionMode
+                    )
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
@@ -130,11 +149,33 @@ fun QuestionBankScreen(onOpenAi: () -> Unit = {}, viewModel: QuestionBankViewMod
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
-                Text(
-                    "Showing ${uiState.filtered.size} of ${uiState.questions.size} questions",
-                    color = TextSecondary,
-                    fontSize = 13.sp
-                )
+                if (uiState.isSelectionMode) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "${uiState.selectedQuestionIds.size} of ${QuestionBankViewModel.MAX_SELECTABLE_QUESTIONS} selected",
+                            color = BrandIndigo,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            "Cancel",
+                            color = TextSecondary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            modifier = Modifier.clickable(onClick = viewModel::exitSelectionMode)
+                        )
+                    }
+                } else {
+                    Text(
+                        "Showing ${uiState.filtered.size} of ${uiState.questions.size} questions",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
 
                 uiState.errorMessage?.let {
@@ -147,41 +188,53 @@ fun QuestionBankScreen(onOpenAi: () -> Unit = {}, viewModel: QuestionBankViewMod
                 isLoading = uiState.isLoading,
                 loadingContent = { ListScreenSkeleton(rowCount = 6, rowLineWidths = listOf(240.dp, 140.dp)) }
             ) {
-                if (uiState.filtered.isEmpty()) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        EmptyState(
-                            icon = Icons.Default.Info,
-                            title = if (uiState.questions.isEmpty()) "No questions yet" else "No matches",
-                            subtitle = if (uiState.questions.isEmpty()) "Tap New to add your first question." else "Try a different search term."
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
+                LazyColumn(
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    item { AiQuestionsBanner(onClick = onOpenAi) }
+
+                    if (uiState.filtered.isEmpty()) {
+                        item {
+                            EmptyState(
+                                icon = Icons.Default.Info,
+                                title = if (uiState.questions.isEmpty()) "No questions yet" else "No matches",
+                                subtitle = if (uiState.questions.isEmpty()) "Tap New to add your first question." else "Try a different search term."
+                            )
+                        }
+                    } else {
                         items(uiState.filtered, key = { it.id }) { question ->
                             QuestionCard(
                                 question = question,
-                                onInfoClick = { viewModel.selectQuestion(question) },
+                                isSelectionMode = uiState.isSelectionMode,
+                                isSelected = question.id in uiState.selectedQuestionIds,
+                                onToggleSelect = { viewModel.toggleQuestionSelection(question.id) },
                                 onEditClick = { viewModel.startEditQuestion(question) },
                                 onDeleteClick = { questionPendingDelete = question }
                             )
                         }
-                        item { Spacer(Modifier.height(80.dp)) }
+                        item { Spacer(Modifier.height(if (uiState.isSelectionMode) 100.dp else 80.dp)) }
                     }
                 }
             }
         }
+
+        if (uiState.isSelectionMode && uiState.selectedQuestionIds.isNotEmpty()) {
+            GradientButton(
+                text = "Create Quiz (${uiState.selectedQuestionIds.size})",
+                onClick = { onCreateQuizFromSelection(uiState.selectedQuestionIds.toList()) },
+                leadingIcon = Icons.Default.NoteAdd,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp)
+                    .widthIn(min = 220.dp)
+            )
+        }
+        }
     }
 
-    uiState.selectedQuestion?.let { question ->
-        QuestionDetailsSheet(
-            question = question,
-            onDismiss = { viewModel.selectQuestion(null) },
-            onEdit = { viewModel.selectQuestion(null); viewModel.startEditQuestion(question) },
-            onDelete = { viewModel.deleteQuestion(question.id) }
-        )
+    if (uiState.isFilterSheetOpen) {
+        FilterSheet(uiState = uiState, viewModel = viewModel)
     }
 
     questionPendingDelete?.let { question ->
@@ -207,23 +260,26 @@ fun QuestionBankScreen(onOpenAi: () -> Unit = {}, viewModel: QuestionBankViewMod
 }
 
 @Composable
-private fun RoundIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+private fun RoundIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit, isActive: Boolean = false) {
     Box(
         modifier = Modifier
             .size(44.dp)
             .clip(CircleShape)
-            .border(1.dp, BorderGray, CircleShape)
+            .border(1.dp, if (isActive) BrandIndigo else BorderGray, CircleShape)
+            .then(if (isActive) Modifier.background(BrandIndigoLight, CircleShape) else Modifier)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = if (isActive) BrandIndigo else TextPrimary, modifier = Modifier.size(20.dp))
     }
 }
 
 @Composable
 private fun QuestionCard(
     question: Question,
-    onInfoClick: () -> Unit,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    onToggleSelect: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
@@ -231,9 +287,16 @@ private fun QuestionCard(
         modifier = Modifier
             .fillMaxWidth()
             .elevatedSurface(shape = RoundedCornerShape(20.dp))
+            .then(if (isSelectionMode) Modifier.clickable(onClick = onToggleSelect) else Modifier)
             .padding(18.dp)
     ) {
-        Text(question.text, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
+        Row(verticalAlignment = Alignment.Top) {
+            if (isSelectionMode) {
+                Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
+                Spacer(Modifier.width(4.dp))
+            }
+            Text(question.text, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+        }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilledPill(text = questionTypeLabel(question.type))
@@ -260,10 +323,11 @@ private fun QuestionCard(
             } else {
                 Spacer(Modifier)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                SmallIconButton(icon = Icons.Default.Edit, tint = BrandIndigo, onClick = onEditClick)
-                SmallIconButton(icon = Icons.Default.Info, tint = TextSecondary, onClick = onInfoClick)
-                SmallIconButton(icon = Icons.Default.Delete, tint = ErrorRed, onClick = onDeleteClick)
+            if (!isSelectionMode) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SmallIconButton(icon = Icons.Default.Edit, tint = BrandIndigo, onClick = onEditClick)
+                    SmallIconButton(icon = Icons.Default.Delete, tint = ErrorRed, onClick = onDeleteClick)
+                }
             }
         }
     }
@@ -292,73 +356,90 @@ private fun questionTypeLabel(type: QuestionType): String = when (type) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QuestionDetailsSheet(question: Question, onDismiss: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun FilterSheet(uiState: QuestionBankUiState, viewModel: QuestionBankViewModel) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+    var selectedTag by remember { mutableStateOf(uiState.tagFilter) }
+    var selectedDifficulty by remember { mutableStateOf(uiState.difficultyFilter) }
+
+    ModalBottomSheet(onDismissRequest = viewModel::closeFilterSheet, sheetState = sheetState, containerColor = SurfaceWhite) {
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp)
         ) {
-            Text("Question Details", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 22.sp, modifier = Modifier.fillMaxWidth(), color = TextPrimary)
+            Text("Filter Questions", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextPrimary)
             Spacer(Modifier.height(4.dp))
-            Text("View full question details", color = TextSecondary, fontSize = 14.sp)
+            Text("Narrow down your question bank", color = TextSecondary, fontSize = 13.sp)
             Spacer(Modifier.height(20.dp))
 
-            DetailRow(label = "Question Text:", value = question.text)
-            DetailRow(label = "Type:", value = questionTypeLabel(question.type))
-            DetailRow(label = "Difficulty:", value = question.difficulty?.value ?: "-")
-            DetailRow(label = "Created Date:", value = formatShortDate(question.createdAt))
-
-            if (question.tags.isNotEmpty()) {
-                Text("Tags:", fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    question.tags.forEach { OutlinedPill(text = it) }
-                }
-                Spacer(Modifier.height(20.dp))
-            }
-
-            GradientButton(text = "Edit", onClick = onEdit, leadingIcon = Icons.Default.Edit, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(12.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(ErrorRed)
-                    .clickable(onClick = onDelete),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Delete", color = Color.White, fontWeight = FontWeight.Bold)
+            Text("TAG", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+            Spacer(Modifier.height(10.dp))
+            if (uiState.availableTags.isEmpty()) {
+                Text("No tags yet", color = TextSecondary, fontSize = 13.sp)
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(uiState.availableTags) { tag ->
+                        FilterChip(label = tag, selected = selectedTag == tag) {
+                            selectedTag = if (selectedTag == tag) null else tag
+                        }
+                    }
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(50))
-                    .border(1.dp, BorderGray, RoundedCornerShape(50))
-                    .clickable(onClick = onDismiss),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Close", color = TextPrimary, fontWeight = FontWeight.Bold)
+
+            Spacer(Modifier.height(20.dp))
+            Text("DIFFICULTY", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                QuestionDifficulty.entries.forEach { difficulty ->
+                    FilterChip(
+                        label = difficulty.value.replaceFirstChar { c -> c.uppercase() },
+                        selected = selectedDifficulty == difficulty
+                    ) {
+                        selectedDifficulty = if (selectedDifficulty == difficulty) null else difficulty
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(28.dp))
+            GradientButton(
+                text = "Apply Filter",
+                onClick = { viewModel.applyFilter(selectedTag, selectedDifficulty) },
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (selectedTag != null || selectedDifficulty != null) {
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    "Clear filters",
+                    color = TextSecondary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            selectedTag = null
+                            selectedDifficulty = null
+                            viewModel.applyFilter(null, null)
+                        },
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
         }
     }
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
-    Text(label, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-    Spacer(Modifier.height(4.dp))
-    Text(value, color = TextSecondary)
-    Spacer(Modifier.height(16.dp))
+private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) BrandIndigo else AppBackground)
+            .border(1.dp, if (selected) BrandIndigo else BorderGray, RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 7.dp)
+    ) {
+        Text(label, color = if (selected) Color.White else TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

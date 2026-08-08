@@ -1,5 +1,7 @@
 package com.quizmaker.android.ui.more
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,11 +21,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -36,13 +43,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.quizmaker.android.BuildConfig
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
+import com.quizmaker.android.core.theme.ErrorRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
@@ -57,10 +68,13 @@ fun MoreScreen(
     onOpenResponses: () -> Unit,
     onOpenPricing: () -> Unit,
     onOpenLicenseDetails: () -> Unit,
+    onOpenFaq: () -> Unit,
+    onOpenImportQuestions: () -> Unit,
     onOpenComingSoon: (String) -> Unit,
     viewModel: MoreViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset;
     // reserving it again here would leave a redundant empty strip above the tab bar.
@@ -113,11 +127,45 @@ fun MoreScreen(
             ) {
                 MoreRow(icon = Icons.Default.Person, label = "My Profile", onClick = onOpenProfile)
                 RowDivider()
-                MoreRow(icon = Icons.Default.FileDownload, label = "Import Questions", onClick = { onOpenComingSoon("Import Questions") })
+                MoreRow(icon = Icons.Default.FileDownload, label = "Import Questions", onClick = onOpenImportQuestions)
                 RowDivider()
                 MoreRow(icon = Icons.Default.ChatBubbleOutline, label = "Responses", onClick = onOpenResponses)
                 RowDivider()
                 MoreRow(icon = Icons.Default.CreditCard, label = "Plans", onClick = { onOpenComingSoon("Plans") })
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .elevatedSurface(shape = RoundedCornerShape(20.dp))
+            ) {
+                MoreRow(
+                    icon = Icons.Default.SupportAgent,
+                    label = "Get Help & Support",
+                    onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/916364893006")))
+                    }
+                )
+                RowDivider()
+                MoreRow(icon = Icons.AutoMirrored.Filled.HelpOutline, label = "FAQ", onClick = onOpenFaq)
+                RowDivider()
+                MoreRow(
+                    icon = Icons.Default.PrivacyTip,
+                    label = "Privacy Policy",
+                    onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://yunolms.com/privacy-policy")))
+                    }
+                )
+                RowDivider()
+                MoreRow(
+                    icon = Icons.Default.Gavel,
+                    label = "Terms & Conditions",
+                    onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://yunolms.com/terms-and-conditions")))
+                    }
+                )
             }
 
             Spacer(Modifier.height(16.dp))
@@ -126,8 +174,49 @@ fun MoreScreen(
             } else {
                 PremiumBanner(onClick = onOpenPricing)
             }
-            Spacer(Modifier.height(20.dp))
+
+            Spacer(Modifier.height(36.dp))
+            AppFooter()
+            Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+/** Zomato/Blinkit-style sign-off at the very bottom of the scroll — brand mark + tagline. */
+@Composable
+private fun AppFooter() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "World's Simplest Learning Management System",
+            color = TextSecondary,
+            fontWeight = FontWeight.Medium,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(16.dp))
+
+        Box(
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(BrandIndigo),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Y", color = Color.White, fontFamily = PoppinsFamily, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("Yuno LMS", color = TextPrimary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        Spacer(Modifier.height(6.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Made with", color = TextSecondary, fontSize = 12.sp)
+            Spacer(Modifier.width(4.dp))
+            Icon(Icons.Default.Favorite, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(13.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("for Educators", color = TextSecondary, fontSize = 12.sp)
+        }
+        Spacer(Modifier.height(4.dp))
+        Text("v${BuildConfig.VERSION_NAME}", color = TextSecondary.copy(alpha = 0.6f), fontSize = 10.sp)
     }
 }
 

@@ -83,6 +83,7 @@ import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
+import com.quizmaker.android.ui.common.QuizFeaturesBanner
 import com.quizmaker.android.ui.common.ShareQuizSheet
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.formatShortDate
@@ -148,6 +149,8 @@ fun QuizListScreen(
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    item { QuizFeaturesBanner() }
+
                     item {
                         OutlinedTextField(
                             value = uiState.searchQuery,

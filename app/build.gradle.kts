@@ -116,6 +116,10 @@ dependencies {
     implementation(libs.zxing.android.embedded)
 
     implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.core.splashscreen)
 
     implementation(libs.razorpay.checkout)
+
+    implementation(libs.fastexcel.reader)
+    implementation(libs.fastexcel.writer)
 }

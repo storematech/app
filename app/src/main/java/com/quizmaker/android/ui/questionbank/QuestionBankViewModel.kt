@@ -36,15 +36,25 @@ data class QuestionBankUiState(
     val errorMessage: String? = null,
     val questions: List<Question> = emptyList(),
     val searchQuery: String = "",
-    val selectedQuestion: Question? = null,
+    val tagFilter: String? = null,
+    val difficultyFilter: QuestionDifficulty? = null,
+    val isFilterSheetOpen: Boolean = false,
+    val isSelectionMode: Boolean = false,
+    val selectedQuestionIds: Set<String> = emptySet(),
     val draft: NewQuestionDraft? = null,
     val isSaving: Boolean = false
 ) {
     val filtered: List<Question>
-        get() = if (searchQuery.isBlank()) questions else questions.filter {
-            it.text.contains(searchQuery, ignoreCase = true) ||
-                it.tags.any { tag -> tag.contains(searchQuery, ignoreCase = true) }
+        get() = questions.filter { question ->
+            val matchesSearch = searchQuery.isBlank() ||
+                question.text.contains(searchQuery, ignoreCase = true) ||
+                question.tags.any { tag -> tag.contains(searchQuery, ignoreCase = true) }
+            val matchesTag = tagFilter == null || tagFilter in question.tags
+            val matchesDifficulty = difficultyFilter == null || question.difficulty == difficultyFilter
+            matchesSearch && matchesTag && matchesDifficulty
         }
+
+    val availableTags: List<String> get() = questions.flatMap { it.tags }.distinct().sorted()
 }
 
 @HiltViewModel
@@ -52,6 +62,10 @@ class QuestionBankViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val questionRepository: QuestionRepository
 ) : ViewModel() {
+
+    companion object {
+        const val MAX_SELECTABLE_QUESTIONS = 100
+    }
 
     private val _uiState = MutableStateFlow(QuestionBankUiState())
     val uiState: StateFlow<QuestionBankUiState> = _uiState.asStateFlow()
@@ -75,15 +89,47 @@ class QuestionBankViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(searchQuery = query)
     }
 
-    fun selectQuestion(question: Question?) {
-        _uiState.value = _uiState.value.copy(selectedQuestion = question)
+    fun openFilterSheet() {
+        _uiState.value = _uiState.value.copy(isFilterSheetOpen = true)
+    }
+
+    fun closeFilterSheet() {
+        _uiState.value = _uiState.value.copy(isFilterSheetOpen = false)
+    }
+
+    fun applyFilter(tag: String?, difficulty: QuestionDifficulty?) {
+        _uiState.value = _uiState.value.copy(tagFilter = tag, difficultyFilter = difficulty, isFilterSheetOpen = false)
+    }
+
+    fun toggleSelectionMode() {
+        val enteringSelectionMode = !_uiState.value.isSelectionMode
+        _uiState.value = _uiState.value.copy(
+            isSelectionMode = enteringSelectionMode,
+            selectedQuestionIds = if (enteringSelectionMode) _uiState.value.selectedQuestionIds else emptySet()
+        )
+    }
+
+    fun exitSelectionMode() {
+        _uiState.value = _uiState.value.copy(isSelectionMode = false, selectedQuestionIds = emptySet())
+    }
+
+    fun toggleQuestionSelection(questionId: String) {
+        val current = _uiState.value.selectedQuestionIds
+        if (questionId in current) {
+            _uiState.value = _uiState.value.copy(selectedQuestionIds = current - questionId)
+            return
+        }
+        if (current.size >= MAX_SELECTABLE_QUESTIONS) {
+            _uiState.value = _uiState.value.copy(errorMessage = "You can select up to $MAX_SELECTABLE_QUESTIONS questions.")
+            return
+        }
+        _uiState.value = _uiState.value.copy(selectedQuestionIds = current + questionId)
     }
 
     fun deleteQuestion(questionId: String) {
         viewModelScope.launch {
             questionRepository.deleteQuestion(questionId)
             _uiState.value = _uiState.value.copy(
-                selectedQuestion = null,
                 questions = _uiState.value.questions.filterNot { it.id == questionId }
             )
         }

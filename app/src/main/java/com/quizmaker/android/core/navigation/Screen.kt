@@ -4,7 +4,6 @@ package com.quizmaker.android.core.navigation
 sealed class Screen(val route: String) {
     data object Splash : Screen("splash")
     data object Login : Screen("login")
-    data object Signup : Screen("signup")
     data object ForgotPassword : Screen("forgot_password")
 
     data object AiQuiz : Screen("ai_quiz?source={source}") {
@@ -59,6 +58,8 @@ sealed class Screen(val route: String) {
 
     data object Pricing : Screen("pricing")
     data object LicenseDetails : Screen("license_details")
+    data object Faq : Screen("faq")
+    data object ImportQuestions : Screen("import_questions")
 
     /** Opened either from in-app navigation or a https://quiz-maker.online/take-quiz/{shareId} deep link. */
     data object TakeQuiz : Screen("take_quiz/{shareId}") {

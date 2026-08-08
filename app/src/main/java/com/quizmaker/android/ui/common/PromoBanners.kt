@@ -21,9 +21,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
@@ -92,6 +95,89 @@ fun DesktopBanner() {
         }
         Spacer(Modifier.width(8.dp))
         Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open yunolms.com", tint = BrandIndigo, modifier = Modifier.size(20.dp))
+    }
+}
+
+/**
+ * Compact "Add Questions with AI" CTA for the Question Bank screen — same light-indigo,
+ * medium-height card style as [DesktopBanner] (not the big saturated Dashboard hero banner).
+ */
+@Composable
+fun AiQuestionsBanner(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(BrandIndigoLight)
+            .clickable(onClick = onClick)
+            .padding(18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "Add Questions with AI",
+                color = BrandIndigoDark,
+                fontFamily = PoppinsFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "Generate questions from a topic, PDF, or photos",
+                color = TextSecondary,
+                fontSize = 12.sp
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(20.dp))
+    }
+}
+
+/**
+ * Informational highlight for the Quizzes screen — same light-indigo, medium-height card style
+ * as [DesktopBanner]. Purely a feature callout (not clickable), same as Dashboard's welcome
+ * feature icons.
+ */
+@Composable
+fun QuizFeaturesBanner() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(BrandIndigoLight)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        QuizFeatureItem(icon = Icons.Default.EmojiEvents, label = "Leaderboard", modifier = Modifier.weight(1f))
+        QuizFeatureItem(icon = Icons.Default.BarChart, label = "Analysis", modifier = Modifier.weight(1f))
+        QuizFeatureItem(icon = Icons.Default.Print, label = "Print", modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun QuizFeatureItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(label, color = BrandIndigoDark, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
     }
 }
 

@@ -1,4 +1,8 @@
 <resources>
-    <color name="quiz_purple">#8B5CF6</color>
+    <!-- Matches core/theme/Color.kt's BrandIndigo / BrandIndigoDark — the app icon and native
+         splash screen live as XML resources (read before any Compose code runs), so the brand
+         color has to be duplicated here rather than referenced from the Kotlin palette. -->
+    <color name="brand_indigo">#2563EB</color>
+    <color name="brand_indigo_dark">#1D4ED8</color>
     <color name="white">#FFFFFF</color>
 </resources>

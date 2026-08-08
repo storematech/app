@@ -1,8 +1,11 @@
 package com.quizmaker.android.core.navigation
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.automirrored.filled.Help
@@ -14,7 +17,6 @@ import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.MoreHoriz
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -25,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -48,9 +49,11 @@ import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.aiquiz.AiQuizScreen
 import com.quizmaker.android.ui.auth.ForgotPasswordScreen
 import com.quizmaker.android.ui.auth.LoginScreen
-import com.quizmaker.android.ui.auth.SignupScreen
+import com.quizmaker.android.ui.common.AppLoadingScreen
 import com.quizmaker.android.ui.common.ComingSoonScreen
 import com.quizmaker.android.ui.dashboard.DashboardScreen
+import com.quizmaker.android.ui.faq.FaqScreen
+import com.quizmaker.android.ui.importquestions.ImportQuestionsScreen
 import com.quizmaker.android.ui.leaderboard.LeaderboardScreen
 import com.quizmaker.android.ui.license.LicenseDetailsScreen
 import com.quizmaker.android.ui.masterpaper.MasterPaperScreen
@@ -68,7 +71,7 @@ import com.quizmaker.android.ui.responses.ResponsesScreen
 import com.quizmaker.android.ui.takequiz.TakeQuizScreen
 import io.github.jan.supabase.auth.status.SessionStatus
 
-private val authRoutes = setOf(Screen.Login.route, Screen.Signup.route, Screen.ForgotPassword.route)
+private val authRoutes = setOf(Screen.Login.route, Screen.ForgotPassword.route)
 
 // [route] is the destination's route *pattern* (used to detect the active tab); [navigateRoute]
 // is what actually gets passed to navigate() — for AiQuiz that must be a resolved route since its
@@ -96,9 +99,7 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
     val sessionStatus by sessionViewModel.sessionStatus.collectAsState()
 
     if (gate == SessionGate.LOADING) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
+        AppLoadingScreen()
         return
     }
 
@@ -138,19 +139,22 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
             if (showBottomBar) {
                 YunoBottomBar(navController = navController, currentRoute = currentRoute)
             }
-        }
+        },
+        // Deliberately excludes the top inset: reserving it here would push every screen's
+        // content below the status bar before it even renders, so a screen like Dashboard that
+        // wants its own content to bleed behind the status bar never could, no matter what it
+        // does internally. Screens with their own TopAppBar+Scaffold already reserve the top
+        // inset correctly on their own; this only needs to keep content clear of the bottom
+        // nav bar / system gesture bar.
+        contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
     ) { innerPadding ->
         val contentModifier = if (showBottomBar) Modifier.padding(innerPadding) else Modifier
 
         NavHost(navController = navController, startDestination = startDestination, modifier = contentModifier) {
             composable(Screen.Login.route) {
                 LoginScreen(
-                    onNavigateToSignup = { navController.navigate(Screen.Signup.route) },
                     onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) }
                 )
-            }
-            composable(Screen.Signup.route) {
-                SignupScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(Screen.ForgotPassword.route) {
                 ForgotPasswordScreen(onNavigateBack = { navController.popBackStack() })
@@ -219,8 +223,16 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
                     onOpenResponses = { navController.navigate(Screen.Responses.route) },
                     onOpenPricing = { navController.navigate(Screen.Pricing.route) },
                     onOpenLicenseDetails = { navController.navigate(Screen.LicenseDetails.route) },
+                    onOpenFaq = { navController.navigate(Screen.Faq.route) },
+                    onOpenImportQuestions = { navController.navigate(Screen.ImportQuestions.route) },
                     onOpenComingSoon = { title -> navController.navigate(Screen.ComingSoon.createRoute(title)) }
                 )
+            }
+            composable(Screen.Faq.route) {
+                FaqScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.ImportQuestions.route) {
+                ImportQuestionsScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(Screen.Pricing.route) {
                 PricingScreen(

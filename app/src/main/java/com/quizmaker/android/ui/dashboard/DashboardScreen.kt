@@ -331,7 +331,7 @@ private fun WelcomeBanner() {
                 RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
             )
             .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(horizontal = 20.dp, vertical = 18.dp)
+            .padding(horizontal = 20.dp, vertical = 26.dp)
     ) {
         Text("Welcome to Yuno LMS", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
         Spacer(Modifier.height(4.dp))

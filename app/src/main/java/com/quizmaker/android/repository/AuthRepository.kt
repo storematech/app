@@ -3,14 +3,24 @@ package com.quizmaker.android.repository
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.core.network.safeCall
 import com.quizmaker.android.data.model.Profile
+import com.quizmaker.android.data.remote.dto.CheckEmailExistsRequest
+import com.quizmaker.android.data.remote.dto.CheckEmailExistsResponse
 import com.quizmaker.android.data.remote.dto.ProfileDto
 import com.quizmaker.android.data.remote.dto.ProfileInsertDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.from
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import javax.inject.Inject
@@ -25,12 +35,27 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val supabase: SupabaseClient
 ) {
+    private val json = Json { ignoreUnknownKeys = true }
+
     val sessionStatus: StateFlow<SessionStatus> get() = supabase.auth.sessionStatus
 
     fun currentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
     suspend fun awaitSessionRestore() {
         runCatching { supabase.auth.awaitInitialization() }
+    }
+
+    /** Powers the email-first auth screen: whether to prompt for a password (sign in) or a new one (sign up). */
+    suspend fun checkEmailExists(email: String): AppResult<Boolean> = safeCall {
+        val response = supabase.functions.invoke("check-email-exists") {
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(CheckEmailExistsRequest(email = email)))
+        }
+        val result = json.decodeFromString<CheckEmailExistsResponse>(response.bodyAsText())
+        if (!result.success) {
+            error(result.error ?: "Couldn't check that email. Please try again.")
+        }
+        result.exists
     }
 
     suspend fun signUp(email: String, password: String, name: String): AppResult<Unit> = safeCall {

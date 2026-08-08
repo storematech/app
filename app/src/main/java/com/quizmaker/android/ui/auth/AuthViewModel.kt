@@ -11,14 +11,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** Where the email-first auth flow currently is. */
+enum class AuthStep {
+    EMAIL,
+    SIGN_IN,
+    SIGN_UP
+}
+
 data class AuthUiState(
+    val step: AuthStep = AuthStep.EMAIL,
+    val email: String = "",
+    val isCheckingEmail: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     /** Set after a resetPassword() call succeeds, so the screen can show a confirmation. */
     val resetEmailSent: Boolean = false,
     /**
      * Set after signUp() succeeds. If the Supabase project requires email confirmation,
-     * the session won't become Authenticated yet, so the Signup screen needs its own
+     * the session won't become Authenticated yet, so the screen needs its own
      * "check your email" message rather than relying solely on auto-navigation.
      */
     val signUpSucceeded: Boolean = false
@@ -32,14 +42,40 @@ class AuthViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-    fun signIn(email: String, password: String) {
-        if (email.isBlank() || password.isBlank()) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Enter your email and password.")
+    /** Step 1 of the email-first flow: look up whether this email already has an account. */
+    fun continueWithEmail(email: String) {
+        val trimmed = email.trim()
+        if (trimmed.isBlank() || !trimmed.contains("@")) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Enter a valid email address.")
+            return
+        }
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCheckingEmail = true, errorMessage = null)
+            when (val result = authRepository.checkEmailExists(trimmed)) {
+                is AppResult.Success -> _uiState.value = _uiState.value.copy(
+                    isCheckingEmail = false,
+                    email = trimmed,
+                    step = if (result.data) AuthStep.SIGN_IN else AuthStep.SIGN_UP
+                )
+                is AppResult.Error -> _uiState.value = _uiState.value.copy(isCheckingEmail = false, errorMessage = result.message)
+            }
+        }
+    }
+
+    /** "Not you?" — back to the email step, keeping whatever was typed so it's easy to fix a typo. */
+    fun changeEmail() {
+        _uiState.value = _uiState.value.copy(step = AuthStep.EMAIL, errorMessage = null)
+    }
+
+    fun signIn(password: String) {
+        val email = _uiState.value.email
+        if (password.isBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Enter your password.")
             return
         }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            when (val result = authRepository.signIn(email.trim(), password)) {
+            when (val result = authRepository.signIn(email, password)) {
                 is AppResult.Success -> _uiState.value = _uiState.value.copy(isLoading = false)
                 is AppResult.Error -> _uiState.value =
                     _uiState.value.copy(isLoading = false, errorMessage = result.message)
@@ -47,16 +83,17 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signUp(name: String, email: String, password: String) {
-        if (name.isBlank() || email.isBlank() || password.length < 6) {
+    fun signUp(name: String, password: String) {
+        val email = _uiState.value.email
+        if (name.isBlank() || password.length < 6) {
             _uiState.value = _uiState.value.copy(
-                errorMessage = "Enter your name, email, and a password of at least 6 characters."
+                errorMessage = "Enter your name and a password of at least 6 characters."
             )
             return
         }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            when (val result = authRepository.signUp(email.trim(), password, name.trim())) {
+            when (val result = authRepository.signUp(email, password, name.trim())) {
                 is AppResult.Success -> _uiState.value =
                     _uiState.value.copy(isLoading = false, signUpSucceeded = true)
                 is AppResult.Error -> _uiState.value =
