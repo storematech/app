@@ -1,5 +1,6 @@
 package com.quizmaker.android.data.model
 
+import com.quizmaker.android.BuildConfig
 import com.quizmaker.android.data.remote.dto.QuizDto
 import kotlinx.datetime.Instant
 
@@ -30,7 +31,7 @@ data class Quiz(
     val maxPoints: Int,
     val createdAt: Instant?
 ) {
-    val shareUrl: String get() = "https://quiz-maker.online/take-quiz/$shareId"
+    val shareUrl: String get() = "${BuildConfig.SHARE_BASE_URL}/take-quiz/$shareId"
 }
 
 /** Bundles the fields collected across the Create Quiz stepper into one payload for QuizRepository.createQuiz(). */

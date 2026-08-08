@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.quizcreate
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.NewQuizSpec
 import com.quizmaker.android.data.model.Question
@@ -339,8 +340,10 @@ class CreateQuizViewModel @Inject constructor(
             }
 
             when (result) {
-                is AppResult.Success -> _uiState.value =
-                    _uiState.value.copy(isSubmitting = false, resultQuiz = result.data)
+                is AppResult.Success -> {
+                    _uiState.value = _uiState.value.copy(isSubmitting = false, resultQuiz = result.data)
+                    AlertBus.success(if (editQuizId != null) "Quiz updated" else "Quiz created")
+                }
                 is AppResult.Error -> _uiState.value =
                     _uiState.value.copy(isSubmitting = false, errorMessage = result.message)
             }

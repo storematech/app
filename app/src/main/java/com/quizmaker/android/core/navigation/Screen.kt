@@ -6,6 +6,8 @@ sealed class Screen(val route: String) {
     data object Login : Screen("login")
     data object ForgotPassword : Screen("forgot_password")
     data object CollectPhone : Screen("collect_phone")
+    data object TrialStarted : Screen("trial_started")
+    data object TrialEnded : Screen("trial_ended")
 
     data object AiQuiz : Screen("ai_quiz?source={source}") {
         /** [source] = "questions" when launched from the Question Bank's AI button (Add Questions mode). */
@@ -19,6 +21,11 @@ sealed class Screen(val route: String) {
 
     data object QuizDetail : Screen("quiz_detail/{quizId}") {
         fun createRoute(quizId: String) = "quiz_detail/$quizId"
+    }
+
+    /** Shown once, right after creating a brand-new quiz — QR/share/export "flyer," not the management screen (that's QuizDetail). */
+    data object QuizCreated : Screen("quiz_created/{quizId}") {
+        fun createRoute(quizId: String) = "quiz_created/$quizId"
     }
 
     data object CreateQuiz : Screen("create_quiz?preselectedIds={preselectedIds}") {
@@ -62,7 +69,7 @@ sealed class Screen(val route: String) {
     data object Faq : Screen("faq")
     data object ImportQuestions : Screen("import_questions")
 
-    /** Opened either from in-app navigation or a https://quiz-maker.online/take-quiz/{shareId} deep link. */
+    /** Opened either from in-app navigation or a https://yunolms.com/take-quiz/{shareId} deep link (older quiz-maker.online links still work too — see NavGraph.kt). */
     data object TakeQuiz : Screen("take_quiz/{shareId}") {
         fun createRoute(shareId: String) = "take_quiz/$shareId"
     }

@@ -1,5 +1,6 @@
 package com.quizmaker.android.core.navigation
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,6 +52,7 @@ import com.quizmaker.android.ui.aiquiz.AiQuizScreen
 import com.quizmaker.android.ui.auth.CollectPhoneScreen
 import com.quizmaker.android.ui.auth.ForgotPasswordScreen
 import com.quizmaker.android.ui.auth.LoginScreen
+import com.quizmaker.android.ui.common.AlertHost
 import com.quizmaker.android.ui.common.AppLoadingScreen
 import com.quizmaker.android.ui.common.ComingSoonScreen
 import com.quizmaker.android.ui.dashboard.DashboardScreen
@@ -64,15 +67,27 @@ import com.quizmaker.android.ui.profile.ProfileScreen
 import com.quizmaker.android.ui.questionbank.QuestionBankScreen
 import com.quizmaker.android.ui.quizanalysis.QuizAnalysisScreen
 import com.quizmaker.android.ui.quizcreate.CreateQuizScreen
+import com.quizmaker.android.ui.quizcreated.QuizCreatedScreen
 import com.quizmaker.android.ui.quizdetail.QuizDetailScreen
 import com.quizmaker.android.ui.quizdetailview.QuizDetailViewScreen
 import com.quizmaker.android.ui.quizlist.QuizListScreen
 import com.quizmaker.android.ui.responsedetail.ResponseDetailScreen
 import com.quizmaker.android.ui.responses.ResponsesScreen
 import com.quizmaker.android.ui.takequiz.TakeQuizScreen
+import com.quizmaker.android.ui.trial.TrialEndedScreen
+import com.quizmaker.android.ui.trial.TrialStartedScreen
 import io.github.jan.supabase.auth.status.SessionStatus
 
 private val authRoutes = setOf(Screen.Login.route, Screen.ForgotPassword.route)
+
+/** Where a resolved post-auth gate lands. Only ever called with LOGGED_IN/NEEDS_PHONE/TRIAL_STARTED/
+ *  TRIAL_ENDED in practice — LOADING/LOGGED_OUT are handled separately by their callers. */
+private fun SessionGate.toRoute(): String = when (this) {
+    SessionGate.NEEDS_PHONE -> Screen.CollectPhone.route
+    SessionGate.TRIAL_STARTED -> Screen.TrialStarted.route
+    SessionGate.TRIAL_ENDED -> Screen.TrialEnded.route
+    SessionGate.LOGGED_IN, SessionGate.LOGGED_OUT, SessionGate.LOADING -> Screen.Dashboard.route
+}
 
 // [route] is the destination's route *pattern* (used to detect the active tab); [navigateRoute]
 // is what actually gets passed to navigate() — for AiQuiz that must be a resolved route since its
@@ -94,7 +109,11 @@ private val bottomTabs = listOf(
 )
 
 @Composable
-fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()) {
+fun QuizMakerNavGraph(
+    navController: NavHostController = rememberNavController(),
+    pendingResponseId: String? = null,
+    onConsumedPendingResponse: () -> Unit = {}
+) {
     val sessionViewModel: SessionViewModel = hiltViewModel()
     val gate by sessionViewModel.gate.collectAsState()
     val sessionStatus by sessionViewModel.sessionStatus.collectAsState()
@@ -104,17 +123,25 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
         return
     }
 
+    // A quiz-submission notification tap while the app was backgrounded/killed — only once we're
+    // actually past every onboarding gate, so it can't jump ahead of phone collection / trial screens.
+    LaunchedEffect(pendingResponseId, gate) {
+        if (pendingResponseId != null && gate == SessionGate.LOGGED_IN) {
+            navController.navigate(Screen.ResponseDetail.createRoute(pendingResponseId))
+            onConsumedPendingResponse()
+        }
+    }
+
     // Keep navigation in sync with sign-in/sign-out that happens after first composition
     // (e.g. the user taps "Sign out" on Profile, or a login call succeeds).
     LaunchedEffect(sessionStatus) {
         val onAuthScreen = navController.currentDestination?.route in authRoutes
         when (sessionStatus) {
             is SessionStatus.Authenticated -> if (onAuthScreen) {
-                // A fresh sign-in/sign-up — same one-time phone check the cold-start gate does,
-                // so a brand-new or pre-existing-but-phone-less account never reaches Dashboard
-                // without being asked first.
-                val destination = if (sessionViewModel.needsPhoneNumber()) Screen.CollectPhone.route else Screen.Dashboard.route
-                navController.navigate(destination) {
+                // A fresh sign-in/sign-up — same gate check the cold-start gate below does, so a
+                // brand-new or pre-existing account never reaches Dashboard without first passing
+                // through phone collection / trial-started / trial-ended as appropriate.
+                navController.navigate(sessionViewModel.resolvePostAuthGate().toRoute()) {
                     popUpTo(0) { inclusive = true }
                 }
             }
@@ -129,11 +156,7 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
 
     // gate was decided atomically (in the same coroutine step as the sessionStatus read below),
     // so this can't disagree with sessionStatus the way two independently-updating StateFlows could.
-    val startDestination = when (gate) {
-        SessionGate.LOGGED_IN -> Screen.Dashboard.route
-        SessionGate.NEEDS_PHONE -> Screen.CollectPhone.route
-        else -> Screen.Login.route
-    }
+    val startDestination = if (gate == SessionGate.LOGGED_OUT) Screen.Login.route else gate.toRoute()
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
@@ -155,6 +178,7 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
     ) { innerPadding ->
         val contentModifier = if (showBottomBar) Modifier.padding(innerPadding) else Modifier
 
+        Box(modifier = Modifier.fillMaxSize()) {
         NavHost(navController = navController, startDestination = startDestination, modifier = contentModifier) {
             composable(Screen.Login.route) {
                 LoginScreen(
@@ -167,6 +191,25 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
             composable(Screen.CollectPhone.route) {
                 CollectPhoneScreen(
                     onSaved = {
+                        navController.navigate(Screen.Dashboard.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            composable(Screen.TrialStarted.route) {
+                TrialStartedScreen(
+                    onStartJourney = {
+                        navController.navigate(Screen.AiQuiz.createRoute()) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            composable(Screen.TrialEnded.route) {
+                TrialEndedScreen(
+                    onViewPlans = { navController.navigate(Screen.Pricing.route) },
+                    onDismiss = {
                         navController.navigate(Screen.Dashboard.route) {
                             popUpTo(0) { inclusive = true }
                         }
@@ -222,13 +265,15 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
                     onOpenMasterPaper = { quizId -> navController.navigate(Screen.MasterPaper.createRoute(quizId)) },
                     onOpenQuizAnalysis = { quizId -> navController.navigate(Screen.QuizAnalysis.createRoute(quizId)) },
                     onOpenQuizDetailView = { quizId -> navController.navigate(Screen.QuizDetailView.createRoute(quizId)) },
-                    onEditQuiz = { quizId -> navController.navigate(Screen.EditQuiz.createRoute(quizId)) }
+                    onEditQuiz = { quizId -> navController.navigate(Screen.EditQuiz.createRoute(quizId)) },
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) }
                 )
             }
             composable(Screen.Questions.route) {
                 QuestionBankScreen(
                     onOpenAi = { navController.navigate(Screen.AiQuiz.createRoute(source = "questions")) },
-                    onCreateQuizFromSelection = { ids -> navController.navigate(Screen.CreateQuiz.createRoute(ids)) }
+                    onCreateQuizFromSelection = { ids -> navController.navigate(Screen.CreateQuiz.createRoute(ids)) },
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) }
                 )
             }
             composable(Screen.More.route) {
@@ -275,8 +320,23 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
                 CreateQuizScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onQuizCreated = { quizId ->
-                        navController.navigate(Screen.QuizDetail.createRoute(quizId)) {
+                        navController.navigate(Screen.QuizCreated.createRoute(quizId)) {
                             popUpTo(Screen.Dashboard.route)
+                        }
+                    }
+                )
+            }
+            composable(
+                route = Screen.QuizCreated.route,
+                arguments = listOf(navArgument("quizId") { type = NavType.StringType })
+            ) {
+                QuizCreatedScreen(
+                    onDone = {
+                        // Explicitly the Quizzes tab (not just "back", which used to land on
+                        // Dashboard) — same pattern the bottom nav bar itself uses.
+                        navController.navigate(Screen.QuizList.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
                         }
                     }
                 )
@@ -340,6 +400,7 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
                 route = Screen.TakeQuiz.route,
                 arguments = listOf(navArgument("shareId") { type = NavType.StringType }),
                 deepLinks = listOf(
+                    navDeepLink { uriPattern = "https://yunolms.com/take-quiz/{shareId}" },
                     navDeepLink { uriPattern = "https://quiz-maker.online/take-quiz/{shareId}" },
                     navDeepLink { uriPattern = "quizmaker://take-quiz/{shareId}" }
                 )
@@ -357,6 +418,9 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
                     }
                 )
             }
+        }
+
+        AlertHost(modifier = Modifier.align(Alignment.TopCenter))
         }
     }
 }

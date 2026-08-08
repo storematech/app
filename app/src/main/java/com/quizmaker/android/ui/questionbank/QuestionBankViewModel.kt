@@ -2,12 +2,15 @@ package com.quizmaker.android.ui.questionbank
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionDifficulty
 import com.quizmaker.android.data.model.QuestionType
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuestionRepository
+import com.quizmaker.android.util.TrialStatus
+import com.quizmaker.android.util.trialStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,7 +45,9 @@ data class QuestionBankUiState(
     val isSelectionMode: Boolean = false,
     val selectedQuestionIds: Set<String> = emptySet(),
     val draft: NewQuestionDraft? = null,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    val isCreationBlocked: Boolean = false,
+    val showTrialPaywall: Boolean = false
 ) {
     val filtered: List<Question>
         get() = questions.filter { question ->
@@ -72,6 +77,36 @@ class QuestionBankViewModel @Inject constructor(
 
     init {
         loadQuestions()
+        loadTrialGate()
+    }
+
+    /** Independent of the question list load — a failed/slow trial check shouldn't block the list from showing. */
+    private fun loadTrialGate() {
+        viewModelScope.launch {
+            val profile = (authRepository.getCurrentProfile() as? AppResult.Success)?.data ?: return@launch
+            _uiState.value = _uiState.value.copy(isCreationBlocked = profile.trialStatus() is TrialStatus.Expired)
+        }
+    }
+
+    /** Gate for both the manual "Add Question" button and the "AI" banner — same rule for both. */
+    fun onAddQuestionClick() {
+        if (_uiState.value.isCreationBlocked) {
+            _uiState.value = _uiState.value.copy(showTrialPaywall = true)
+        } else {
+            startNewQuestion()
+        }
+    }
+
+    fun onOpenAiClick(onAllowed: () -> Unit) {
+        if (_uiState.value.isCreationBlocked) {
+            _uiState.value = _uiState.value.copy(showTrialPaywall = true)
+        } else {
+            onAllowed()
+        }
+    }
+
+    fun dismissTrialPaywall() {
+        _uiState.value = _uiState.value.copy(showTrialPaywall = false)
     }
 
     fun loadQuestions() {
@@ -227,15 +262,18 @@ class QuestionBankViewModel @Inject constructor(
                 )
             }
             when (result) {
-                is AppResult.Success -> _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    questions = if (editingId != null) {
-                        _uiState.value.questions.map { if (it.id == result.data.id) result.data else it }
-                    } else {
-                        listOf(result.data) + _uiState.value.questions
-                    },
-                    draft = if (keepEditing) NewQuestionDraft() else null
-                )
+                is AppResult.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false,
+                        questions = if (editingId != null) {
+                            _uiState.value.questions.map { if (it.id == result.data.id) result.data else it }
+                        } else {
+                            listOf(result.data) + _uiState.value.questions
+                        },
+                        draft = if (keepEditing) NewQuestionDraft() else null
+                    )
+                    AlertBus.success(if (editingId != null) "Question updated" else "Question added")
+                }
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = result.message)
             }
         }

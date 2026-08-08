@@ -46,3 +46,9 @@ data class ProfilePhoneUpdateDto(
     @SerialName("phone_number") val phoneNumber: String,
     val country: String
 )
+
+/** Push notification device token — only ever touches this one column. */
+@Serializable
+data class ProfileFcmTokenUpdateDto(
+    @SerialName("fcm_token") val fcmToken: String
+)

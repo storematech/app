@@ -14,12 +14,15 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -52,6 +55,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -65,6 +69,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -72,6 +77,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
@@ -88,6 +95,7 @@ import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.QuizFeaturesBanner
 import com.quizmaker.android.ui.common.ShareQuizSheet
+import com.quizmaker.android.ui.common.TrialPaywallSheet
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.formatShortDate
 
@@ -103,6 +111,7 @@ fun QuizListScreen(
     onOpenQuizAnalysis: (String) -> Unit,
     onOpenQuizDetailView: (String) -> Unit,
     onEditQuiz: (String) -> Unit,
+    onOpenPricing: () -> Unit,
     viewModel: QuizListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -110,9 +119,27 @@ fun QuizListScreen(
     var quizPendingShare by remember { mutableStateOf<Quiz?>(null) }
     var quizPendingMenu by remember { mutableStateOf<Quiz?>(null) }
 
-    // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset;
-    // reserving it again here would leave a redundant empty strip above the tab bar.
-    Scaffold(containerColor = AppBackground, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
+    // A newly-created quiz (QuizCreatedScreen's Done button) or an edit made elsewhere pops back
+    // to this same screen instance — hiltViewModel() keeps the same ViewModel alive across that
+    // round trip, so its one-shot init{} load never sees the change on its own. Reload on every
+    // resume after the first (which already happened via init{}), same fix as Question Bank's.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        var isFirstResume = true
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (isFirstResume) isFirstResume = false else viewModel.refresh()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset, so
+    // this only adds the top one — unlike Dashboard, this screen has no full-bleed banner to
+    // manually paint behind the status bar, so without this the Create Quiz button rendered
+    // right against it with no clearance.
+    Scaffold(containerColor = AppBackground, contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Top)) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Spacer(Modifier.height(20.dp))
@@ -120,7 +147,7 @@ fun QuizListScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     GradientButton(
                         text = "Create Quiz",
-                        onClick = onCreateQuiz,
+                        onClick = { viewModel.onCreateQuizClick(onCreateQuiz) },
                         leadingIcon = Icons.Default.NoteAdd,
                         modifier = Modifier.weight(1f)
                     )
@@ -225,6 +252,10 @@ fun QuizListScreen(
                 )
             }
         }
+    }
+
+    if (uiState.showTrialPaywall) {
+        TrialPaywallSheet(onDismiss = viewModel::dismissTrialPaywall, onViewPlans = onOpenPricing)
     }
 
     quizPendingShare?.let { quiz ->

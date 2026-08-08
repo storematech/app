@@ -2,6 +2,7 @@ package com.quizmaker.android.repository
 
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.core.network.safeCall
+import com.quizmaker.android.data.remote.dto.ProfileFcmTokenUpdateDto
 import com.quizmaker.android.data.remote.dto.ProfilePhoneUpdateDto
 import com.quizmaker.android.data.remote.dto.ProfileUpdateDto
 import io.github.jan.supabase.SupabaseClient
@@ -37,6 +38,15 @@ class ProfileRepository @Inject constructor(
     suspend fun updatePhoneNumber(userId: String, phoneNumber: String, country: String): AppResult<Unit> = safeCall {
         supabase.from("profiles")
             .update(ProfilePhoneUpdateDto(phoneNumber = phoneNumber, country = country)) {
+                filter { eq("id", userId) }
+            }
+        Unit
+    }
+
+    /** Called from QuizFcmService.onNewToken() and once per Dashboard load — only touches fcm_token. */
+    suspend fun updateFcmToken(userId: String, token: String): AppResult<Unit> = safeCall {
+        supabase.from("profiles")
+            .update(ProfileFcmTokenUpdateDto(fcmToken = token)) {
                 filter { eq("id", userId) }
             }
         Unit

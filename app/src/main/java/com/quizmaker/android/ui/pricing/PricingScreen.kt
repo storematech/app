@@ -13,10 +13,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.LockClock
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,9 +53,11 @@ import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SuccessGreen
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.core.theme.WarningAmber
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.util.TrialStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,6 +106,7 @@ fun PricingScreen(
                             .fillMaxSize()
                             .padding(horizontal = 20.dp, vertical = 20.dp),
                     ) {
+                        TrialContextHeader(uiState.trialStatus)
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -179,6 +186,55 @@ fun PricingScreen(
                 }
             }
         }
+    }
+}
+
+/** Repeats the same trial-context messaging shown on the trial-started/trial-ended screens, so
+ *  "why am I here" is never a mystery when a user lands on Pricing from one of those. No-op for premium accounts. */
+@Composable
+private fun TrialContextHeader(trialStatus: TrialStatus) {
+    if (trialStatus is TrialStatus.Premium) return
+
+    val (icon, tint, headline) = when (trialStatus) {
+        is TrialStatus.Active -> Triple(
+            Icons.Default.Schedule,
+            BrandIndigo,
+            if (trialStatus.daysLeft <= 1) "Last day of your free trial" else "${trialStatus.daysLeft} days left in your free trial"
+        )
+        else -> Triple(Icons.Default.LockClock, WarningAmber, "Your trial has ended")
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp)
+            .elevatedSurface(shape = RoundedCornerShape(20.dp))
+            .padding(18.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(36.dp).clip(CircleShape).background(tint.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(headline, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary)
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "But we're affordable 💙 You can buy a plan to support us — or even after your trial ends, keep using Yuno LMS free with basic features.",
+            color = TextSecondary,
+            fontSize = 12.sp,
+            lineHeight = 17.sp
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "— A message from our founder: great assessment tools shouldn't be locked behind an unaffordable price tag.",
+            color = TextSecondary,
+            fontSize = 11.sp,
+            fontStyle = FontStyle.Italic
+        )
     }
 }
 

@@ -272,7 +272,7 @@ class TakeQuizViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(phase = TakeQuizPhase.SUBMITTING)
             val result = repository.submitQuizResponse(
                 quizId = quizForTaking.quiz.id,
-                userEmail = state.email.trim().ifBlank { "anonymous@quiz-maker.online" },
+                userEmail = state.email.trim().ifBlank { "anonymous@yunolms.com" },
                 userName = state.name.trim().ifBlank { null },
                 phoneNumber = state.phone.trim().ifBlank { null },
                 answers = gradedAnswers,

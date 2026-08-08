@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -51,6 +54,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,11 +64,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
@@ -86,6 +93,7 @@ import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.QuestionTypeOption
+import com.quizmaker.android.ui.common.TrialPaywallSheet
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.formatShortDate
 
@@ -94,14 +102,34 @@ import com.quizmaker.android.util.formatShortDate
 fun QuestionBankScreen(
     onOpenAi: () -> Unit = {},
     onCreateQuizFromSelection: (List<String>) -> Unit = {},
+    onOpenPricing: () -> Unit = {},
     viewModel: QuestionBankViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var questionPendingDelete by remember { mutableStateOf<Question?>(null) }
 
-    // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset;
-    // reserving it again here would leave a redundant empty strip above the tab bar.
-    Scaffold(containerColor = AppBackground, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
+    // The AI "Add Questions" flow (and manual add/edit elsewhere) writes straight to Supabase and
+    // pops back to this same screen instance — hiltViewModel() keeps the same ViewModel alive
+    // across that round trip, so its one-shot init{} load never sees the new rows on its own.
+    // Reload on every resume after the first (which already happened via init{}) so returning
+    // here always shows what's actually in the bank.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        var isFirstResume = true
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (isFirstResume) isFirstResume = false else viewModel.loadQuestions()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset, so
+    // this only adds the top one — unlike Dashboard, this screen has no full-bleed banner to
+    // manually paint behind the status bar, so without this the toolbar row rendered right
+    // against it with no clearance.
+    Scaffold(containerColor = AppBackground, contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Top)) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
         Column(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -119,7 +147,7 @@ fun QuestionBankScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
                             .border(1.dp, BrandIndigo, RoundedCornerShape(50))
-                            .clickable(onClick = onOpenAi)
+                            .clickable(onClick = { viewModel.onOpenAiClick(onOpenAi) })
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -130,7 +158,7 @@ fun QuestionBankScreen(
                     }
                     GradientButton(
                         text = "New",
-                        onClick = { viewModel.startNewQuestion() },
+                        onClick = viewModel::onAddQuestionClick,
                         leadingIcon = Icons.Default.Add,
                         height = 44.dp,
                         modifier = Modifier.width(110.dp)
@@ -192,7 +220,7 @@ fun QuestionBankScreen(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    item { AiQuestionsBanner(onClick = onOpenAi) }
+                    item { AiQuestionsBanner(onClick = { viewModel.onOpenAiClick(onOpenAi) }) }
 
                     if (uiState.filtered.isEmpty()) {
                         item {
@@ -256,6 +284,10 @@ fun QuestionBankScreen(
 
     if (uiState.draft != null) {
         NewQuestionSheet(viewModel = viewModel)
+    }
+
+    if (uiState.showTrialPaywall) {
+        TrialPaywallSheet(onDismiss = viewModel::dismissTrialPaywall, onViewPlans = onOpenPricing)
     }
 }
 

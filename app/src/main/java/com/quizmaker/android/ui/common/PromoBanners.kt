@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.LockClock
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -52,6 +53,7 @@ import com.quizmaker.android.core.theme.SaleRedEnd
 import com.quizmaker.android.core.theme.SaleRedStart
 import com.quizmaker.android.core.theme.SuccessGreen
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.core.theme.WarningAmber
 
 /** Promotional banner pointing at the Desktop app, shared by Dashboard and More. */
 @Composable
@@ -283,6 +285,90 @@ fun SaleDayBanner(saleName: String, onClick: () -> Unit) {
                 Text("Get Licenses", color = SaleRedStart, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Spacer(Modifier.width(4.dp))
                 Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SaleRedStart, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+/**
+ * Dashboard hero banner for a free account mid-trial — same slot/shape as [SaleDayBanner] and the
+ * plain Welcome banner, just with a days-left readout and a "View Plans" CTA instead of the
+ * static feature icons.
+ */
+@Composable
+fun TrialActiveBanner(daysLeft: Int, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+            .background(Brush.horizontalGradient(listOf(BrandIndigoDark, BrandIndigo)))
+            .clickable(onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 20.dp, vertical = 22.dp)
+        ) {
+            Text("Welcome to Yuno LMS", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (daysLeft <= 1) "Last day of your free trial" else "$daysLeft days left in your free trial",
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 13.sp
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("View Plans", color = BrandIndigo, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+/** Dashboard hero banner once a free account's trial window has lapsed — same slot as [TrialActiveBanner]. */
+@Composable
+fun TrialEndedBanner(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+            .background(WarningAmber)
+            .clickable(onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 20.dp, vertical = 22.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.LockClock, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Your trial has ended", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "You can still use Yuno LMS free with basic features — upgrade anytime.",
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 13.sp
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("View Plans", color = WarningAmber, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(16.dp))
             }
         }
     }

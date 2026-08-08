@@ -95,7 +95,11 @@ class AuthViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             when (val result = authRepository.signUp(email, password, name.trim())) {
                 is AppResult.Success -> _uiState.value =
-                    _uiState.value.copy(isLoading = false, signUpSucceeded = true)
+                    // requiresConfirmation == false means the session is already established —
+                    // NavGraph's own sessionStatus listener takes over navigation from here, so
+                    // showing "check your inbox" here would just be a wrong message that flashes
+                    // for the moment before that navigation fires.
+                    _uiState.value.copy(isLoading = false, signUpSucceeded = result.data)
                 is AppResult.Error -> _uiState.value =
                     _uiState.value.copy(isLoading = false, errorMessage = result.message)
             }

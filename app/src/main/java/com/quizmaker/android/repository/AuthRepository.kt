@@ -23,6 +23,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlin.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -58,7 +59,8 @@ class AuthRepository @Inject constructor(
         result.exists
     }
 
-    suspend fun signUp(email: String, password: String, name: String): AppResult<Unit> = safeCall {
+    /** @return true if the Supabase project requires email confirmation (no session yet), false if the user is already signed in. */
+    suspend fun signUp(email: String, password: String, name: String): AppResult<Boolean> = safeCall {
         val user = supabase.auth.signUpWith(Email) {
             this.email = email
             this.password = password
@@ -73,6 +75,7 @@ class AuthRepository @Inject constructor(
                 ProfileInsertDto(id = userId, email = email, name = name)
             )
         }
+        supabase.auth.currentSessionOrNull() == null
     }
 
     suspend fun signIn(email: String, password: String): AppResult<Unit> = safeCall {
@@ -117,14 +120,8 @@ class AuthRepository @Inject constructor(
             country = profileDto.country.orEmpty(),
             role = profileDto.role ?: "user",
             userType = profileDto.userType,
-            licenseExpiredDate = profileDto.licenseExpiredDate
+            licenseExpiredDate = profileDto.licenseExpiredDate,
+            createdAt = profileDto.createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
         )
     }
-
-    /**
-     * Gates the one-time "add your phone number" onboarding screen. Fails open (false) on a
-     * lookup error so a network hiccup can never lock a signed-in user out of the app.
-     */
-    suspend fun needsPhoneNumber(): Boolean =
-        (getCurrentProfile() as? AppResult.Success)?.data?.phoneNumber?.isBlank() ?: false
 }

@@ -39,7 +39,7 @@ android {
         // Quiz Maker's production Supabase project — same backend the website uses.
         buildConfigField("String", "SUPABASE_URL", "\"https://wybjydjifaahelwfzawj.supabase.co\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5Ymp5ZGppZmFhaGVsd2Z6YXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzODk5NDUsImV4cCI6MjA1OTk2NTk0NX0.qAxPEfEU7EQlqlKAQZ1FF1Z926C_j6iUoa_2eqF2-dE\"")
-        buildConfigField("String", "SHARE_BASE_URL", "\"https://quiz-maker.online\"")
+        buildConfigField("String", "SHARE_BASE_URL", "\"https://yunolms.com\"")
         buildConfigField("String", "RAZORPAY_KEY_ID", "\"$razorpayKeyId\"")
     }
 
@@ -127,4 +127,5 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.messaging)
 }

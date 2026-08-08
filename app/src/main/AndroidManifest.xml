@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
@@ -25,11 +26,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Shareable quiz link: https://quiz-maker.online/take-quiz/{shareId} -->
+            <!-- Shareable quiz link: https://yunolms.com/take-quiz/{shareId} (current) or
+                 https://quiz-maker.online/take-quiz/{shareId} (older links/QR codes already shared
+                 before the domain switch — kept working, not just the new one). -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="yunolms.com"
+                    android:pathPrefix="/take-quiz" />
                 <data
                     android:scheme="https"
                     android:host="quiz-maker.online"
@@ -46,6 +53,23 @@
                     android:host="take-quiz" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".core.messaging.QuizFcmService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Fallback if a message ever arrives with the "notification" payload type instead of
+             our usual data-only one — QuizFcmService.onMessageReceived() handles the normal path. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="quiz_submissions" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_splash_icon" />
 
         <!-- Lets us hand generated PDFs (e.g. leaderboard exports) to other apps via a content:// URI. -->
         <provider

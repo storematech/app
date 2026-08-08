@@ -11,6 +11,8 @@ import com.quizmaker.android.data.model.PricingPlan
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.PaymentRepository
 import com.quizmaker.android.repository.PricingRepository
+import com.quizmaker.android.util.TrialStatus
+import com.quizmaker.android.util.trialStatus
 import com.razorpay.Checkout
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +30,8 @@ data class PricingUiState(
     val features: List<String> = emptyList(),
     val isProcessingPayment: Boolean = false,
     val paymentError: String? = null,
-    val paymentSuccess: Boolean = false
+    val paymentSuccess: Boolean = false,
+    val trialStatus: TrialStatus = TrialStatus.Premium
 )
 
 @HiltViewModel
@@ -73,7 +76,8 @@ class PricingViewModel @Inject constructor(
                     isLoading = false,
                     badge = pricingResult.data.badge,
                     plan = if (isIndianUser) pricingResult.data.indiaPlan else pricingResult.data.globalPlan,
-                    features = pricingResult.data.features
+                    features = pricingResult.data.features,
+                    trialStatus = profile?.trialStatus() ?: TrialStatus.Premium
                 )
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = pricingResult.message)
             }

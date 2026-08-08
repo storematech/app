@@ -6,6 +6,8 @@ import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuizRepository
+import com.quizmaker.android.util.TrialStatus
+import com.quizmaker.android.util.trialStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -27,7 +29,9 @@ data class QuizListUiState(
     // has, not just the ones scrolled into view so far.
     val searchResults: List<Quiz>? = null,
     val questionCounts: Map<String, Int> = emptyMap(),
-    val responseCounts: Map<String, Int> = emptyMap()
+    val responseCounts: Map<String, Int> = emptyMap(),
+    val isCreationBlocked: Boolean = false,
+    val showTrialPaywall: Boolean = false
 ) {
     val filteredQuizzes: List<Quiz>
         get() = searchResults ?: allQuizzes
@@ -46,6 +50,28 @@ class QuizListViewModel @Inject constructor(
 
     init {
         refresh()
+        loadTrialGate()
+    }
+
+    /** Independent of the quiz list load — a failed/slow trial check shouldn't block the list from showing. */
+    private fun loadTrialGate() {
+        viewModelScope.launch {
+            val profile = (authRepository.getCurrentProfile() as? AppResult.Success)?.data ?: return@launch
+            _uiState.value = _uiState.value.copy(isCreationBlocked = profile.trialStatus() is TrialStatus.Expired)
+        }
+    }
+
+    /** Gate for the "Create Quiz" button — shows the paywall sheet instead of navigating when the trial's expired. */
+    fun onCreateQuizClick(onAllowed: () -> Unit) {
+        if (_uiState.value.isCreationBlocked) {
+            _uiState.value = _uiState.value.copy(showTrialPaywall = true)
+        } else {
+            onAllowed()
+        }
+    }
+
+    fun dismissTrialPaywall() {
+        _uiState.value = _uiState.value.copy(showTrialPaywall = false)
     }
 
     /** Reloads the first page from scratch — used on entry and after a create/edit/delete/duplicate. */

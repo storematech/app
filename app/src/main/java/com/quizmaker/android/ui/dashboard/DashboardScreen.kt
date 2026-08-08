@@ -1,6 +1,11 @@
 package com.quizmaker.android.ui.dashboard
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,6 +47,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -55,11 +61,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
@@ -90,7 +98,10 @@ import com.quizmaker.android.ui.common.SkeletonCardRow
 import com.quizmaker.android.ui.common.SkeletonLine
 import com.quizmaker.android.ui.common.SkeletonStatTiles
 import com.quizmaker.android.ui.common.StatTile
+import com.quizmaker.android.ui.common.TrialActiveBanner
+import com.quizmaker.android.ui.common.TrialEndedBanner
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.util.TrialStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +114,19 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // Asked once per Dashboard load (Android just silently no-ops a repeat request if the user
+    // already granted/permanently-denied it) — this is what lets QuizFcmService actually post the
+    // "new submission" notification on API 33+.
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     // The banner is the first item in the scrollable list (so it scrolls away like normal
     // content, not pinned) but bleeds edge-to-edge behind the status bar for that first,
@@ -138,10 +162,12 @@ fun DashboardScreen(
             ) {
                 item {
                     val activeSale = uiState.activeSale
-                    if (activeSale != null) {
-                        SaleDayBanner(saleName = activeSale.name, onClick = onOpenPricing)
-                    } else {
-                        WelcomeBanner()
+                    val trialStatus = uiState.trialStatus
+                    when {
+                        activeSale != null -> SaleDayBanner(saleName = activeSale.name, onClick = onOpenPricing)
+                        trialStatus is TrialStatus.Expired -> TrialEndedBanner(onClick = onOpenPricing)
+                        trialStatus is TrialStatus.Active -> TrialActiveBanner(daysLeft = trialStatus.daysLeft, onClick = onOpenPricing)
+                        else -> WelcomeBanner()
                     }
                     Spacer(Modifier.height(16.dp))
                 }

@@ -9,11 +9,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.quizmaker.android.core.messaging.EXTRA_RESPONSE_ID
 import com.quizmaker.android.core.navigation.QuizMakerNavGraph
 import com.quizmaker.android.core.payment.RazorpayResult
 import com.quizmaker.android.core.payment.RazorpayResultBus
@@ -31,6 +35,10 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     // tapped while the app is already running) can hand the link off to the existing NavController.
     // The initial cold-start deep link is handled automatically by rememberNavController()/NavHost.
     private var navController: NavHostController? = null
+
+    // Set from a quiz-submission notification tap (see QuizFcmService) — read once by NavGraph to
+    // deep-link straight to that response, then cleared via onConsumedPendingResponse.
+    private var pendingResponseId by mutableStateOf<String?>(null)
 
     // Razorpay's Checkout SDK calls back to whichever Activity launched it — this app is
     // single-Activity, so MainActivity implements that interface and just forwards the result
@@ -58,12 +66,17 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             window.isStatusBarContrastEnforced = false
             window.isNavigationBarContrastEnforced = false
         }
+        pendingResponseId = intent?.getStringExtra(EXTRA_RESPONSE_ID)
         setContent {
             QuizMakerTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val controller = rememberNavController()
                     navController = controller
-                    QuizMakerNavGraph(navController = controller)
+                    QuizMakerNavGraph(
+                        navController = controller,
+                        pendingResponseId = pendingResponseId,
+                        onConsumedPendingResponse = { pendingResponseId = null }
+                    )
                 }
             }
         }
@@ -73,6 +86,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         super.onNewIntent(intent)
         setIntent(intent)
         navController?.handleDeepLink(intent)
+        intent.getStringExtra(EXTRA_RESPONSE_ID)?.let { pendingResponseId = it }
     }
 
     override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {

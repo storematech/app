@@ -28,8 +28,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,8 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,7 +60,6 @@ import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.BrandIndigoLight
 import com.quizmaker.android.core.theme.PoppinsFamily
-import com.quizmaker.android.core.theme.StatGreenBg
 import com.quizmaker.android.core.theme.StatGreenIcon
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
@@ -92,15 +87,11 @@ fun CreateQuizScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    if (uiState.isEditMode) {
-        LaunchedEffect(uiState.resultQuiz) {
-            uiState.resultQuiz?.let { onQuizCreated(it.id) }
-        }
-    } else {
-        uiState.resultQuiz?.let { quiz ->
-            QuizCreatedScreen(shareUrl = quiz.shareUrl, onDone = { onQuizCreated(quiz.id) })
-            return
-        }
+    // Both new-quiz and edit-quiz completion just hand off to the caller — for a new quiz, that's
+    // NavGraph navigating to the dedicated Screen.QuizCreated route (QR/share/Master Paper), not
+    // an inline screen here (there used to be one; removed so only one "quiz created" screen shows).
+    LaunchedEffect(uiState.resultQuiz) {
+        uiState.resultQuiz?.let { onQuizCreated(it.id) }
     }
 
     if (uiState.isLoadingForEdit) {
@@ -811,43 +802,3 @@ private fun ReviewRow(label: String, value: String) {
     }
 }
 
-@Composable
-private fun QuizCreatedScreen(shareUrl: String, onDone: () -> Unit) {
-    val clipboardManager = LocalClipboardManager.current
-
-    Scaffold(containerColor = AppBackground) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier.size(88.dp).clip(CircleShape).background(StatGreenBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = StatGreenIcon, modifier = Modifier.size(44.dp))
-            }
-            Spacer(Modifier.height(20.dp))
-            Text("Quiz Created!", fontFamily = PoppinsFamily, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = TextPrimary)
-            Spacer(Modifier.height(6.dp))
-            Text("Share the link below so people can take it.", color = TextSecondary, fontSize = 14.sp)
-            Spacer(Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .elevatedSurface(shape = RoundedCornerShape(16.dp))
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(shareUrl, color = TextPrimary, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                IconButton(onClick = { clipboardManager.setText(AnnotatedString(shareUrl)) }) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy link", tint = BrandIndigo)
-                }
-            }
-
-            Spacer(Modifier.height(28.dp))
-            GradientButton(text = "Done", onClick = onDone, modifier = Modifier.fillMaxWidth())
-        }
-    }
-}
