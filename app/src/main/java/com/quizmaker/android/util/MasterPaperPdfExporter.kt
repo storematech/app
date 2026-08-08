@@ -26,19 +26,19 @@ object MasterPaperPdfExporter {
 
     fun export(context: Context, quizTitle: String, questions: List<Question>, mode: MasterPaperMode): Intent {
         val document = PdfDocument()
-        val titlePaint = Paint().apply { color = Color.parseColor("#6D28D9"); textSize = 16f; isFakeBoldText = true }
-        val subtitlePaint = Paint().apply { color = Color.DKGRAY; textSize = 11f }
-        val numberBgPaint = Paint().apply { color = Color.parseColor("#8B5CF6") }
-        val numberTextPaint = Paint().apply { color = Color.WHITE; textSize = 9f; isFakeBoldText = true }
-        val typeBadgePaint = Paint().apply { color = Color.parseColor("#4338CA"); textSize = 8f }
-        val pointsPaint = Paint().apply { color = Color.parseColor("#92400E"); textSize = 8f }
-        val questionTextPaint = Paint().apply { color = Color.parseColor("#111827"); textSize = 10.5f }
-        val optionPaint = Paint().apply { color = Color.parseColor("#374151"); textSize = 10f }
-        val correctOptionPaint = Paint().apply { color = Color.parseColor("#16A34A"); textSize = 10f; isFakeBoldText = true }
-        val correctBgPaint = Paint().apply { color = Color.parseColor("#DCFCE7") }
-        val linePaint = Paint().apply { color = Color.parseColor("#E5E7EB"); strokeWidth = 0.7f }
-        val blankLinePaint = Paint().apply { color = Color.parseColor("#C8C8C8"); strokeWidth = 0.7f }
-        val footerPaint = Paint().apply { color = Color.GRAY; textSize = 8f }
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6D28D9"); textSize = 16f; isFakeBoldText = true }
+        val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 11f }
+        val numberBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#8B5CF6") }
+        val numberTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 9f; isFakeBoldText = true }
+        val typeBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#4338CA"); textSize = 8f }
+        val pointsPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#92400E"); textSize = 8f }
+        val questionTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111827"); textSize = 10.5f }
+        val optionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#374151"); textSize = 10f }
+        val correctOptionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#16A34A"); textSize = 10f; isFakeBoldText = true }
+        val correctBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#DCFCE7") }
+        val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E5E7EB"); strokeWidth = 0.7f }
+        val blankLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#C8C8C8"); strokeWidth = 0.7f }
+        val footerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.GRAY; textSize = 8f }
 
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())

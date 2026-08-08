@@ -8,5 +8,11 @@ data class Profile(
     val businessName: String,
     val phoneNumber: String,
     val country: String,
-    val role: String
-)
+    val role: String,
+    val userType: String?,
+    val licenseExpiredDate: String?
+) {
+    /** Mirrors the web app's premium check (TrialAndPricing.tsx): paid plan tiers only. */
+    val isPremium: Boolean
+        get() = userType.orEmpty().lowercase() in setOf("starter", "school", "school pro")
+}

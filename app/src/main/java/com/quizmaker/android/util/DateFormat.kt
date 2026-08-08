@@ -9,11 +9,15 @@ private val MONTH_ABBREVIATIONS = listOf(
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 )
 
-/** Formats an ISO-8601 timestamp (e.g. from a Supabase `timestamptz` column) as "Aug 4, 2026". */
+/**
+ * Formats an ISO-8601 timestamp as "Aug 4, 2026". Accepts both `timestamptz` values
+ * ("2026-08-04T00:00:00Z") and plain `date` columns ("2026-08-04", no time component).
+ */
 fun formatShortDate(iso: String?): String {
     if (iso.isNullOrBlank()) return ""
     return try {
-        formatShortDate(Instant.parse(iso))
+        val normalized = if (iso.contains("T")) iso else "${iso}T00:00:00Z"
+        formatShortDate(Instant.parse(normalized))
     } catch (e: Exception) {
         ""
     }

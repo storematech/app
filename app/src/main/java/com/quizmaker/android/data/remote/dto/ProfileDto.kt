@@ -16,7 +16,9 @@ data class ProfileDto(
     val role: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("device_type") val deviceType: String? = null,
-    val browser: String? = null
+    val browser: String? = null,
+    @SerialName("user_type") val userType: String? = null,
+    @SerialName("license_expired_date") val licenseExpiredDate: String? = null
 )
 
 /** Partial update payload — only non-null fields are sent. */

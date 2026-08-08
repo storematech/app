@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -105,12 +106,20 @@ fun QuizListScreen(
     var quizPendingShare by remember { mutableStateOf<Quiz?>(null) }
     var quizPendingMenu by remember { mutableStateOf<Quiz?>(null) }
 
-    Scaffold(containerColor = AppBackground) { padding ->
+    // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset;
+    // reserving it again here would leave a redundant empty strip above the tab bar.
+    Scaffold(containerColor = AppBackground, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Spacer(Modifier.height(20.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    GradientButton(
+                        text = "Create Quiz",
+                        onClick = onCreateQuiz,
+                        leadingIcon = Icons.Default.NoteAdd,
+                        modifier = Modifier.weight(1f)
+                    )
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
@@ -124,12 +133,6 @@ fun QuizListScreen(
                             Text("AI", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
-                    GradientButton(
-                        text = "Create Quiz",
-                        onClick = onCreateQuiz,
-                        leadingIcon = Icons.Default.NoteAdd,
-                        modifier = Modifier.weight(1f)
-                    )
                 }
                 Spacer(Modifier.height(16.dp))
             }

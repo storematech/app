@@ -22,15 +22,15 @@ object ResponseDetailPdfExporter {
 
     fun export(context: Context, data: ResponseDetailData): File {
         val document = PdfDocument()
-        val titlePaint = Paint().apply { color = Color.parseColor("#6D28D9"); textSize = 16f; isFakeBoldText = true }
-        val labelPaint = Paint().apply { color = Color.parseColor("#6B7280"); textSize = 8f }
-        val valuePaint = Paint().apply { color = Color.parseColor("#111827"); textSize = 9.5f; isFakeBoldText = true }
-        val summaryBgPaint = Paint().apply { color = Color.parseColor("#F5F3FF") }
-        val questionPaint = Paint().apply { color = Color.parseColor("#111827"); textSize = 10f; isFakeBoldText = true }
-        val labelBoldPaint = Paint().apply { color = Color.parseColor("#4B5563"); textSize = 9f; isFakeBoldText = true }
-        val answerPaint = Paint().apply { color = Color.parseColor("#111827"); textSize = 9f }
-        val correctPaint = Paint().apply { color = Color.parseColor("#16A34A"); textSize = 9f }
-        val footerPaint = Paint().apply { color = Color.parseColor("#9CA3AF"); textSize = 8f }
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6D28D9"); textSize = 16f; isFakeBoldText = true }
+        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6B7280"); textSize = 8f }
+        val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111827"); textSize = 9.5f; isFakeBoldText = true }
+        val summaryBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F5F3FF") }
+        val questionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111827"); textSize = 10f; isFakeBoldText = true }
+        val labelBoldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#4B5563"); textSize = 9f; isFakeBoldText = true }
+        val answerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111827"); textSize = 9f }
+        val correctPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#16A34A"); textSize = 9f }
+        val footerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#9CA3AF"); textSize = 8f }
 
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
@@ -53,14 +53,14 @@ object ResponseDetailPdfExporter {
         canvas.drawText("Response Details", MARGIN, y + 12f, titlePaint)
         y += 16f
         if (data.quizTitle.isNotBlank()) {
-            val subtitlePaint = Paint().apply { color = Color.DKGRAY; textSize = 10f }
+            val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 10f }
             canvas.drawText(data.quizTitle, MARGIN, y + 10f, subtitlePaint)
             y += 16f
         }
         y += 8f
 
         // Summary box
-        canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + 40f, summaryBgPaint)
+        canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + 58f, summaryBgPaint)
         val timeLabel = data.timeSeconds?.let { "${it / 60}m ${it % 60}s" } ?: "-"
         val summaryItems = listOf(
             "Student" to data.userName,
@@ -73,16 +73,22 @@ object ResponseDetailPdfExporter {
             val col = index % 2
             val row = index / 2
             val bx = MARGIN + 8f + col * colW
-            val by = y + 12f + row * 18f
+            val by = y + 14f + row * 26f
             canvas.drawText(label, bx, by, labelPaint)
-            canvas.drawText(value, bx, by + 11f, valuePaint)
+            canvas.drawText(value, bx, by + 12f, valuePaint)
         }
-        y += 50f
+        y += 68f
 
         // Section header
         checkPage(20f)
         canvas.drawText("Question by Question Analysis", MARGIN, y, titlePaint)
         y += 16f
+
+        val answerLabel = "Submitted Answer:"
+        val correctLabel = "Correct:"
+        val labelGap = 6f
+        val answerValueIndent = 10f + labelBoldPaint.measureText(answerLabel) + labelGap
+        val correctValueIndent = 10f + labelBoldPaint.measureText(correctLabel) + labelGap
 
         data.answers.forEachIndexed { index, answer ->
             val (bandColor, statusLabel) = when (answer.status) {
@@ -91,31 +97,33 @@ object ResponseDetailPdfExporter {
                 AnswerStatus.INCORRECT -> "#DC2626" to "Incorrect"
                 AnswerStatus.UNGRADED -> "#6B7280" to "Ungraded"
             }
-            val bandPaint = Paint().apply { color = Color.parseColor(bandColor) }
+            val bandPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor(bandColor) }
 
             val qLines = wrapText("Q${index + 1}. ${answer.questionText}", questionPaint, CONTENT_WIDTH - 12f)
-            val ansLines = wrapText(answer.studentAnswer, answerPaint, CONTENT_WIDTH - 85f)
-            val corLines = wrapText(answer.correctAnswer, correctPaint, CONTENT_WIDTH - 44f)
-            val blockHeight = qLines.size * 12f + ansLines.size * 11f + corLines.size * 11f + 24f
+            val ansLines = wrapText(answer.studentAnswer, answerPaint, CONTENT_WIDTH - answerValueIndent)
+            val corLines = wrapText(answer.correctAnswer, correctPaint, CONTENT_WIDTH - correctValueIndent)
+            val blockHeight = qLines.size * 12f + ansLines.size * 13f + corLines.size * 13f + 26f
 
             checkPage(blockHeight + 6f)
 
             canvas.drawRect(MARGIN, y, MARGIN + 3f, y + blockHeight, bandPaint)
             var qy = y + 10f
             qLines.forEach { line -> canvas.drawText(line, MARGIN + 10f, qy, questionPaint); qy += 12f }
+            qy += 4f
+
+            canvas.drawText(answerLabel, MARGIN + 10f, qy, labelBoldPaint)
+            ansLines.forEachIndexed { li, line ->
+                canvas.drawText(line, if (li == 0) MARGIN + answerValueIndent else MARGIN + 14f, qy, answerPaint)
+                qy += 13f
+            }
             qy += 2f
 
-            canvas.drawText("Submitted Answer:", MARGIN + 10f, qy, labelBoldPaint)
-            ansLines.forEachIndexed { li, line ->
-                canvas.drawText(line, if (li == 0) MARGIN + 85f else MARGIN + 14f, qy, answerPaint)
-                qy += 11f
-            }
-
-            canvas.drawText("Correct:", MARGIN + 10f, qy, labelBoldPaint)
+            canvas.drawText(correctLabel, MARGIN + 10f, qy, labelBoldPaint)
             corLines.forEachIndexed { li, line ->
-                canvas.drawText(line, if (li == 0) MARGIN + 45f else MARGIN + 14f, qy, correctPaint)
-                qy += 11f
+                canvas.drawText(line, if (li == 0) MARGIN + correctValueIndent else MARGIN + 14f, qy, correctPaint)
+                qy += 13f
             }
+            qy += 2f
 
             val pointsLabel = if (answer.status == AnswerStatus.UNGRADED) "Ungraded" else "${answer.pointsEarned}/${answer.maxPoints} pts"
             canvas.drawText("$pointsLabel  •  $statusLabel", MARGIN + 10f, qy, labelPaint)

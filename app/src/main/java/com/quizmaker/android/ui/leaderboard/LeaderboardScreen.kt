@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
+import com.quizmaker.android.core.theme.PdfRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.StatAmberBg
 import com.quizmaker.android.core.theme.StatAmberIcon
@@ -101,7 +102,7 @@ fun LeaderboardScreen(
                             val intent = LeaderboardPdfExporter.export(context, data.quizTitle, data)
                             context.startActivity(Intent.createChooser(intent, "Export leaderboard"))
                         }) {
-                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF")
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
                         }
                     }
                 }

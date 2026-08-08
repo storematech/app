@@ -22,6 +22,19 @@ val SuccessGreen = Color(0xFF16A34A)
 val WarningAmber = Color(0xFFD97706)
 val ErrorRed = Color(0xFFEF4444)
 
+// Classic Adobe-style red used for PDF export/open icons, so they read as a file type at a glance.
+val PdfRed = Color(0xFFE53935)
+
+// Gold gradient for the "Get Premium" promo banner, deliberately distinct from the brand indigo
+// used elsewhere so it reads as a separate, premium upsell rather than a regular action.
+val PremiumGoldStart = Color(0xFFF59E0B)
+val PremiumGoldEnd = Color(0xFFFBBF24)
+
+// Deep red gradient for the sale-day banner — reads as "sale" without tipping into a cheap,
+// clearance-bin red; kept distinct from the gold "Get Premium" banner (different call to action).
+val SaleRedStart = Color(0xFFDC2626)
+val SaleRedEnd = Color(0xFF9F1239)
+
 // Stat-tile accent pairs (soft background + saturated icon color), matching the
 // Dashboard's Total Quizzes / Question Bank / Completions / Avg Score / Reported tiles.
 val StatBlueBg = Color(0xFFDDE8FE)

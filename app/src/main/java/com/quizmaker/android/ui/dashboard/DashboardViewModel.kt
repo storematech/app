@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.data.model.QuizResponse
+import com.quizmaker.android.data.model.SaleDay
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuestionRepository
 import com.quizmaker.android.repository.QuizRepository
+import com.quizmaker.android.repository.SaleDayRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,14 +40,16 @@ data class DashboardUiState(
     val searchQuery: String = "",
     val recentSubmissions: List<QuizResponse> = emptyList(),
     val quizzes: List<Quiz> = emptyList(),
-    val quizTitleById: Map<String, String> = emptyMap()
+    val quizTitleById: Map<String, String> = emptyMap(),
+    val activeSale: SaleDay? = null
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val quizRepository: QuizRepository,
-    private val questionRepository: QuestionRepository
+    private val questionRepository: QuestionRepository,
+    private val saleDayRepository: SaleDayRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -55,6 +59,7 @@ class DashboardViewModel @Inject constructor(
     private var allCompletedResponses: List<QuizResponse> = emptyList()
     private var creatorName: String = ""
     private var totalQuestions: Int = 0
+    private var activeSale: SaleDay? = null
 
     init {
         refresh()
@@ -69,27 +74,37 @@ class DashboardViewModel @Inject constructor(
             val quizzesResult = quizRepository.getQuizzesForUser(userId)
             val responsesResult = quizRepository.getResponsesForUser(userId)
             val questionsResult = questionRepository.getQuestionsForUser(userId)
+            val saleDaysResult = saleDayRepository.getSaleDays()
 
             if (quizzesResult is AppResult.Error) {
                 _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = quizzesResult.message)
-                return@launch
-            }
-            if (responsesResult is AppResult.Error) {
-                _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = responsesResult.message)
                 return@launch
             }
 
             val questions = (questionsResult as? AppResult.Success)?.data.orEmpty()
 
             allQuizzes = (quizzesResult as AppResult.Success).data
-            allCompletedResponses = (responsesResult as AppResult.Success).data.filter { it.completed && !it.cancelled }
+            // A responses-fetch failure (e.g. a slow "all my quiz ids, then all their responses"
+            // query timing out) shouldn't blank out quizzes/questions data that already loaded fine —
+            // fall back to no responses and surface the error inline instead of hard-failing the page.
+            allCompletedResponses = (responsesResult as? AppResult.Success)?.data
+                ?.filter { it.completed && !it.cancelled }
+                .orEmpty()
             totalQuestions = questions.size
             creatorName = when (profileResult) {
                 is AppResult.Success -> profileResult.data.name
                 is AppResult.Error -> ""
             }
 
-            applyRange(_uiState.value.selectedRange)
+            val now = Clock.System.now()
+            activeSale = (saleDaysResult as? AppResult.Success)?.data?.firstOrNull { sale ->
+                val start = sale.startedAt
+                val end = sale.endAt
+                start != null && end != null && now >= start && now <= end
+            }
+
+            val partialError = (responsesResult as? AppResult.Error)?.message
+            applyRange(_uiState.value.selectedRange, partialErrorMessage = partialError)
         }
     }
 
@@ -102,7 +117,7 @@ class DashboardViewModel @Inject constructor(
         applyRange(_uiState.value.selectedRange)
     }
 
-    private fun applyRange(range: DashboardDateRange) {
+    private fun applyRange(range: DashboardDateRange, partialErrorMessage: String? = null) {
         val cutoff: Instant? = range.days?.let { Clock.System.now() - it.days }
         val completed = if (cutoff == null) {
             allCompletedResponses
@@ -128,7 +143,7 @@ class DashboardViewModel @Inject constructor(
 
         _uiState.value = _uiState.value.copy(
             isLoading = false,
-            errorMessage = null,
+            errorMessage = partialErrorMessage,
             creatorName = creatorName,
             selectedRange = range,
             totalQuizzes = allQuizzes.size,
@@ -137,7 +152,8 @@ class DashboardViewModel @Inject constructor(
             averageScorePercent = averageScore,
             recentSubmissions = submissions,
             quizzes = allQuizzes,
-            quizTitleById = allQuizzes.associate { it.id to it.title }
+            quizTitleById = allQuizzes.associate { it.id to it.title },
+            activeSale = activeSale
         )
     }
 }

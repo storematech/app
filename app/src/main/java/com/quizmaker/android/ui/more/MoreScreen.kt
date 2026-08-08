@@ -7,22 +7,22 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -46,19 +46,36 @@ import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.ui.common.DesktopBanner
+import com.quizmaker.android.ui.common.PremiumActiveBanner
+import com.quizmaker.android.ui.common.PremiumBanner
 import com.quizmaker.android.ui.common.elevatedSurface
 
 @Composable
 fun MoreScreen(
     onOpenProfile: () -> Unit,
+    onOpenResponses: () -> Unit,
+    onOpenPricing: () -> Unit,
+    onOpenLicenseDetails: () -> Unit,
     onOpenComingSoon: (String) -> Unit,
     viewModel: MoreViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(containerColor = AppBackground) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
+    // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset;
+    // reserving it again here would leave a redundant empty strip above the tab bar.
+    Scaffold(containerColor = AppBackground, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(padding)
+                .padding(horizontal = 20.dp)
+        ) {
             Spacer(Modifier.height(20.dp))
+
+            DesktopBanner()
+            Spacer(Modifier.height(16.dp))
 
             Row(
                 modifier = Modifier
@@ -98,16 +115,18 @@ fun MoreScreen(
                 RowDivider()
                 MoreRow(icon = Icons.Default.FileDownload, label = "Import Questions", onClick = { onOpenComingSoon("Import Questions") })
                 RowDivider()
-                MoreRow(icon = Icons.Default.ChatBubbleOutline, label = "Responses", onClick = { onOpenComingSoon("Responses") })
-                RowDivider()
-                MoreRow(icon = Icons.Default.Group, label = "Learners", onClick = { onOpenComingSoon("Learners") })
-                RowDivider()
-                MoreRow(icon = Icons.AutoMirrored.Filled.MenuBook, label = "Mini LMS", onClick = { onOpenComingSoon("Mini LMS") })
-                RowDivider()
-                MoreRow(icon = Icons.Default.Folder, label = "Documents", onClick = { onOpenComingSoon("Documents") })
+                MoreRow(icon = Icons.Default.ChatBubbleOutline, label = "Responses", onClick = onOpenResponses)
                 RowDivider()
                 MoreRow(icon = Icons.Default.CreditCard, label = "Plans", onClick = { onOpenComingSoon("Plans") })
             }
+
+            Spacer(Modifier.height(16.dp))
+            if (uiState.isPremium) {
+                PremiumActiveBanner(onClick = onOpenLicenseDetails)
+            } else {
+                PremiumBanner(onClick = onOpenPricing)
+            }
+            Spacer(Modifier.height(20.dp))
         }
     }
 }

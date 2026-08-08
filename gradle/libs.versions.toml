@@ -23,6 +23,7 @@ datastore = "1.2.1"
 zxing = "3.5.3"
 zxingEmbedded = "4.3.0"
 exifinterface = "1.4.1"
+razorpay = "1.6.40"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -66,6 +67,8 @@ datastore-preferences = { group = "androidx.datastore", name = "datastore-prefer
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingEmbedded" }
 androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+
+razorpay-checkout = { group = "com.razorpay", name = "checkout", version.ref = "razorpay" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

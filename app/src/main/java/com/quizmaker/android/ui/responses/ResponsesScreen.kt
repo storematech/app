@@ -25,9 +25,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,6 +56,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.ErrorRed
+import com.quizmaker.android.core.theme.PdfRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SuccessGreen
 import com.quizmaker.android.core.theme.SurfaceWhite
@@ -63,6 +64,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.core.theme.WarningAmber
 import com.quizmaker.android.data.model.QuizResponse
+import com.quizmaker.android.ui.common.CsvFileIcon
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.ListScreenSkeleton
@@ -70,6 +72,7 @@ import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.ui.common.scoreBandColor
 import com.quizmaker.android.util.ResponsesCsvExporter
+import com.quizmaker.android.util.ResponsesPdfExporter
 import com.quizmaker.android.util.formatDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -98,10 +101,16 @@ fun ResponsesScreen(
                     }
                     if (uiState.filteredResponses.isNotEmpty()) {
                         IconButton(onClick = {
-                            val intent = ResponsesCsvExporter.export(context, uiState.filteredResponses, uiState.quizTitleById)
-                            context.startActivity(Intent.createChooser(intent, "Export responses"))
+                            val intent = ResponsesPdfExporter.export(context, uiState.filteredResponses, uiState.quizTitleById)
+                            context.startActivity(Intent.createChooser(intent, "Export responses (PDF)"))
                         }) {
-                            Icon(Icons.Default.TableChart, contentDescription = "Export CSV")
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
+                        }
+                        IconButton(onClick = {
+                            val intent = ResponsesCsvExporter.export(context, uiState.filteredResponses, uiState.quizTitleById)
+                            context.startActivity(Intent.createChooser(intent, "Export responses (CSV)"))
+                        }) {
+                            CsvFileIcon(contentDescription = "Export CSV")
                         }
                     }
                 }

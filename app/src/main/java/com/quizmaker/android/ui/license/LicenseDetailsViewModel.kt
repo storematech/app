@@ -1,4 +1,4 @@
-package com.quizmaker.android.ui.more
+package com.quizmaker.android.ui.license
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,31 +11,31 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class MoreUiState(
-    val name: String = "",
-    val email: String = "",
-    val isPremium: Boolean = false,
+data class LicenseDetailsUiState(
+    val isLoading: Boolean = true,
+    val errorMessage: String? = null,
+    val userType: String? = null,
     val licenseExpiredDate: String? = null
 )
 
 @HiltViewModel
-class MoreViewModel @Inject constructor(
+class LicenseDetailsViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(MoreUiState())
-    val uiState: StateFlow<MoreUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(LicenseDetailsUiState())
+    val uiState: StateFlow<LicenseDetailsUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             when (val result = authRepository.getCurrentProfile()) {
-                is AppResult.Success -> _uiState.value = MoreUiState(
-                    name = result.data.name,
-                    email = result.data.email,
-                    isPremium = result.data.isPremium,
+                is AppResult.Success -> _uiState.value = LicenseDetailsUiState(
+                    isLoading = false,
+                    userType = result.data.userType,
                     licenseExpiredDate = result.data.licenseExpiredDate
                 )
-                is AppResult.Error -> Unit
+                is AppResult.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
             }
         }
     }

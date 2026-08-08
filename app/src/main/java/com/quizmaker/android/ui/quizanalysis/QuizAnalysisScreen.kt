@@ -1,5 +1,6 @@
 package com.quizmaker.android.ui.quizanalysis
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +36,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
+import com.quizmaker.android.core.theme.PdfRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.StatAmberBg
 import com.quizmaker.android.core.theme.StatAmberIcon
@@ -58,6 +62,7 @@ import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.StatTile
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.ui.common.scoreBandColor
+import com.quizmaker.android.util.QuizAnalysisPdfExporter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +71,7 @@ fun QuizAnalysisScreen(
     viewModel: QuizAnalysisViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         containerColor = AppBackground,
@@ -85,6 +91,15 @@ fun QuizAnalysisScreen(
                 actions = {
                     IconButton(onClick = viewModel::refresh) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    val data = uiState.data
+                    if (data != null && data.questions.isNotEmpty()) {
+                        IconButton(onClick = {
+                            val intent = QuizAnalysisPdfExporter.export(context, data)
+                            context.startActivity(Intent.createChooser(intent, "Export quiz analysis (PDF)"))
+                        }) {
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
+                        }
                     }
                 }
             )

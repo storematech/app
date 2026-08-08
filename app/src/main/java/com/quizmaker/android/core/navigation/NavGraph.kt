@@ -5,10 +5,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -22,6 +27,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,8 +52,10 @@ import com.quizmaker.android.ui.auth.SignupScreen
 import com.quizmaker.android.ui.common.ComingSoonScreen
 import com.quizmaker.android.ui.dashboard.DashboardScreen
 import com.quizmaker.android.ui.leaderboard.LeaderboardScreen
+import com.quizmaker.android.ui.license.LicenseDetailsScreen
 import com.quizmaker.android.ui.masterpaper.MasterPaperScreen
 import com.quizmaker.android.ui.more.MoreScreen
+import com.quizmaker.android.ui.pricing.PricingScreen
 import com.quizmaker.android.ui.profile.ProfileScreen
 import com.quizmaker.android.ui.questionbank.QuestionBankScreen
 import com.quizmaker.android.ui.quizanalysis.QuizAnalysisScreen
@@ -65,14 +73,20 @@ private val authRoutes = setOf(Screen.Login.route, Screen.Signup.route, Screen.F
 // [route] is the destination's route *pattern* (used to detect the active tab); [navigateRoute]
 // is what actually gets passed to navigate() — for AiQuiz that must be a resolved route since its
 // pattern carries an unfilled {source} placeholder.
-private data class BottomTab(val route: String, val label: String, val icon: ImageVector, val navigateRoute: String = route)
+private data class BottomTab(
+    val route: String,
+    val label: String,
+    val filledIcon: ImageVector,
+    val outlinedIcon: ImageVector,
+    val navigateRoute: String = route
+)
 
 private val bottomTabs = listOf(
-    BottomTab(Screen.AiQuiz.route, "AI", Icons.Default.AutoAwesome, navigateRoute = Screen.AiQuiz.createRoute()),
-    BottomTab(Screen.Dashboard.route, "Dashboard", Icons.Default.Dashboard),
-    BottomTab(Screen.QuizList.route, "Quizzes", Icons.AutoMirrored.Filled.Article),
-    BottomTab(Screen.Questions.route, "Questions", Icons.AutoMirrored.Filled.HelpOutline),
-    BottomTab(Screen.More.route, "More", Icons.Default.MoreHoriz)
+    BottomTab(Screen.AiQuiz.route, "AI", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome, navigateRoute = Screen.AiQuiz.createRoute()),
+    BottomTab(Screen.Dashboard.route, "Dashboard", Icons.Filled.Dashboard, Icons.Outlined.Dashboard),
+    BottomTab(Screen.QuizList.route, "Quizzes", Icons.AutoMirrored.Filled.Article, Icons.AutoMirrored.Outlined.Article),
+    BottomTab(Screen.Questions.route, "Questions", Icons.AutoMirrored.Filled.Help, Icons.AutoMirrored.Filled.HelpOutline),
+    BottomTab(Screen.More.route, "More", Icons.Filled.MoreHoriz, Icons.Outlined.MoreHoriz)
 )
 
 @Composable
@@ -170,7 +184,8 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
                             restoreState = true
                         }
                     },
-                    onOpenResponses = { navController.navigate(Screen.Responses.route) }
+                    onOpenResponses = { navController.navigate(Screen.Responses.route) },
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) }
                 )
             }
             composable(Screen.Responses.route) {
@@ -181,7 +196,7 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
             }
             composable(Screen.QuizList.route) {
                 QuizListScreen(
-                    onOpenQuiz = { quizId -> navController.navigate(Screen.QuizDetail.createRoute(quizId)) },
+                    onOpenQuiz = { quizId -> navController.navigate(Screen.QuizDetailView.createRoute(quizId)) },
                     onCreateQuiz = { navController.navigate(Screen.CreateQuiz.createRoute()) },
                     onOpenAi = { navController.navigate(Screen.AiQuiz.createRoute(source = "quiz_list")) },
                     onViewLeaderboard = { quizId -> navController.navigate(Screen.Leaderboard.createRoute(quizId)) },
@@ -194,14 +209,31 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
             }
             composable(Screen.Questions.route) {
                 QuestionBankScreen(
-                    onOpenAi = { navController.navigate(Screen.AiQuiz.createRoute(source = "questions")) }
+                    onOpenAi = { navController.navigate(Screen.AiQuiz.createRoute(source = "questions")) },
+                    onCreateQuizFromSelection = { ids -> navController.navigate(Screen.CreateQuiz.createRoute(ids)) }
                 )
             }
             composable(Screen.More.route) {
                 MoreScreen(
                     onOpenProfile = { navController.navigate(Screen.Profile.route) },
+                    onOpenResponses = { navController.navigate(Screen.Responses.route) },
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) },
+                    onOpenLicenseDetails = { navController.navigate(Screen.LicenseDetails.route) },
                     onOpenComingSoon = { title -> navController.navigate(Screen.ComingSoon.createRoute(title)) }
                 )
+            }
+            composable(Screen.Pricing.route) {
+                PricingScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onPaymentSuccess = {
+                        navController.navigate(Screen.LicenseDetails.route) {
+                            popUpTo(Screen.Pricing.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            composable(Screen.LicenseDetails.route) {
+                LicenseDetailsScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(
                 route = Screen.ComingSoon.route,
@@ -305,7 +337,11 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
 
 @Composable
 private fun YunoBottomBar(navController: NavHostController, currentRoute: String?) {
-    NavigationBar(containerColor = SurfaceWhite, tonalElevation = 0.dp) {
+    NavigationBar(
+        modifier = Modifier.shadow(elevation = 8.dp),
+        containerColor = SurfaceWhite,
+        tonalElevation = 0.dp
+    ) {
         bottomTabs.forEach { tab ->
             val selected = currentRoute == tab.route
             NavigationBarItem(
@@ -317,7 +353,9 @@ private fun YunoBottomBar(navController: NavHostController, currentRoute: String
                         restoreState = true
                     }
                 },
-                icon = { Icon(tab.icon, contentDescription = tab.label) },
+                icon = {
+                    Icon(if (selected) tab.filledIcon else tab.outlinedIcon, contentDescription = tab.label)
+                },
                 label = { Text(tab.label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = BrandIndigo,

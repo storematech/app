@@ -1,4 +1,16 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+// Razorpay's publishable Key ID lives in local.properties (gitignored — see that file's header)
+// instead of hardcoded here like the Supabase keys above, since this repo has since moved to
+// keeping per-developer/per-environment secrets out of version control. Add a line like
+// `RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx` to your local.properties to enable the premium checkout;
+// without it, the "Buy Now" button surfaces a clear "not configured" error instead of crashing.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val razorpayKeyId: String = localProperties.getProperty("RAZORPAY_KEY_ID", "")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -26,6 +38,7 @@ android {
         buildConfigField("String", "SUPABASE_URL", "\"https://wybjydjifaahelwfzawj.supabase.co\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5Ymp5ZGppZmFhaGVsd2Z6YXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzODk5NDUsImV4cCI6MjA1OTk2NTk0NX0.qAxPEfEU7EQlqlKAQZ1FF1Z926C_j6iUoa_2eqF2-dE\"")
         buildConfigField("String", "SHARE_BASE_URL", "\"https://quiz-maker.online\"")
+        buildConfigField("String", "RAZORPAY_KEY_ID", "\"$razorpayKeyId\"")
     }
 
     buildTypes {
@@ -103,4 +116,6 @@ dependencies {
     implementation(libs.zxing.android.embedded)
 
     implementation(libs.androidx.exifinterface)
+
+    implementation(libs.razorpay.checkout)
 }

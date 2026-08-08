@@ -90,7 +90,9 @@ class AuthRepository @Inject constructor(
             businessName = profileDto.businessName.orEmpty(),
             phoneNumber = profileDto.phoneNumber.orEmpty(),
             country = profileDto.country.orEmpty(),
-            role = profileDto.role ?: "user"
+            role = profileDto.role ?: "user",
+            userType = profileDto.userType,
+            licenseExpiredDate = profileDto.licenseExpiredDate
         )
     }
 }

@@ -6,27 +6,27 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
-import com.quizmaker.android.data.model.QuizDetailViewData
+import com.quizmaker.android.data.model.QuizResponse
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Renders the Quiz Detail View's per-respondent table as a simple paginated PDF. */
-object QuizDetailPdfExporter {
+/** Renders a filtered list of quiz responses (across all quizzes) as a paginated summary PDF. */
+object ResponsesPdfExporter {
 
-    private const val PAGE_WIDTH = 595 // A4 portrait at 72dpi — matches every other exported PDF in the app
+    private const val PAGE_WIDTH = 595 // A4 portrait at 72dpi
     private const val PAGE_HEIGHT = 842
     private const val MARGIN = 32f
-    private const val ROW_HEIGHT = 22f
+    private const val ROW_HEIGHT = 24f
 
-    fun export(context: Context, data: QuizDetailViewData): Intent {
-        val columns = listOf(
-            "Name" to 105f, "Email" to 145f, "Score" to 55f,
-            "Correct" to 65f, "Time" to 55f, "Completed" to 106f
-        )
+    private val columns = listOf(
+        "Quiz" to 140f, "User" to 155f, "Score" to 50f,
+        "Status" to 65f, "Time" to 55f, "Completed" to 66f
+    )
 
+    fun export(context: Context, responses: List<QuizResponse>, quizTitleById: Map<String, String>): Intent {
         val document = PdfDocument()
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 16f; isFakeBoldText = true }
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 10f }
@@ -60,28 +60,29 @@ object QuizDetailPdfExporter {
             drawHeaderRow()
         }
 
-        canvas.drawText("Quiz Detail View — ${data.quizTitle}", MARGIN, y + 16f, titlePaint)
+        canvas.drawText("Responses", MARGIN, y + 16f, titlePaint)
         y += 30f
         val generatedAt = SimpleDateFormat("MMM d, yyyy h:mm a", Locale.getDefault()).format(Date())
-        canvas.drawText(
-            "Responses: ${data.totalResponses}   Avg score: ${data.averageScore}%   Generated: $generatedAt",
-            MARGIN, y, labelPaint
-        )
+        canvas.drawText("Total: ${responses.size}   Generated: $generatedAt", MARGIN, y, labelPaint)
         y += 18f
 
         drawHeaderRow()
 
-        data.rows.forEachIndexed { index, row ->
+        responses.forEachIndexed { index, response ->
             if (y + ROW_HEIGHT > PAGE_HEIGHT - MARGIN) newPage()
             if (index % 2 == 1) {
                 canvas.drawRect(MARGIN, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, altRowPaint)
             }
             var x = MARGIN
-            val timeLabel = row.timeSeconds?.let { "${it / 60}m ${it % 60}s" } ?: "-"
-            val completedLabel = formatDateTime(row.completedAt)
+            val status = if (response.cancelled) "Cancelled" else if (response.completed) "Completed" else "In Progress"
+            val timeLabel = response.timeTakenSeconds?.let { "${it / 60}m ${it % 60}s" } ?: "-"
             val cells = listOf(
-                row.name, row.email, "${row.scorePercent}%",
-                "${row.correctCount}/${data.gradedCount}", timeLabel, completedLabel
+                quizTitleById[response.quizId] ?: "Unknown Quiz",
+                response.userName?.ifBlank { null } ?: response.userEmail,
+                "${response.score}%",
+                status,
+                timeLabel,
+                formatDateTime(response.completedAt)
             )
             cells.forEachIndexed { i, text ->
                 val maxChars = (columns[i].second / 5.2f).toInt().coerceAtLeast(4)
@@ -96,8 +97,7 @@ object QuizDetailPdfExporter {
         document.finishPage(page)
 
         val exportsDir = File(context.cacheDir, "exports").apply { mkdirs() }
-        val safeName = data.quizTitle.ifBlank { "quiz" }.replace(Regex("[^A-Za-z0-9]+"), "_")
-        val file = File(exportsDir, "${safeName}_detail_view.pdf")
+        val file = File(exportsDir, "quiz_responses.pdf")
         FileOutputStream(file).use { document.writeTo(it) }
         document.close()
 

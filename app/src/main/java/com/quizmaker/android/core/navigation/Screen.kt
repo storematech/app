@@ -57,6 +57,9 @@ sealed class Screen(val route: String) {
 
     data object Responses : Screen("responses")
 
+    data object Pricing : Screen("pricing")
+    data object LicenseDetails : Screen("license_details")
+
     /** Opened either from in-app navigation or a https://quiz-maker.online/take-quiz/{shareId} deep link. */
     data object TakeQuiz : Screen("take_quiz/{shareId}") {
         fun createRoute(shareId: String) = "take_quiz/$shareId"

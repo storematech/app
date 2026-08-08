@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BrandIndigo
+import com.quizmaker.android.core.theme.PdfRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.StatAmberBg
 import com.quizmaker.android.core.theme.StatAmberIcon
@@ -65,6 +65,7 @@ import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.QuizDetailViewData
 import com.quizmaker.android.data.model.StudentAnswerRow
 import com.quizmaker.android.ui.common.EmptyState
+import com.quizmaker.android.ui.common.CsvFileIcon
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
@@ -141,7 +142,7 @@ fun QuizDetailViewScreen(
                                     context.startActivity(Intent.createChooser(intent, "Export detail view (CSV)"))
                                 }
                             }) {
-                                Icon(Icons.Default.TableChart, contentDescription = "Export CSV")
+                                CsvFileIcon(contentDescription = "Export CSV")
                             }
                             IconButton(onClick = {
                                 exportWith { data ->
@@ -149,7 +150,7 @@ fun QuizDetailViewScreen(
                                     context.startActivity(Intent.createChooser(intent, "Export detail view (PDF)"))
                                 }
                             }) {
-                                Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF")
+                                Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
                             }
                         }
                     }

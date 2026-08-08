@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -217,7 +218,9 @@ fun AiQuizScreen(
     val busy = uiState.isGenerating || isPreparing
     val displayError = localError ?: uiState.errorMessage
 
-    Scaffold(containerColor = AppBackground) { padding ->
+    // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset;
+    // reserving it again here would leave a redundant empty strip above the tab bar.
+    Scaffold(containerColor = AppBackground, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -44,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
+import com.quizmaker.android.core.theme.PdfRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.StatAmberBg
 import com.quizmaker.android.core.theme.StatAmberIcon
@@ -58,6 +58,7 @@ import com.quizmaker.android.core.theme.WarningAmber
 import com.quizmaker.android.core.theme.ErrorRed
 import com.quizmaker.android.data.model.AnswerDetail
 import com.quizmaker.android.data.model.AnswerStatus
+import com.quizmaker.android.ui.common.CsvFileIcon
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
@@ -128,13 +129,13 @@ fun ResponseDetailScreen(
                             }
                             context.startActivity(Intent.createChooser(intent, "Open PDF"))
                         }) {
-                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Open PDF")
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Open PDF", tint = PdfRed)
                         }
                         IconButton(onClick = {
                             val intent = ResponseDetailCsvExporter.export(context, data)
                             context.startActivity(Intent.createChooser(intent, "Export CSV"))
                         }) {
-                            Icon(Icons.Default.TableChart, contentDescription = "Export CSV")
+                            CsvFileIcon(contentDescription = "Export CSV")
                         }
                     }
                 }

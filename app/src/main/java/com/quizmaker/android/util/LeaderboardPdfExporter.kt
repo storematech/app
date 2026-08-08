@@ -25,13 +25,13 @@ object LeaderboardPdfExporter {
 
     fun export(context: Context, quizTitle: String, data: LeaderboardData): Intent {
         val document = PdfDocument()
-        val titlePaint = Paint().apply { color = Color.BLACK; textSize = 18f; isFakeBoldText = true }
-        val labelPaint = Paint().apply { color = Color.DKGRAY; textSize = 11f }
-        val headerTextPaint = Paint().apply { color = Color.WHITE; textSize = 10f; isFakeBoldText = true }
-        val headerBgPaint = Paint().apply { color = Color.parseColor("#6366F1") }
-        val cellPaint = Paint().apply { color = Color.BLACK; textSize = 10f }
-        val altRowPaint = Paint().apply { color = Color.parseColor("#F5F5FB") }
-        val linePaint = Paint().apply { color = Color.parseColor("#E5E7EB"); strokeWidth = 1f }
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 18f; isFakeBoldText = true }
+        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 11f }
+        val headerTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 10f; isFakeBoldText = true }
+        val headerBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6366F1") }
+        val cellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 10f }
+        val altRowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F5F5FB") }
+        val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E5E7EB"); strokeWidth = 1f }
 
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
