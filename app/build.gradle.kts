@@ -19,6 +19,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics.plugin)
 }
 
 android {
@@ -26,11 +28,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.quizmaker.android"
+        applicationId = "com.quizmakeronline.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0-phase1"
+        versionCode = 6
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -43,8 +45,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // The Crashlytics plugin auto-uploads the R8 mapping file whenever isMinifyEnabled is
+            // true, so crash reports show real method names instead of obfuscated ones — no extra
+            // config needed here.
         }
     }
 
@@ -106,10 +112,6 @@ dependencies {
 
     implementation(libs.coil.compose)
 
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
-    ksp(libs.room.compiler)
-
     implementation(libs.datastore.preferences)
 
     implementation(libs.zxing.core)
@@ -122,4 +124,7 @@ dependencies {
 
     implementation(libs.fastexcel.reader)
     implementation(libs.fastexcel.writer)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
 }

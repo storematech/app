@@ -2,6 +2,7 @@ package com.quizmaker.android.repository
 
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.core.network.safeCall
+import com.quizmaker.android.data.remote.dto.ProfilePhoneUpdateDto
 import com.quizmaker.android.data.remote.dto.ProfileUpdateDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
@@ -29,6 +30,15 @@ class ProfileRepository @Inject constructor(
                     country = country
                 )
             ) { filter { eq("id", userId) } }
+        Unit
+    }
+
+    /** Onboarding's one-time phone collection — only touches phone_number/country, never name/business_name. */
+    suspend fun updatePhoneNumber(userId: String, phoneNumber: String, country: String): AppResult<Unit> = safeCall {
+        supabase.from("profiles")
+            .update(ProfilePhoneUpdateDto(phoneNumber = phoneNumber, country = country)) {
+                filter { eq("id", userId) }
+            }
         Unit
     }
 }

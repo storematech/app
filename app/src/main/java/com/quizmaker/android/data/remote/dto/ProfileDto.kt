@@ -39,3 +39,10 @@ data class ProfileInsertDto(
     val email: String? = null,
     val name: String? = null
 )
+
+/** Onboarding's one-time phone collection — only ever touches these two columns, never name/business_name. */
+@Serializable
+data class ProfilePhoneUpdateDto(
+    @SerialName("phone_number") val phoneNumber: String,
+    val country: String
+)

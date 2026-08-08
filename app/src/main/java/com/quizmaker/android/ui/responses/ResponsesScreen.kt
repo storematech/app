@@ -151,7 +151,7 @@ fun ResponsesScreen(
             ) {
                 when {
                     uiState.errorMessage != null -> Box(Modifier.fillMaxSize().padding(16.dp)) {
-                        ErrorBanner(message = uiState.errorMessage!!)
+                        ErrorBanner(message = uiState.errorMessage!!, onRetry = viewModel::refresh)
                     }
                     uiState.filteredResponses.isEmpty() -> EmptyState(
                         icon = Icons.Default.Description,

@@ -149,7 +149,7 @@ fun DashboardScreen(
                 uiState.errorMessage?.let { message ->
                     item {
                         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                            ErrorBanner(message = message)
+                            ErrorBanner(message = message, onRetry = viewModel::refresh)
                             Spacer(Modifier.height(16.dp))
                         }
                     }

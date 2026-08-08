@@ -47,6 +47,7 @@ import com.quizmaker.android.core.theme.BrandIndigoLight
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.aiquiz.AiQuizScreen
+import com.quizmaker.android.ui.auth.CollectPhoneScreen
 import com.quizmaker.android.ui.auth.ForgotPasswordScreen
 import com.quizmaker.android.ui.auth.LoginScreen
 import com.quizmaker.android.ui.common.AppLoadingScreen
@@ -109,7 +110,11 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
         val onAuthScreen = navController.currentDestination?.route in authRoutes
         when (sessionStatus) {
             is SessionStatus.Authenticated -> if (onAuthScreen) {
-                navController.navigate(Screen.Dashboard.route) {
+                // A fresh sign-in/sign-up — same one-time phone check the cold-start gate does,
+                // so a brand-new or pre-existing-but-phone-less account never reaches Dashboard
+                // without being asked first.
+                val destination = if (sessionViewModel.needsPhoneNumber()) Screen.CollectPhone.route else Screen.Dashboard.route
+                navController.navigate(destination) {
                     popUpTo(0) { inclusive = true }
                 }
             }
@@ -124,10 +129,10 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
 
     // gate was decided atomically (in the same coroutine step as the sessionStatus read below),
     // so this can't disagree with sessionStatus the way two independently-updating StateFlows could.
-    val startDestination = if (gate == SessionGate.LOGGED_IN) {
-        Screen.Dashboard.route
-    } else {
-        Screen.Login.route
+    val startDestination = when (gate) {
+        SessionGate.LOGGED_IN -> Screen.Dashboard.route
+        SessionGate.NEEDS_PHONE -> Screen.CollectPhone.route
+        else -> Screen.Login.route
     }
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -158,6 +163,15 @@ fun QuizMakerNavGraph(navController: NavHostController = rememberNavController()
             }
             composable(Screen.ForgotPassword.route) {
                 ForgotPasswordScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.CollectPhone.route) {
+                CollectPhoneScreen(
+                    onSaved = {
+                        navController.navigate(Screen.Dashboard.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
             }
 
             composable(

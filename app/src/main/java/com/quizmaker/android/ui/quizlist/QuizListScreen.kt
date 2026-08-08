@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -43,6 +44,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -52,6 +54,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -145,7 +148,20 @@ fun QuizListScreen(
                     ListScreenSkeleton(rowCount = 5, rowLineWidths = listOf(160.dp, 110.dp, 200.dp))
                 }
             ) {
+                val listState = rememberLazyListState()
+                val shouldLoadMore by remember {
+                    derivedStateOf {
+                        val layoutInfo = listState.layoutInfo
+                        val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                        layoutInfo.totalItemsCount > 0 && lastVisible >= layoutInfo.totalItemsCount - 5
+                    }
+                }
+                LaunchedEffect(shouldLoadMore) {
+                    if (shouldLoadMore) viewModel.loadMore()
+                }
+
                 LazyColumn(
+                    state = listState,
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
@@ -164,7 +180,7 @@ fun QuizListScreen(
                     }
 
                     uiState.errorMessage?.let {
-                        item { ErrorBanner(message = it) }
+                        item { ErrorBanner(message = it, onRetry = viewModel::refresh) }
                     }
 
                     if (uiState.filteredQuizzes.isEmpty()) {
@@ -188,6 +204,13 @@ fun QuizListScreen(
                                 onMenuClick = { quizPendingMenu = quiz },
                                 onEditQuiz = { onEditQuiz(quiz.id) }
                             )
+                        }
+                    }
+                    if (uiState.isLoadingMore) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = BrandIndigo, strokeWidth = 2.dp)
+                            }
                         }
                     }
                     item { Spacer(Modifier.height(80.dp)) }

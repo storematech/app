@@ -179,7 +179,7 @@ fun QuestionBankScreen(
                 Spacer(Modifier.height(12.dp))
 
                 uiState.errorMessage?.let {
-                    ErrorBanner(message = it)
+                    ErrorBanner(message = it, onRetry = viewModel::loadQuestions)
                     Spacer(Modifier.height(12.dp))
                 }
             }

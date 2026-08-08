@@ -5,6 +5,7 @@ sealed class Screen(val route: String) {
     data object Splash : Screen("splash")
     data object Login : Screen("login")
     data object ForgotPassword : Screen("forgot_password")
+    data object CollectPhone : Screen("collect_phone")
 
     data object AiQuiz : Screen("ai_quiz?source={source}") {
         /** [source] = "questions" when launched from the Question Bank's AI button (Add Questions mode). */

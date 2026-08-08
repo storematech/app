@@ -120,4 +120,11 @@ class AuthRepository @Inject constructor(
             licenseExpiredDate = profileDto.licenseExpiredDate
         )
     }
+
+    /**
+     * Gates the one-time "add your phone number" onboarding screen. Fails open (false) on a
+     * lookup error so a network hiccup can never lock a signed-in user out of the app.
+     */
+    suspend fun needsPhoneNumber(): Boolean =
+        (getCurrentProfile() as? AppResult.Success)?.data?.phoneNumber?.isBlank() ?: false
 }

@@ -18,7 +18,6 @@ coroutines = "1.11.0"
 supabase = "3.2.3"
 ktor = "3.2.3"
 coil = "2.7.0"
-room = "2.8.4"
 datastore = "1.2.1"
 zxing = "3.5.3"
 zxingEmbedded = "4.3.0"
@@ -26,6 +25,9 @@ exifinterface = "1.4.1"
 razorpay = "1.6.40"
 fastexcel = "0.20.2"
 splashscreen = "1.2.0"
+googleServices = "4.5.0"
+firebaseCrashlyticsPlugin = "3.0.7"
+firebaseBom = "34.17.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -60,10 +62,6 @@ ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version
 
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
-
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
@@ -76,6 +74,9 @@ razorpay-checkout = { group = "com.razorpay", name = "checkout", version.ref = "
 fastexcel-reader = { group = "org.dhatim", name = "fastexcel-reader", version.ref = "fastexcel" }
 fastexcel-writer = { group = "org.dhatim", name = "fastexcel", version.ref = "fastexcel" }
 
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -83,3 +84,5 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+firebase-crashlytics-plugin = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }

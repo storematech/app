@@ -7,6 +7,8 @@ import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuizRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,18 +17,20 @@ import javax.inject.Inject
 
 data class QuizListUiState(
     val isLoading: Boolean = true,
+    val isLoadingMore: Boolean = false,
+    val endReached: Boolean = false,
     val errorMessage: String? = null,
     val searchQuery: String = "",
     val allQuizzes: List<Quiz> = emptyList(),
+    // Non-null while a search is active — a separate server-side result set rather than a client
+    // filter over whatever page happens to be loaded, so search still covers every quiz the user
+    // has, not just the ones scrolled into view so far.
+    val searchResults: List<Quiz>? = null,
     val questionCounts: Map<String, Int> = emptyMap(),
     val responseCounts: Map<String, Int> = emptyMap()
 ) {
     val filteredQuizzes: List<Quiz>
-        get() = if (searchQuery.isBlank()) {
-            allQuizzes
-        } else {
-            allQuizzes.filter { it.title.contains(searchQuery, ignoreCase = true) }
-        }
+        get() = searchResults ?: allQuizzes
 }
 
 @HiltViewModel
@@ -38,17 +42,24 @@ class QuizListViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(QuizListUiState())
     val uiState: StateFlow<QuizListUiState> = _uiState.asStateFlow()
 
+    private var searchJob: Job? = null
+
     init {
         refresh()
     }
 
+    /** Reloads the first page from scratch — used on entry and after a create/edit/delete/duplicate. */
     fun refresh() {
         val userId = authRepository.currentUserId() ?: return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            when (val result = quizRepository.getQuizzesForUser(userId)) {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, endReached = false)
+            when (val result = quizRepository.getQuizzesPage(userId, offset = 0)) {
                 is AppResult.Success -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false, allQuizzes = result.data)
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        allQuizzes = result.data,
+                        endReached = result.data.size < QuizRepository.PAGE_SIZE
+                    )
                     loadCounts(result.data.map { it.id })
                 }
                 is AppResult.Error -> _uiState.value =
@@ -57,21 +68,62 @@ class QuizListViewModel @Inject constructor(
         }
     }
 
+    /** Called when the list scrolls near the bottom. No-ops while searching — search is a capped, non-paginated fetch. */
+    fun loadMore() {
+        val state = _uiState.value
+        if (state.isLoading || state.isLoadingMore || state.endReached || state.searchQuery.isNotBlank()) return
+        val userId = authRepository.currentUserId() ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingMore = true)
+            when (val result = quizRepository.getQuizzesPage(userId, offset = _uiState.value.allQuizzes.size)) {
+                is AppResult.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingMore = false,
+                        allQuizzes = _uiState.value.allQuizzes + result.data,
+                        endReached = result.data.size < QuizRepository.PAGE_SIZE
+                    )
+                    loadCounts(result.data.map { it.id })
+                }
+                is AppResult.Error -> _uiState.value = _uiState.value.copy(isLoadingMore = false, errorMessage = result.message)
+            }
+        }
+    }
+
+    /** Two requests total (one per table), not one pair per quiz — see getQuestionCountsForQuizzes(). */
     private fun loadCounts(quizIds: List<String>) {
-        quizIds.forEach { quizId ->
-            viewModelScope.launch {
-                val questionCount = (quizRepository.getQuestionCountForQuiz(quizId) as? AppResult.Success)?.data
-                val responseCount = (quizRepository.getResponseCountForQuiz(quizId) as? AppResult.Success)?.data
-                _uiState.value = _uiState.value.copy(
-                    questionCounts = if (questionCount != null) _uiState.value.questionCounts + (quizId to questionCount) else _uiState.value.questionCounts,
-                    responseCounts = if (responseCount != null) _uiState.value.responseCounts + (quizId to responseCount) else _uiState.value.responseCounts
-                )
+        if (quizIds.isEmpty()) return
+        viewModelScope.launch {
+            val questionCounts = (quizRepository.getQuestionCountsForQuizzes(quizIds) as? AppResult.Success)?.data
+            if (questionCounts != null) {
+                _uiState.value = _uiState.value.copy(questionCounts = _uiState.value.questionCounts + questionCounts)
+            }
+        }
+        viewModelScope.launch {
+            val responseCounts = (quizRepository.getResponseCountsForQuizzes(quizIds) as? AppResult.Success)?.data
+            if (responseCounts != null) {
+                _uiState.value = _uiState.value.copy(responseCounts = _uiState.value.responseCounts + responseCounts)
             }
         }
     }
 
     fun onSearchQueryChange(query: String) {
         _uiState.value = _uiState.value.copy(searchQuery = query)
+        searchJob?.cancel()
+        if (query.isBlank()) {
+            _uiState.value = _uiState.value.copy(searchResults = null)
+            return
+        }
+        val userId = authRepository.currentUserId() ?: return
+        searchJob = viewModelScope.launch {
+            delay(300)
+            when (val result = quizRepository.searchQuizzesForUser(userId, query.trim())) {
+                is AppResult.Success -> {
+                    _uiState.value = _uiState.value.copy(searchResults = result.data)
+                    loadCounts(result.data.map { it.id })
+                }
+                is AppResult.Error -> _uiState.value = _uiState.value.copy(errorMessage = result.message)
+            }
+        }
     }
 
     fun closeQuiz(quizId: String) {

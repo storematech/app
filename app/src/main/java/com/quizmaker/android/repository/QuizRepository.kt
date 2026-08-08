@@ -18,9 +18,15 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Count
 import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.security.SecureRandom
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/** Minimal row shape for the count-batching queries below — only the `quiz_id` column is selected. */
+@Serializable
+private data class QuizIdRow(@SerialName("quiz_id") val quizId: String)
 
 /**
  * Reads/writes the `quizzes` + `quiz_responses` tables for the signed-in creator.
@@ -30,11 +36,39 @@ import javax.inject.Singleton
 class QuizRepository @Inject constructor(
     private val supabase: SupabaseClient
 ) {
+    companion object {
+        const val PAGE_SIZE = 20
+    }
+
     suspend fun getQuizzesForUser(userId: String): AppResult<List<Quiz>> = safeCall {
         supabase.from("quizzes")
             .select {
                 filter { eq("created_by", userId) }
                 order("created_at", Order.DESCENDING)
+            }
+            .decodeList<QuizDto>()
+            .map { it.toDomain() }
+    }
+
+    /** One page of this user's quizzes, newest first — used by the Quiz List screen's infinite scroll. */
+    suspend fun getQuizzesPage(userId: String, offset: Int, limit: Int = PAGE_SIZE): AppResult<List<Quiz>> = safeCall {
+        supabase.from("quizzes")
+            .select {
+                filter { eq("created_by", userId) }
+                order("created_at", Order.DESCENDING)
+                range(offset.toLong(), (offset + limit - 1).toLong())
+            }
+            .decodeList<QuizDto>()
+            .map { it.toDomain() }
+    }
+
+    /** Server-side title search, capped rather than paginated — search result sets are small in practice. */
+    suspend fun searchQuizzesForUser(userId: String, query: String, limit: Int = 50): AppResult<List<Quiz>> = safeCall {
+        supabase.from("quizzes")
+            .select {
+                filter { eq("created_by", userId); ilike("title", "%$query%") }
+                order("created_at", Order.DESCENDING)
+                limit(limit.toLong())
             }
             .decodeList<QuizDto>()
             .map { it.toDomain() }
@@ -106,6 +140,31 @@ class QuizRepository @Inject constructor(
                 head = true
             }
             .countOrNull()?.toInt() ?: 0
+    }
+
+    /**
+     * Batched counterpart to [getResponseCountForQuiz]/[getQuestionCountForQuiz] — one request per
+     * table instead of one per quiz, used by the quiz list screen which otherwise fired 2 requests
+     * per row (N+1) just to populate the "X questions / Y responses" chips.
+     */
+    suspend fun getQuestionCountsForQuizzes(quizIds: List<String>): AppResult<Map<String, Int>> = safeCall {
+        if (quizIds.isEmpty()) return@safeCall emptyMap()
+        supabase.from("quiz_questions")
+            .select(Columns.raw("quiz_id")) { filter { isIn("quiz_id", quizIds) } }
+            .decodeList<QuizIdRow>()
+            .groupingBy { it.quizId }
+            .eachCount()
+    }
+
+    suspend fun getResponseCountsForQuizzes(quizIds: List<String>): AppResult<Map<String, Int>> = safeCall {
+        if (quizIds.isEmpty()) return@safeCall emptyMap()
+        supabase.from("quiz_responses")
+            .select(Columns.raw("quiz_id")) {
+                filter { isIn("quiz_id", quizIds); eq("completed", true) }
+            }
+            .decodeList<QuizIdRow>()
+            .groupingBy { it.quizId }
+            .eachCount()
     }
 
     /**

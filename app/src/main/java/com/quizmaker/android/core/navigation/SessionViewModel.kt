@@ -11,8 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Whether the initial nav graph should show the loading gate, the auth flow, or the main app. */
-enum class SessionGate { LOADING, LOGGED_OUT, LOGGED_IN }
+/** Whether the initial nav graph should show the loading gate, the auth flow, the main app, or the one-time phone-collection interstitial. */
+enum class SessionGate { LOADING, LOGGED_OUT, LOGGED_IN, NEEDS_PHONE }
 
 /** Drives which nav graph (auth vs. main) is shown, based on the restored Supabase session. */
 @HiltViewModel
@@ -32,11 +32,14 @@ class SessionViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             authRepository.awaitSessionRestore()
-            _gate.value = if (sessionStatus.value is SessionStatus.Authenticated) {
-                SessionGate.LOGGED_IN
-            } else {
-                SessionGate.LOGGED_OUT
+            _gate.value = when {
+                sessionStatus.value !is SessionStatus.Authenticated -> SessionGate.LOGGED_OUT
+                authRepository.needsPhoneNumber() -> SessionGate.NEEDS_PHONE
+                else -> SessionGate.LOGGED_IN
             }
         }
     }
+
+    /** Used by the nav graph's live sign-in transition (cold-start restore already covered above). */
+    suspend fun needsPhoneNumber(): Boolean = authRepository.needsPhoneNumber()
 }

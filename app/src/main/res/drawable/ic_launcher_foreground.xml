@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Kept within the 66dp adaptive-icon safe zone (centered circle, radius 33 around 54,54)
+         so it survives circle/squircle/rounded-square masking on every launcher. -->
+    <path
+        android:strokeColor="@color/white"
+        android:strokeWidth="11"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M32,30 L54,54 L54,80 M76,30 L54,54" />
+</vector>
