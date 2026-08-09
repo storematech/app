@@ -2,6 +2,8 @@ package com.quizmaker.android.ui.more
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,22 +60,24 @@ import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.ErrorRed
 import com.quizmaker.android.core.theme.PoppinsFamily
+import com.quizmaker.android.core.theme.SaleRedStart
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.common.DesktopBanner
 import com.quizmaker.android.ui.common.PremiumActiveBanner
 import com.quizmaker.android.ui.common.PremiumBanner
+import com.quizmaker.android.ui.common.SaleDayMoreBanner
 import com.quizmaker.android.ui.common.elevatedSurface
+
+private enum class BottomBannerState { PREMIUM_ACTIVE, SALE_DAY, UPSELL }
 
 @Composable
 fun MoreScreen(
     onOpenProfile: () -> Unit,
     onOpenResponses: () -> Unit,
     onOpenPricing: () -> Unit,
-    onOpenLicenseDetails: () -> Unit,
     onOpenFaq: () -> Unit,
     onOpenImportQuestions: () -> Unit,
-    onOpenComingSoon: (String) -> Unit,
     viewModel: MoreViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -136,7 +140,12 @@ fun MoreScreen(
                 RowDivider()
                 MoreRow(icon = Icons.Default.ChatBubbleOutline, label = "Responses", onClick = onOpenResponses)
                 RowDivider()
-                MoreRow(icon = Icons.Default.CreditCard, label = "Plans", onClick = { onOpenComingSoon("Plans") })
+                MoreRow(
+                    icon = Icons.Default.CreditCard,
+                    label = "Plans",
+                    badge = uiState.activeSale?.let { "SALE DAY" },
+                    onClick = onOpenPricing
+                )
             }
 
             Spacer(Modifier.height(16.dp))
@@ -150,7 +159,7 @@ fun MoreScreen(
                     icon = Icons.Default.SupportAgent,
                     label = "Get Help & Support",
                     onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/916364893006")))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/916364893005")))
                     }
                 )
                 RowDivider()
@@ -174,10 +183,26 @@ fun MoreScreen(
             }
 
             Spacer(Modifier.height(16.dp))
-            if (uiState.isPremium) {
-                PremiumActiveBanner(onClick = onOpenLicenseDetails)
-            } else {
-                PremiumBanner(onClick = onOpenPricing)
+            // Crossfade rather than an abrupt appear/switch — belt-and-braces so that even if this
+            // ever flips (loading -> resolved, or a stale cached value -> the fresh one) it reads
+            // as a smooth fade instead of a jarring "blink."
+            val bannerState = when {
+                uiState.isLoading -> null
+                uiState.isPremium -> BottomBannerState.PREMIUM_ACTIVE
+                uiState.activeSale != null -> BottomBannerState.SALE_DAY
+                else -> BottomBannerState.UPSELL
+            }
+            Crossfade(targetState = bannerState, animationSpec = tween(220), label = "premium-banner") { state ->
+                when (state) {
+                    BottomBannerState.PREMIUM_ACTIVE -> PremiumActiveBanner(onClick = onOpenPricing)
+                    BottomBannerState.SALE_DAY -> SaleDayMoreBanner(
+                        saleName = uiState.activeSale?.name.orEmpty(),
+                        discountPercent = uiState.activeSale?.discountPercent ?: 0,
+                        onClick = onOpenPricing
+                    )
+                    BottomBannerState.UPSELL -> PremiumBanner(onClick = onOpenPricing)
+                    null -> Spacer(Modifier.height(0.dp))
+                }
             }
 
             Spacer(Modifier.height(36.dp))
@@ -231,7 +256,7 @@ private fun RowDivider() {
 }
 
 @Composable
-private fun MoreRow(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun MoreRow(icon: ImageVector, label: String, onClick: () -> Unit, badge: String? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -242,6 +267,17 @@ private fun MoreRow(icon: ImageVector, label: String, onClick: () -> Unit) {
         Icon(icon, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(16.dp))
         Text(label, color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        if (badge != null) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(SaleRedStart)
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(badge, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+            }
+            Spacer(Modifier.width(8.dp))
+        }
         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextSecondary)
     }
 }

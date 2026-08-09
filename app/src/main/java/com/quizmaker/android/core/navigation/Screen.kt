@@ -6,6 +6,7 @@ sealed class Screen(val route: String) {
     data object Login : Screen("login")
     data object ForgotPassword : Screen("forgot_password")
     data object CollectPhone : Screen("collect_phone")
+    data object NotificationPermission : Screen("notification_permission")
     data object TrialStarted : Screen("trial_started")
     data object TrialEnded : Screen("trial_ended")
 
@@ -65,11 +66,10 @@ sealed class Screen(val route: String) {
     data object Responses : Screen("responses")
 
     data object Pricing : Screen("pricing")
-    data object LicenseDetails : Screen("license_details")
     data object Faq : Screen("faq")
     data object ImportQuestions : Screen("import_questions")
 
-    /** Opened either from in-app navigation or a https://yunolms.com/take-quiz/{shareId} deep link (older quiz-maker.online links still work too — see NavGraph.kt). */
+    /** Opened either from in-app navigation or a https://app.yunolms.com/take-quiz/{shareId} deep link (older yunolms.com/quiz-maker.online links still work too — see NavGraph.kt). */
     data object TakeQuiz : Screen("take_quiz/{shareId}") {
         fun createRoute(shareId: String) = "take_quiz/$shareId"
     }

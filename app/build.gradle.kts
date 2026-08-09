@@ -11,6 +11,13 @@ val localProperties = Properties().apply {
     if (file.exists()) file.inputStream().use { load(it) }
 }
 val razorpayKeyId: String = localProperties.getProperty("RAZORPAY_KEY_ID", "")
+val posthogApiKey: String = localProperties.getProperty("POSTHOG_API_KEY", "")
+// The Google Cloud "Web application" OAuth client ID — same one already configured under
+// Supabase Dashboard > Authentication > Providers > Google for the website. Android's Credential
+// Manager needs it (not an Android-type client ID) to request a Google ID token; see
+// local.properties for where to find/add it. Empty by default so a missing key surfaces a clear
+// "not configured" message instead of crashing, same treatment as RAZORPAY_KEY_ID above.
+val googleWebClientId: String = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID", "")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -31,16 +38,19 @@ android {
         applicationId = "com.quizmakeronline.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.1.0"
+        versionCode = 8
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Quiz Maker's production Supabase project — same backend the website uses.
         buildConfigField("String", "SUPABASE_URL", "\"https://wybjydjifaahelwfzawj.supabase.co\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5Ymp5ZGppZmFhaGVsd2Z6YXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzODk5NDUsImV4cCI6MjA1OTk2NTk0NX0.qAxPEfEU7EQlqlKAQZ1FF1Z926C_j6iUoa_2eqF2-dE\"")
-        buildConfigField("String", "SHARE_BASE_URL", "\"https://yunolms.com\"")
+        buildConfigField("String", "SHARE_BASE_URL", "\"https://app.yunolms.com\"")
         buildConfigField("String", "RAZORPAY_KEY_ID", "\"$razorpayKeyId\"")
+        buildConfigField("String", "POSTHOG_API_KEY", "\"$posthogApiKey\"")
+        buildConfigField("String", "POSTHOG_HOST", "\"https://us.i.posthog.com\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
     }
 
     buildTypes {
@@ -126,6 +136,14 @@ dependencies {
     implementation(libs.fastexcel.writer)
 
     implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.messaging)
+
+    implementation(libs.posthog.android)
+
+    // "Sign in with Google" via Credential Manager (not Firebase/Play Services' old GoogleSignIn API).
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.google.id)
 }

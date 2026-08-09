@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.takequiz
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionType
@@ -56,6 +57,7 @@ data class TakeQuizUiState(
 @HiltViewModel
 class TakeQuizViewModel @Inject constructor(
     private val repository: QuizTakingRepository,
+    private val analyticsLogger: AnalyticsLogger,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -279,8 +281,11 @@ class TakeQuizViewModel @Inject constructor(
                 maxPoints = state.maxPoints
             )
             when (result) {
-                is AppResult.Success -> _uiState.value =
-                    _uiState.value.copy(phase = TakeQuizPhase.RESULT, finalScore = result.data)
+                is AppResult.Success -> {
+                    _uiState.value = _uiState.value.copy(phase = TakeQuizPhase.RESULT, finalScore = result.data)
+                    val scorePercent = if (state.maxPoints == 0) 0 else (result.data * 100 / state.maxPoints)
+                    analyticsLogger.logQuizSubmitted(quizForTaking.quiz.id, scorePercent)
+                }
                 is AppResult.Error -> _uiState.value =
                     _uiState.value.copy(phase = TakeQuizPhase.QUESTIONS, errorMessage = result.message)
             }

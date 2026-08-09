@@ -2,6 +2,7 @@ package com.quizmaker.android.ui.trial
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.prefs.TrialPrefs
 import com.quizmaker.android.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,7 +18,8 @@ data class TrialStartedUiState(val isNavigating: Boolean = false)
 @HiltViewModel
 class TrialStartedViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val trialPrefs: TrialPrefs
+    private val trialPrefs: TrialPrefs,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrialStartedUiState())
@@ -30,6 +32,7 @@ class TrialStartedViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isNavigating = true)
             if (userId != null) trialPrefs.markTrialStartedShown(userId)
+            analyticsLogger.logTrialStarted()
             delay(650)
             onReady()
         }

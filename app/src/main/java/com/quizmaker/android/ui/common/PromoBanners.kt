@@ -206,6 +206,36 @@ fun PremiumBanner(onClick: () -> Unit) {
     }
 }
 
+/** Compact sale-day variant of [PremiumBanner] — same slot/shape, red instead of gold, shown on
+ *  More whenever a `sale_day` window is live for a non-premium account. */
+@Composable
+fun SaleDayMoreBanner(saleName: String, discountPercent: Int, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Brush.horizontalGradient(listOf(SaleRedStart, SaleRedEnd)))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.LocalOffer, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                saleName.ifBlank { "Sale Day" } + if (discountPercent > 0) " — $discountPercent% OFF" else "",
+                color = Color.White,
+                fontFamily = PoppinsFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+            Spacer(Modifier.height(1.dp))
+            Text("Grab a premium license at a special price", color = Color.White.copy(alpha = 0.9f), fontSize = 11.sp)
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White)
+    }
+}
+
 /**
  * Replaces the Dashboard's usual welcome banner while a `sale_day` row's window is live.
  * Full-bleed to the screen edges and behind the status bar (Zomato/Blinkit-style header) —

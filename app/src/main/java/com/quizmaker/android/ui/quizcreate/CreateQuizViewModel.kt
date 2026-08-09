@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.NewQuizSpec
 import com.quizmaker.android.data.model.Question
@@ -100,6 +101,7 @@ class CreateQuizViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val questionRepository: QuestionRepository,
     private val quizRepository: QuizRepository,
+    private val analyticsLogger: AnalyticsLogger,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -342,6 +344,13 @@ class CreateQuizViewModel @Inject constructor(
             when (result) {
                 is AppResult.Success -> {
                     _uiState.value = _uiState.value.copy(isSubmitting = false, resultQuiz = result.data)
+                    if (editQuizId == null) {
+                        analyticsLogger.logQuizCreated(
+                            quizId = result.data.id,
+                            questionCount = state.selectedQuestionIds.size,
+                            source = if (preselectedQuestionIds.isNotEmpty()) "ai" else "manual"
+                        )
+                    }
                     AlertBus.success(if (editQuizId != null) "Quiz updated" else "Quiz created")
                 }
                 is AppResult.Error -> _uiState.value =

@@ -24,6 +24,7 @@ import kotlin.math.roundToInt
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
+import javax.inject.Singleton
 
 enum class DashboardDateRange(val label: String, val days: Int?) {
     LAST_7_DAYS("Last 7 Days", 7),
@@ -49,16 +50,30 @@ data class DashboardUiState(
     val trialStatus: TrialStatus = TrialStatus.Premium
 )
 
+/**
+ * Holds the last successfully loaded Dashboard state for the process's lifetime. DashboardViewModel
+ * is re-created more often than its NavBackStackEntry survives (e.g. bottom-nav tab switches can
+ * tear down and rebuild it), which was showing the full skeleton loader every single time the user
+ * came back to Dashboard in the same session even though nothing had actually changed. Seeding a
+ * fresh ViewModel from this cache lets it render the last known data immediately while `refresh()`
+ * quietly re-fetches in the background, so the skeleton only ever appears once per app session.
+ */
+@Singleton
+class DashboardStateCache @Inject constructor() {
+    var lastState: DashboardUiState? = null
+}
+
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val quizRepository: QuizRepository,
     private val questionRepository: QuestionRepository,
     private val saleDayRepository: SaleDayRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val stateCache: DashboardStateCache
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(DashboardUiState())
+    private val _uiState = MutableStateFlow(stateCache.lastState?.copy(isLoading = false) ?: DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     private var allQuizzes: List<Quiz> = emptyList()
@@ -89,7 +104,10 @@ class DashboardViewModel @Inject constructor(
     fun refresh() {
         val userId = authRepository.currentUserId() ?: return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            // Only show the full-screen skeleton when there's nothing on screen yet — once we
+            // have cached data to show, a refresh (e.g. pull-to-retry) should update in place.
+            val showSkeleton = _uiState.value.let { it.recentSubmissions.isEmpty() && it.totalQuizzes == 0 && it.totalQuestions == 0 }
+            _uiState.value = _uiState.value.copy(isLoading = showSkeleton, errorMessage = null)
 
             val profileResult = authRepository.getCurrentProfile()
             val quizzesResult = quizRepository.getQuizzesForUser(userId)
@@ -163,7 +181,7 @@ class DashboardViewModel @Inject constructor(
                 .sortedByDescending { it.completedAt }
         }
 
-        _uiState.value = _uiState.value.copy(
+        val newState = _uiState.value.copy(
             isLoading = false,
             errorMessage = partialErrorMessage,
             creatorName = creatorName,
@@ -178,5 +196,7 @@ class DashboardViewModel @Inject constructor(
             activeSale = activeSale,
             trialStatus = trialStatus
         )
+        _uiState.value = newState
+        if (partialErrorMessage == null) stateCache.lastState = newState
     }
 }

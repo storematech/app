@@ -2,6 +2,7 @@ package com.quizmaker.android.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +24,7 @@ data class AuthUiState(
     val email: String = "",
     val isCheckingEmail: Boolean = false,
     val isLoading: Boolean = false,
+    val isGoogleLoading: Boolean = false,
     val errorMessage: String? = null,
     /** Set after a resetPassword() call succeeds, so the screen can show a confirmation. */
     val resetEmailSent: Boolean = false,
@@ -36,7 +38,8 @@ data class AuthUiState(
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -76,11 +79,42 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             when (val result = authRepository.signIn(email, password)) {
-                is AppResult.Success -> _uiState.value = _uiState.value.copy(isLoading = false)
+                is AppResult.Success -> {
+                    analyticsLogger.setUserId(authRepository.currentUserId())
+                    analyticsLogger.logLogin()
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
                 is AppResult.Error -> _uiState.value =
                     _uiState.value.copy(isLoading = false, errorMessage = result.message)
             }
         }
+    }
+
+    /**
+     * [idToken]/[rawNonce] come from Android's native Credential Manager picker — see
+     * GoogleAuth.kt's launchGoogleSignIn(), called from LoginScreen. Works for both a brand-new
+     * account and an existing web account that originally signed up with the same Google identity
+     * — NavGraph's own sessionStatus listener takes over navigation once the session lands, exactly
+     * like signIn()/signUp() above.
+     */
+    fun signInWithGoogle(idToken: String, rawNonce: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isGoogleLoading = true, errorMessage = null)
+            when (val result = authRepository.signInWithGoogleIdToken(idToken, rawNonce)) {
+                is AppResult.Success -> {
+                    analyticsLogger.setUserId(authRepository.currentUserId())
+                    analyticsLogger.logLogin(method = "google")
+                    _uiState.value = _uiState.value.copy(isGoogleLoading = false)
+                }
+                is AppResult.Error -> _uiState.value =
+                    _uiState.value.copy(isGoogleLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+
+    /** Covers both a missing GOOGLE_WEB_CLIENT_ID config and a genuine Credential Manager failure. */
+    fun onGoogleSignInError(message: String) {
+        _uiState.value = _uiState.value.copy(isGoogleLoading = false, errorMessage = message)
     }
 
     fun signUp(name: String, password: String) {
@@ -94,12 +128,15 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             when (val result = authRepository.signUp(email, password, name.trim())) {
-                is AppResult.Success -> _uiState.value =
+                is AppResult.Success -> {
+                    analyticsLogger.setUserId(authRepository.currentUserId())
+                    analyticsLogger.logSignUp()
                     // requiresConfirmation == false means the session is already established —
                     // NavGraph's own sessionStatus listener takes over navigation from here, so
                     // showing "check your inbox" here would just be a wrong message that flashes
                     // for the moment before that navigation fires.
-                    _uiState.value.copy(isLoading = false, signUpSucceeded = result.data)
+                    _uiState.value = _uiState.value.copy(isLoading = false, signUpSucceeded = result.data)
+                }
                 is AppResult.Error -> _uiState.value =
                     _uiState.value.copy(isLoading = false, errorMessage = result.message)
             }

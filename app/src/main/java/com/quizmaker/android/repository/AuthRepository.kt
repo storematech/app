@@ -9,7 +9,9 @@ import com.quizmaker.android.data.remote.dto.ProfileDto
 import com.quizmaker.android.data.remote.dto.ProfileInsertDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.from
@@ -85,6 +87,22 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    /**
+     * Native "Sign in with Google" via Android Credential Manager (see LoginScreen.kt for where
+     * [googleIdToken]/[rawNonce] come from) — no Firebase involved. This is the same Google OAuth
+     * identity the website's Supabase Google sign-in already uses, so an existing web account logs
+     * straight into its existing profile/data here rather than creating a new one; a brand-new
+     * account gets its `profiles` row the same way any other fresh sign-in does, via
+     * [getCurrentProfile]'s create-if-missing fallback the first time it's called after this.
+     */
+    suspend fun signInWithGoogleIdToken(googleIdToken: String, rawNonce: String): AppResult<Unit> = safeCall {
+        supabase.auth.signInWith(IDToken) {
+            idToken = googleIdToken
+            provider = Google
+            nonce = rawNonce
+        }
+    }
+
     suspend fun signOut(): AppResult<Unit> = safeCall {
         supabase.auth.signOut()
     }
@@ -98,7 +116,7 @@ class AuthRepository @Inject constructor(
         Unit
     }
 
-    suspend fun getCurrentProfile(): AppResult<Profile> = safeCall {
+    suspend fun getCurrentProfile(notifyOnError: Boolean = true): AppResult<Profile> = safeCall(notifyOnError) {
         val user = requireNotNull(supabase.auth.currentUserOrNull()) { "Not signed in" }
         val existing = supabase.from("profiles")
             .select { filter { eq("id", user.id) } }

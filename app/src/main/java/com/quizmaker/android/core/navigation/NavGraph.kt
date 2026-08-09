@@ -1,12 +1,17 @@
 package com.quizmaker.android.core.navigation
 
+import android.app.Activity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.automirrored.filled.Help
@@ -28,12 +33,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -44,7 +53,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.quizmaker.android.core.analytics.AnalyticsViewModel
 import com.quizmaker.android.core.theme.BrandIndigo
+import com.quizmaker.android.core.theme.BrandIndigoDark
 import com.quizmaker.android.core.theme.BrandIndigoLight
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextSecondary
@@ -59,9 +70,9 @@ import com.quizmaker.android.ui.dashboard.DashboardScreen
 import com.quizmaker.android.ui.faq.FaqScreen
 import com.quizmaker.android.ui.importquestions.ImportQuestionsScreen
 import com.quizmaker.android.ui.leaderboard.LeaderboardScreen
-import com.quizmaker.android.ui.license.LicenseDetailsScreen
 import com.quizmaker.android.ui.masterpaper.MasterPaperScreen
 import com.quizmaker.android.ui.more.MoreScreen
+import com.quizmaker.android.ui.notifications.NotificationPermissionScreen
 import com.quizmaker.android.ui.pricing.PricingScreen
 import com.quizmaker.android.ui.profile.ProfileScreen
 import com.quizmaker.android.ui.questionbank.QuestionBankScreen
@@ -77,6 +88,7 @@ import com.quizmaker.android.ui.takequiz.TakeQuizScreen
 import com.quizmaker.android.ui.trial.TrialEndedScreen
 import com.quizmaker.android.ui.trial.TrialStartedScreen
 import io.github.jan.supabase.auth.status.SessionStatus
+import kotlinx.coroutines.launch
 
 private val authRoutes = setOf(Screen.Login.route, Screen.ForgotPassword.route)
 
@@ -84,6 +96,7 @@ private val authRoutes = setOf(Screen.Login.route, Screen.ForgotPassword.route)
  *  TRIAL_ENDED in practice — LOADING/LOGGED_OUT are handled separately by their callers. */
 private fun SessionGate.toRoute(): String = when (this) {
     SessionGate.NEEDS_PHONE -> Screen.CollectPhone.route
+    SessionGate.NEEDS_NOTIFICATION_PERMISSION -> Screen.NotificationPermission.route
     SessionGate.TRIAL_STARTED -> Screen.TrialStarted.route
     SessionGate.TRIAL_ENDED -> Screen.TrialEnded.route
     SessionGate.LOGGED_IN, SessionGate.LOGGED_OUT, SessionGate.LOADING -> Screen.Dashboard.route
@@ -115,6 +128,7 @@ fun QuizMakerNavGraph(
     onConsumedPendingResponse: () -> Unit = {}
 ) {
     val sessionViewModel: SessionViewModel = hiltViewModel()
+    val analyticsViewModel: AnalyticsViewModel = hiltViewModel()
     val gate by sessionViewModel.gate.collectAsState()
     val sessionStatus by sessionViewModel.sessionStatus.collectAsState()
 
@@ -161,6 +175,30 @@ fun QuizMakerNavGraph(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     val showBottomBar = bottomTabs.any { it.route == currentRoute }
+    val isDashboard = currentRoute == Screen.Dashboard.route
+
+    // One spot covers every screen's screen_view instead of each screen self-reporting — the raw
+    // route pattern (e.g. "quiz_detail/{quizId}") is used as the screen name rather than a filled-in
+    // route, so Firebase groups all instances of the same screen together regardless of which quiz/
+    // response/etc. was open.
+    LaunchedEffect(currentRoute) {
+        currentRoute?.let { analyticsViewModel.logScreenView(it) }
+    }
+
+    // Dashboard manages its own status bar icon color dynamically (see DashboardScreen.kt — it
+    // tracks its own banner's scroll position). Every other screen gets a single, centrally-owned
+    // rule here instead: white icons over a solid brand-blue strip painted behind the status bar.
+    // Previously this was set ad hoc per-screen (Login/CollectPhone each toggled it locally and
+    // restored whatever the previous screen had left it as on dispose), which could drift out of
+    // sync depending on navigation history — e.g. leaving a screen that never set it at all left
+    // the status bar in whatever state an earlier screen happened to set.
+    val view = LocalView.current
+    val insetsController = remember(view) {
+        (view.context as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view) }
+    }
+    LaunchedEffect(isDashboard) {
+        if (!isDashboard) insetsController?.isAppearanceLightStatusBars = false
+    }
 
     Scaffold(
         bottomBar = {
@@ -189,10 +227,31 @@ fun QuizMakerNavGraph(
                 ForgotPasswordScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(Screen.CollectPhone.route) {
+                val scope = rememberCoroutineScope()
                 CollectPhoneScreen(
                     onSaved = {
-                        navController.navigate(Screen.Dashboard.route) {
-                            popUpTo(0) { inclusive = true }
+                        // Re-run the same post-auth gate check used at cold start, rather than
+                        // jumping straight to Dashboard — a brand-new account's trial starts the
+                        // moment the phone number is saved, so this is what actually routes to
+                        // TrialStarted immediately instead of only on the next app launch.
+                        scope.launch {
+                            navController.navigate(sessionViewModel.resolvePostAuthGate().toRoute()) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            }
+            composable(Screen.NotificationPermission.route) {
+                val scope = rememberCoroutineScope()
+                NotificationPermissionScreen(
+                    onContinue = {
+                        // Same "re-run the gate check" pattern as CollectPhone — lands on
+                        // TrialStarted/TrialEnded/Dashboard, whichever actually applies next.
+                        scope.launch {
+                            navController.navigate(sessionViewModel.resolvePostAuthGate().toRoute()) {
+                                popUpTo(0) { inclusive = true }
+                            }
                         }
                     }
                 )
@@ -281,10 +340,8 @@ fun QuizMakerNavGraph(
                     onOpenProfile = { navController.navigate(Screen.Profile.route) },
                     onOpenResponses = { navController.navigate(Screen.Responses.route) },
                     onOpenPricing = { navController.navigate(Screen.Pricing.route) },
-                    onOpenLicenseDetails = { navController.navigate(Screen.LicenseDetails.route) },
                     onOpenFaq = { navController.navigate(Screen.Faq.route) },
-                    onOpenImportQuestions = { navController.navigate(Screen.ImportQuestions.route) },
-                    onOpenComingSoon = { title -> navController.navigate(Screen.ComingSoon.createRoute(title)) }
+                    onOpenImportQuestions = { navController.navigate(Screen.ImportQuestions.route) }
                 )
             }
             composable(Screen.Faq.route) {
@@ -294,17 +351,7 @@ fun QuizMakerNavGraph(
                 ImportQuestionsScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(Screen.Pricing.route) {
-                PricingScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onPaymentSuccess = {
-                        navController.navigate(Screen.LicenseDetails.route) {
-                            popUpTo(Screen.Pricing.route) { inclusive = true }
-                        }
-                    }
-                )
-            }
-            composable(Screen.LicenseDetails.route) {
-                LicenseDetailsScreen(onNavigateBack = { navController.popBackStack() })
+                PricingScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(
                 route = Screen.ComingSoon.route,
@@ -400,6 +447,7 @@ fun QuizMakerNavGraph(
                 route = Screen.TakeQuiz.route,
                 arguments = listOf(navArgument("shareId") { type = NavType.StringType }),
                 deepLinks = listOf(
+                    navDeepLink { uriPattern = "https://app.yunolms.com/take-quiz/{shareId}" },
                     navDeepLink { uriPattern = "https://yunolms.com/take-quiz/{shareId}" },
                     navDeepLink { uriPattern = "https://quiz-maker.online/take-quiz/{shareId}" },
                     navDeepLink { uriPattern = "quizmaker://take-quiz/{shareId}" }
@@ -418,6 +466,19 @@ fun QuizMakerNavGraph(
                     }
                 )
             }
+        }
+
+        // Paints the status bar area itself brand-blue on every screen except Dashboard (which
+        // paints its own banner full-bleed behind the status bar instead) — drawn on top of the
+        // NavHost content since most screens' own TopAppBar/background don't reach up that far.
+        if (!isDashboard) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .windowInsetsTopHeight(WindowInsets.statusBars)
+                    .background(BrandIndigoDark)
+            )
         }
 
         AlertHost(modifier = Modifier.align(Alignment.TopCenter))

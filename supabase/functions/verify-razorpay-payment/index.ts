@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
 
     const { data: existingProfile } = await supabase
       .from("profiles")
-      .select("license_expired_date")
+      .select("email, name, license_expired_date")
       .eq("id", userId)
       .single();
 
@@ -134,6 +134,30 @@ Deno.serve(async (req) => {
     });
     if (paymentLogError) {
       console.error("Failed to log successful payment:", paymentLogError);
+    }
+
+    // Best-effort — a Brevo/email hiccup should never fail an already-verified, already-activated
+    // payment. send-email owns all Brevo access; this function never talks to Brevo directly.
+    if (existingProfile?.email) {
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+            apikey: serviceRoleKey,
+          },
+          body: JSON.stringify({
+            emailType: "license_purchased",
+            email: existingProfile.email,
+            name: existingProfile.name,
+            planLabel: currency === "INR" ? "India Premium" : "Global Premium",
+            expiresAt: newExpiry,
+          }),
+        });
+      } catch (emailError) {
+        console.error("Failed to send license-purchased email:", emailError);
+      }
     }
 
     return jsonResponse({ success: true });

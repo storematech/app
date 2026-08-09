@@ -26,13 +26,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Shareable quiz link: https://yunolms.com/take-quiz/{shareId} (current) or
-                 https://quiz-maker.online/take-quiz/{shareId} (older links/QR codes already shared
-                 before the domain switch — kept working, not just the new one). -->
+            <!-- Shareable quiz link: https://app.yunolms.com/take-quiz/{shareId} (current) or
+                 https://yunolms.com/take-quiz/{shareId} / https://quiz-maker.online/take-quiz/{shareId}
+                 (older links/QR codes already shared before the domain switches — kept working,
+                 not just the new one). -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="app.yunolms.com"
+                    android:pathPrefix="/take-quiz" />
                 <data
                     android:scheme="https"
                     android:host="yunolms.com"

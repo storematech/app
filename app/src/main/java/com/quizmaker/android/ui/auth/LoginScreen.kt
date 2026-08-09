@@ -1,12 +1,13 @@
 package com.quizmaker.android.ui.auth
 
-import android.app.Activity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,18 +37,19 @@ import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,15 +59,16 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.quizmaker.android.R
+import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.BrandIndigoDark
 import com.quizmaker.android.core.theme.PoppinsFamily
@@ -75,6 +78,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,18 +87,21 @@ fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    // Full-bleed gradient hero, same treatment as Dashboard's banner — light status bar icons
-    // for as long as this screen is the front door of the app.
-    val view = LocalView.current
-    val insetsController = remember(view) {
-        (view.context as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view) }
+    fun onGoogleSignInClick() {
+        scope.launch {
+            launchGoogleSignIn(
+                context = context,
+                onIdToken = viewModel::signInWithGoogle,
+                onError = viewModel::onGoogleSignInError
+            )
+        }
     }
-    DisposableEffect(insetsController) {
-        val wasLight = insetsController?.isAppearanceLightStatusBars
-        insetsController?.isAppearanceLightStatusBars = false
-        onDispose { if (wasLight != null) insetsController?.isAppearanceLightStatusBars = wasLight }
-    }
+
+    // Status bar icon color (white, for this screen's full-bleed gradient hero) is owned
+    // centrally by NavGraph.kt now, based on which route is current — not per-screen.
 
     Column(
         modifier = Modifier
@@ -153,7 +160,9 @@ fun LoginScreen(
                 when (step) {
                     AuthStep.EMAIL -> EmailStep(
                         isChecking = uiState.isCheckingEmail,
-                        onContinue = viewModel::continueWithEmail
+                        isGoogleLoading = uiState.isGoogleLoading,
+                        onContinue = viewModel::continueWithEmail,
+                        onGoogleSignIn = ::onGoogleSignInClick
                     )
                     AuthStep.SIGN_IN -> SignInStep(
                         email = uiState.email,
@@ -183,7 +192,12 @@ private fun subtitleFor(step: AuthStep, signUpSucceeded: Boolean): String = when
 }
 
 @Composable
-private fun EmailStep(isChecking: Boolean, onContinue: (String) -> Unit) {
+private fun EmailStep(
+    isChecking: Boolean,
+    isGoogleLoading: Boolean,
+    onContinue: (String) -> Unit,
+    onGoogleSignIn: () -> Unit
+) {
     var email by remember { mutableStateOf("") }
 
     Column {
@@ -210,6 +224,49 @@ private fun EmailStep(isChecking: Boolean, onContinue: (String) -> Unit) {
             loading = isChecking,
             modifier = Modifier.fillMaxWidth()
         )
+
+        Spacer(Modifier.height(20.dp))
+        OrDivider()
+        Spacer(Modifier.height(20.dp))
+
+        GoogleSignInButton(loading = isGoogleLoading, onClick = onGoogleSignIn)
+    }
+}
+
+@Composable
+private fun OrDivider() {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        HorizontalDivider(color = BorderGray, modifier = Modifier.weight(1f))
+        Text("OR", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 12.dp))
+        HorizontalDivider(color = BorderGray, modifier = Modifier.weight(1f))
+    }
+}
+
+/** Not Firebase — Android's native Credential Manager account picker, see GoogleAuth.kt. */
+@Composable
+private fun GoogleSignInButton(loading: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(SurfaceWhite)
+            .border(1.dp, BorderGray, RoundedCornerShape(14.dp))
+            .clickable(enabled = !loading, onClick = onClick),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = BrandIndigo, strokeWidth = 2.dp)
+        } else {
+            Image(
+                painter = painterResource(R.drawable.ic_google_logo),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text("Continue with Google", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        }
     }
 }
 

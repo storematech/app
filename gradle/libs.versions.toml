@@ -28,6 +28,13 @@ splashscreen = "1.2.0"
 googleServices = "4.5.0"
 firebaseCrashlyticsPlugin = "3.0.7"
 firebaseBom = "34.17.0"
+# Verified against github.com/PostHog/posthog-android releases (tag android-v3.58.0) on 2026-08-09.
+posthogAndroid = "3.58.0"
+# "Sign in with Google" via Android Credential Manager (not Firebase) — versions verified against
+# developer.android.com/jetpack/androidx/releases/credentials and
+# developers.google.com/identity/android-credential-manager/releases on 2026-08-09.
+androidxCredentials = "1.6.0"
+googleId = "1.2.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -75,8 +82,15 @@ fastexcel-reader = { group = "org.dhatim", name = "fastexcel-reader", version.re
 fastexcel-writer = { group = "org.dhatim", name = "fastexcel", version.ref = "fastexcel" }
 
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+
+posthog-android = { group = "com.posthog", name = "posthog-android", version.ref = "posthogAndroid" }
+
+androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "androidxCredentials" }
+androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "androidxCredentials" }
+google-id = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleId" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

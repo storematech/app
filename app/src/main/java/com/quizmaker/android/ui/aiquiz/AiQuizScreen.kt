@@ -11,14 +11,17 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -68,6 +71,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -221,38 +225,50 @@ fun AiQuizScreen(
     val busy = uiState.isGenerating || isPreparing
     val displayError = localError ?: uiState.errorMessage
 
+    // Nothing generated yet: center the composer in the available space, ChatGPT-style, instead
+    // of it sitting pinned near the top with a lot of dead space below. Once a review list exists
+    // the layout switches to normal top-aligned + scrollable so the generated questions have room.
+    val isEmptyState = !uiState.hasReview
+
     // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset, so
     // this only adds the top one — unlike Dashboard, this screen has no full-bleed banner to
     // manually paint behind the status bar, so without this the title rendered right against it
     // with no clearance.
     Scaffold(containerColor = AppBackground, contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Top)) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-        ) {
-            Spacer(Modifier.height(20.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(BrandIndigoLight),
-                    contentAlignment = Alignment.Center
+            // BoxWithConstraints so the scrollable column below can be told the viewport's actual
+            // height — that's what lets Arrangement.Center genuinely center the title+composer as
+            // one block when their content is shorter than the screen, while still scrolling
+            // normally (top-aligned) once the review list makes it taller than the viewport.
+            BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(padding)) {
+                val viewportHeight = maxHeight
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .imePadding()
+                        .padding(horizontal = 20.dp)
+                        .defaultMinSize(minHeight = viewportHeight),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = if (isEmptyState) Arrangement.Center else Arrangement.Top
                 ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(20.dp))
-                }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        if (viewModel.isAddQuestionsMode) "Create Questions with AI" else "Create Quiz with AI",
-                        fontFamily = PoppinsFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = TextPrimary
-                    )
-                    Text("Prompt it, or attach a PDF / photos", color = TextSecondary, fontSize = 12.sp)
-                }
+            Spacer(Modifier.height(20.dp))
+            Box(
+                modifier = Modifier.size(44.dp).clip(CircleShape).background(BrandIndigoLight),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(22.dp))
             }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                if (viewModel.isAddQuestionsMode) "Create Questions with AI" else "Create Quiz with AI",
+                textAlign = TextAlign.Center,
+                fontFamily = PoppinsFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = TextPrimary
+            )
+            Spacer(Modifier.height(2.dp))
+            Text("Prompt it, or attach a PDF / photos", textAlign = TextAlign.Center, color = TextSecondary, fontSize = 12.sp)
             Spacer(Modifier.height(18.dp))
 
             if (viewModel.showModeStrip) {
@@ -381,8 +397,9 @@ fun AiQuizScreen(
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
-        }
+                    Spacer(Modifier.height(32.dp))
+                }
+            }
     }
 }
 

@@ -1,11 +1,6 @@
 package com.quizmaker.android.ui.dashboard
 
-import android.Manifest
 import android.app.Activity
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +15,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -32,12 +28,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,7 +45,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -58,16 +55,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
@@ -115,18 +111,8 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Asked once per Dashboard load (Android just silently no-ops a repeat request if the user
-    // already granted/permanently-denied it) — this is what lets QuizFcmService actually post the
-    // "new submission" notification on API 33+.
-    val context = LocalContext.current
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
+    // Notification permission is asked via its own dedicated interstitial right after phone
+    // collection / sign-in — see SessionViewModel.resolvePostAuthGate() — rather than here.
 
     // The banner is the first item in the scrollable list (so it scrolls away like normal
     // content, not pinned) but bleeds edge-to-edge behind the status bar for that first,
@@ -347,26 +333,67 @@ private fun RecentSubmissionRow(
     }
 }
 
+/**
+ * Same "premium" visual recipe as [SaleDayBanner]/[TrialActiveBanner] — a large faint watermark
+ * icon plus a couple of sparkle accents behind the content — just in the plain indigo brand
+ * gradient instead of red, so a fully-settled premium account's Dashboard still reads as polished
+ * rather than a flat, bare gradient once there's no sale/trial messaging left to show.
+ */
 @Composable
 private fun WelcomeBanner() {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.horizontalGradient(listOf(BrandIndigoDark, BrandIndigo)),
-                RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-            )
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(horizontal = 20.dp, vertical = 26.dp)
+            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+            .background(Brush.horizontalGradient(listOf(BrandIndigoDark, BrandIndigo)))
     ) {
-        Text("Welcome to Yuno LMS", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
-        Spacer(Modifier.height(4.dp))
-        Text("Everything you need to run great assessments", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
-        Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            WelcomeFeature(icon = Icons.Default.NoteAdd, label = "Create Quiz", modifier = Modifier.weight(1f))
-            WelcomeFeature(icon = Icons.Default.Share, label = "Share Quiz", modifier = Modifier.weight(1f))
-            WelcomeFeature(icon = Icons.Default.Assessment, label = "Advanced Reports", modifier = Modifier.weight(1f))
+        Icon(
+            Icons.Default.WorkspacePremium,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.10f),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .offset(x = 30.dp, y = 4.dp)
+                .size(150.dp)
+                .rotate(-18f)
+        )
+        Icon(
+            Icons.Default.AutoAwesome,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.5f),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (-38).dp, y = 50.dp)
+                .size(15.dp)
+        )
+        Icon(
+            Icons.Default.AutoAwesome,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.3f),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = (-16).dp, y = (-62).dp)
+                .size(10.dp)
+        )
+
+        Column(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 20.dp, vertical = 26.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Welcome to Yuno LMS", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+            }
+            Spacer(Modifier.height(4.dp))
+            Text("Everything you need to run great assessments", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                WelcomeFeature(icon = Icons.Default.NoteAdd, label = "Create Quiz", modifier = Modifier.weight(1f))
+                WelcomeFeature(icon = Icons.Default.Share, label = "Share Quiz", modifier = Modifier.weight(1f))
+                WelcomeFeature(icon = Icons.Default.Assessment, label = "Advanced Reports", modifier = Modifier.weight(1f))
+            }
         }
     }
 }

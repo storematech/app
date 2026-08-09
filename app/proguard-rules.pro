@@ -43,3 +43,10 @@
 # these are shrinker warnings only, not real problems.
 -dontwarn io.ktor.**
 -dontwarn kotlinx.coroutines.debug.**
+
+# Credential Manager ("Sign in with Google") — required rule per Google's own Android integration
+# docs; without it the Play Services auth backend implementation gets stripped under R8.
+-if class androidx.credentials.CredentialManager
+-keep class androidx.credentials.playservices.** {
+  *;
+}

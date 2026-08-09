@@ -34,6 +34,9 @@ val PremiumGoldEnd = Color(0xFFFBBF24)
 // clearance-bin red; kept distinct from the gold "Get Premium" banner (different call to action).
 val SaleRedStart = Color(0xFFDC2626)
 val SaleRedEnd = Color(0xFF9F1239)
+// Soft red tint — the sale-day equivalent of BrandIndigoLight, used for the Pricing screen's plan
+// card header background while a sale is live.
+val SaleRedLight = Color(0xFFFEE2E2)
 
 // Stat-tile accent pairs (soft background + saturated icon color), matching the
 // Dashboard's Total Quizzes / Question Bank / Completions / Avg Score / Reported tiles.

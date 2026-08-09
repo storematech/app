@@ -24,12 +24,18 @@ inline fun <T> AppResult<T>.onError(action: (String) -> Unit): AppResult<T> {
 /** Shown for every API/network-layer failure app-wide — see toUserMessage() for why this is a single fixed string. */
 const val GENERIC_API_ERROR_MESSAGE = "We're facing high demand. Please try again."
 
-suspend fun <T> safeCall(block: suspend () -> T): AppResult<T> {
+/**
+ * [notifyOnError] defaults to true (the app-wide banner). Pass false only for calls whose
+ * caller already handles the failure silently/gracefully on its own (e.g. a background gate
+ * check that fails open) — a raw failure there is expected/handled, not something the user
+ * needs to be told about, and popping the banner for it would just be noise.
+ */
+suspend fun <T> safeCall(notifyOnError: Boolean = true, block: suspend () -> T): AppResult<T> {
     return try {
         AppResult.Success(block())
     } catch (t: Throwable) {
         val message = t.toUserMessage()
-        AlertBus.error(message)
+        if (notifyOnError) AlertBus.error(message)
         AppResult.Error(message, t)
     }
 }
