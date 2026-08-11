@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.network.AppResult
+import com.quizmaker.android.data.model.NewQuestionDraft
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionDifficulty
 import com.quizmaker.android.data.model.QuestionType
+import com.quizmaker.android.data.model.toDraft
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuestionRepository
 import com.quizmaker.android.util.TrialStatus
@@ -17,22 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-data class NewQuestionDraft(
-    val text: String = "",
-    val type: QuestionType = QuestionType.SINGLE_CHOICE,
-    val options: List<String> = listOf("", "", "", ""),
-    val correctOptionIndex: Int = 0,
-    val correctOptionIndices: Set<Int> = setOf(0),
-    val freeTextAnswer: String = "",
-    val points: Int = 1,
-    val difficulty: QuestionDifficulty = QuestionDifficulty.MEDIUM,
-    // Carried through from the source question when editing (no UI for these yet), so saving
-    // an edit doesn't silently wipe them. Null id means "creating a new question".
-    val editingQuestionId: String? = null,
-    val tags: List<String> = emptyList(),
-    val explanation: String? = null
-)
 
 data class QuestionBankUiState(
     val isLoading: Boolean = true,
@@ -47,7 +33,9 @@ data class QuestionBankUiState(
     val draft: NewQuestionDraft? = null,
     val isSaving: Boolean = false,
     val isCreationBlocked: Boolean = false,
-    val showTrialPaywall: Boolean = false
+    val showTrialPaywall: Boolean = false,
+    // Non-null while that question's delete request is in flight — lets the row show a "Deleting…" state.
+    val deletingQuestionId: String? = null
 ) {
     val filtered: List<Question>
         get() = questions.filter { question ->
@@ -163,10 +151,15 @@ class QuestionBankViewModel @Inject constructor(
 
     fun deleteQuestion(questionId: String) {
         viewModelScope.launch {
-            questionRepository.deleteQuestion(questionId)
-            _uiState.value = _uiState.value.copy(
-                questions = _uiState.value.questions.filterNot { it.id == questionId }
-            )
+            _uiState.value = _uiState.value.copy(deletingQuestionId = questionId)
+            when (val result = questionRepository.deleteQuestion(questionId)) {
+                is AppResult.Success -> _uiState.value = _uiState.value.copy(
+                    deletingQuestionId = null,
+                    questions = _uiState.value.questions.filterNot { it.id == questionId }
+                )
+                is AppResult.Error -> _uiState.value =
+                    _uiState.value.copy(deletingQuestionId = null, errorMessage = result.message)
+            }
         }
     }
 
@@ -175,34 +168,7 @@ class QuestionBankViewModel @Inject constructor(
     }
 
     fun startEditQuestion(question: Question) {
-        val isChoice = question.type == QuestionType.SINGLE_CHOICE || question.type == QuestionType.MULTI_CHOICE
-        val optionTexts = if (isChoice && question.options.isNotEmpty()) {
-            question.options.map { it.text }
-        } else {
-            listOf("", "", "", "")
-        }
-        val correctIndex = question.options.indexOfFirst { it.isCorrect }.takeIf { it >= 0 } ?: 0
-        val correctIndices = question.options.withIndex()
-            .filter { (_, option) -> option.isCorrect }
-            .map { (index, _) -> index }
-            .toSet()
-            .ifEmpty { setOf(0) }
-
-        _uiState.value = _uiState.value.copy(
-            draft = NewQuestionDraft(
-                text = question.text,
-                type = question.type,
-                options = optionTexts,
-                correctOptionIndex = correctIndex,
-                correctOptionIndices = correctIndices,
-                freeTextAnswer = question.correctAnswer.orEmpty(),
-                points = question.points,
-                difficulty = question.difficulty ?: QuestionDifficulty.MEDIUM,
-                editingQuestionId = question.id,
-                tags = question.tags,
-                explanation = question.explanation
-            )
-        )
+        _uiState.value = _uiState.value.copy(draft = question.toDraft())
     }
 
     fun dismissDraft() {

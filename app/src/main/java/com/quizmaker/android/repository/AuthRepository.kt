@@ -91,15 +91,36 @@ class AuthRepository @Inject constructor(
      * Native "Sign in with Google" via Android Credential Manager (see LoginScreen.kt for where
      * [googleIdToken]/[rawNonce] come from) — no Firebase involved. This is the same Google OAuth
      * identity the website's Supabase Google sign-in already uses, so an existing web account logs
-     * straight into its existing profile/data here rather than creating a new one; a brand-new
-     * account gets its `profiles` row the same way any other fresh sign-in does, via
-     * [getCurrentProfile]'s create-if-missing fallback the first time it's called after this.
+     * straight into its existing profile/data here rather than creating a new one.
+     *
+     * A brand-new account was previously left relying solely on [getCurrentProfile]'s
+     * create-if-missing fallback to populate its `profiles` row — in practice that fallback wasn't
+     * reliably succeeding for Google sign-ins (RLS/timing right after a fresh session, or a DB
+     * trigger keyed off email-signup's metadata shape), leaving the user with no profile row at
+     * all: a blank "My Profile", a "?" avatar, a repeated generic error toast (every profile-
+     * dependent screen retrying and re-failing the same fallback insert), and quiz/question
+     * creation failing wherever it's foreign-keyed to `profiles.id`. Upserting explicitly here,
+     * right after sign-in, mirrors exactly what [signUp] already does for the email/password path.
      */
     suspend fun signInWithGoogleIdToken(googleIdToken: String, rawNonce: String): AppResult<Unit> = safeCall {
         supabase.auth.signInWith(IDToken) {
             idToken = googleIdToken
             provider = Google
             nonce = rawNonce
+        }
+        val user = supabase.auth.currentUserOrNull()
+        if (user != null) {
+            // Create-if-missing only — every sign-in (not just the first) reaches this point, so a
+            // blind upsert here would silently clobber a name the user later set via My Profile.
+            val existing = supabase.from("profiles")
+                .select { filter { eq("id", user.id) } }
+                .decodeSingleOrNull<ProfileDto>()
+            if (existing == null) {
+                val fallbackName = user.email?.substringBefore("@").orEmpty()
+                supabase.from("profiles").upsert(
+                    ProfileInsertDto(id = user.id, email = user.email, name = fallbackName)
+                )
+            }
         }
     }
 

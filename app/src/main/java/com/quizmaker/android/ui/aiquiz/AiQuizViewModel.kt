@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.network.AppResult
+import com.quizmaker.android.data.model.AI_PROMPT_TEMPLATES
+import com.quizmaker.android.data.model.AiPromptTemplate
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.repository.AiQuizRepository
 import com.quizmaker.android.repository.AuthRepository
@@ -13,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private const val TRENDING_TEMPLATE_COUNT = 10
 
 const val MIN_AI_QUESTION_COUNT = 3
 const val MAX_AI_QUESTION_COUNT = 15
@@ -30,7 +34,9 @@ data class AiQuizUiState(
     val reviewQuestions: List<Question> = emptyList(),
     val selectedReviewIds: Set<String> = emptySet(),
     val navigateToCreateQuizWith: List<String>? = null,
-    val addQuestionsCompleted: Boolean = false
+    val addQuestionsCompleted: Boolean = false,
+    // Random 10-of-50 "trending" prompt starters shown as a carousel — see reshuffleTemplates().
+    val trendingTemplates: List<AiPromptTemplate> = emptyList()
 ) {
     val canGenerate: Boolean get() = (prompt.isNotBlank() || attachmentKind != null) && !isGenerating
     val hasReview: Boolean get() = reviewQuestions.isNotEmpty()
@@ -58,6 +64,12 @@ class AiQuizViewModel @Inject constructor(
 
     fun onPromptChange(value: String) {
         _uiState.value = _uiState.value.copy(prompt = value, errorMessage = null)
+    }
+
+    /** Called once per screen visit (see AiQuizScreen's LaunchedEffect) — a fresh random 10 of the
+     *  50 templates each time, including every time the user taps the bottom-nav AI tab back in. */
+    fun reshuffleTemplates() {
+        _uiState.value = _uiState.value.copy(trendingTemplates = AI_PROMPT_TEMPLATES.shuffled().take(TRENDING_TEMPLATE_COUNT))
     }
 
     fun onQuestionCountChange(value: Int) {

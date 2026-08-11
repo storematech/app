@@ -34,7 +34,9 @@ data class NewQuestionDraft(
     val correctOptionIndices: Set<Int> = setOf(0),
     val freeTextAnswer: String = "",
     val points: Int = 1,
-    val difficulty: QuestionDifficulty = QuestionDifficulty.MEDIUM
+    val difficulty: QuestionDifficulty = QuestionDifficulty.MEDIUM,
+    val tags: List<String> = emptyList(),
+    val explanation: String? = null
 )
 
 data class CreateQuizUiState(
@@ -55,6 +57,10 @@ data class CreateQuizUiState(
     // Step 2: questions
     val questionBank: List<Question> = emptyList(),
     val selectedQuestionIds: List<String> = emptyList(),
+    // Fixed at arrival (e.g. "Create A Re-Test" from Revision, or the AI quiz flow) — never
+    // touched afterward, so later manually checking/unchecking other questions never reshuffles
+    // the list out from under the user. See filteredQuestionBank.
+    val pinnedQuestionIds: Set<String> = emptySet(),
     val questionDraft: NewQuestionDraft? = null,
     val isSavingQuestion: Boolean = false,
     val questionSearchQuery: String = "",
@@ -93,7 +99,7 @@ data class CreateQuizUiState(
             val matchesTag = questionTagFilter == null || questionTagFilter in question.tags
             val matchesDifficulty = questionDifficultyFilter == null || question.difficulty == questionDifficultyFilter
             matchesSearch && matchesTag && matchesDifficulty
-        }
+        }.sortedByDescending { it.id in pinnedQuestionIds } // stable sort — pinned questions float to the top, everything else keeps its order
 }
 
 @HiltViewModel
@@ -112,7 +118,11 @@ class CreateQuizViewModel @Inject constructor(
         savedStateHandle.get<String>("preselectedIds").orEmpty().split(",").filter { it.isNotBlank() }
 
     private val _uiState = MutableStateFlow(
-        CreateQuizUiState(isEditMode = editQuizId != null, selectedQuestionIds = preselectedQuestionIds)
+        CreateQuizUiState(
+            isEditMode = editQuizId != null,
+            selectedQuestionIds = preselectedQuestionIds,
+            pinnedQuestionIds = preselectedQuestionIds.toSet()
+        )
     )
     val uiState: StateFlow<CreateQuizUiState> = _uiState.asStateFlow()
 
@@ -270,8 +280,8 @@ class CreateQuizViewModel @Inject constructor(
                 type = draft.type,
                 points = draft.points,
                 difficulty = draft.difficulty,
-                explanation = null,
-                tags = emptyList(),
+                explanation = draft.explanation,
+                tags = draft.tags,
                 options = optionPairs,
                 freeTextAnswer = draft.freeTextAnswer.ifBlank { null },
                 imageUrl = null,

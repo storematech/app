@@ -74,9 +74,10 @@ object FaqContent {
                         "all be exported as PDF or CSV from their toolbar icons."
                 ),
                 FaqItem(
-                    "What does Quiz Analysis show me?",
+                    "What does Question Performance show me?",
                     "A per-question breakdown across every response to a quiz — percent correct, and how many " +
-                        "people got each question right, wrong, or skipped it."
+                        "people got each question right, wrong, or skipped it. You can also bookmark any " +
+                        "question there for revision."
                 ),
                 FaqItem(
                     "Can I download a Master Paper or answer key?",

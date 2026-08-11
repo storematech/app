@@ -47,6 +47,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -630,12 +633,53 @@ private fun NewQuestionSheet(
             }
 
             Spacer(Modifier.height(20.dp))
+            Text("DIFFICULTY", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                QuestionDifficulty.entries.forEach { difficulty ->
+                    FilterChip(
+                        label = difficulty.value.replaceFirstChar { c -> c.uppercase() },
+                        selected = draft.difficulty == difficulty
+                    ) {
+                        onUpdate { it.copy(difficulty = difficulty) }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
             Text("Points: ${draft.points}", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             Slider(
                 value = draft.points.toFloat(),
                 onValueChange = { onUpdate { d -> d.copy(points = it.toInt().coerceAtLeast(1)) } },
                 valueRange = 1f..10f,
                 colors = SliderDefaults.colors(thumbColor = BrandIndigo, activeTrackColor = BrandIndigo)
+            )
+
+            Spacer(Modifier.height(12.dp))
+            Text("TAGS", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+            Spacer(Modifier.height(8.dp))
+            var tagsText by remember { mutableStateOf(draft.tags.joinToString(", ")) }
+            OutlinedTextField(
+                value = tagsText,
+                onValueChange = { text ->
+                    tagsText = text
+                    onUpdate { it.copy(tags = text.split(",").map { tag -> tag.trim() }.filter { tag -> tag.isNotBlank() }) }
+                },
+                placeholder = { Text("e.g. algebra, geometry") },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(20.dp))
+            Text("EXPLANATION (OPTIONAL)", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = draft.explanation.orEmpty(),
+                onValueChange = { text -> onUpdate { it.copy(explanation = text.ifBlank { null }) } },
+                placeholder = { Text("Explain why this answer is correct...") },
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(90.dp)
             )
 
             Spacer(Modifier.height(16.dp))

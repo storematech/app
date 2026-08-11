@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,11 +28,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,12 +74,12 @@ fun AlertHost(modifier: Modifier = Modifier) {
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(horizontal = 20.dp, vertical = 10.dp)
     ) {
-        currentAlert?.let { AlertStrip(it) }
+        currentAlert?.let { AlertStrip(it, onDismiss = { currentAlert = null }) }
     }
 }
 
 @Composable
-private fun AlertStrip(alert: AppAlert) {
+private fun AlertStrip(alert: AppAlert, onDismiss: () -> Unit) {
     val isSuccess = alert.type == AlertType.SUCCESS
     val backgroundColor = if (isSuccess) SuccessGreen else ErrorRed
     val icon = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.ErrorOutline
@@ -88,6 +91,7 @@ private fun AlertStrip(alert: AppAlert) {
             .clip(RoundedCornerShape(50))
             .background(backgroundColor)
             .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = null, tint = Color.White)
         Spacer(Modifier.width(10.dp))
@@ -98,7 +102,24 @@ private fun AlertStrip(alert: AppAlert) {
             fontWeight = FontWeight.SemiBold,
             fontSize = 14.sp,
             maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
+        val onAction = alert.onAction
+        if (alert.actionLabel != null && onAction != null) {
+            Spacer(Modifier.width(12.dp))
+            Text(
+                alert.actionLabel,
+                color = Color.White,
+                fontFamily = PoppinsFamily,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 14.sp,
+                textDecoration = TextDecoration.Underline,
+                modifier = Modifier.clickable {
+                    onAction()
+                    onDismiss()
+                }
+            )
+        }
     }
 }

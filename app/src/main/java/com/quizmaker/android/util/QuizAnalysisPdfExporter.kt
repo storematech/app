@@ -50,7 +50,7 @@ object QuizAnalysisPdfExporter {
         }
 
         // Header
-        canvas.drawText("Quiz Analysis", MARGIN, y + 14f, titlePaint)
+        canvas.drawText("Question Performance", MARGIN, y + 14f, titlePaint)
         y += 20f
         if (data.quizTitle.isNotBlank()) {
             canvas.drawText(data.quizTitle, MARGIN, y + 8f, subtitlePaint)

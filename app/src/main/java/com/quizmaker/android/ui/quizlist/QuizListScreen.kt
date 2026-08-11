@@ -1,6 +1,8 @@
 package com.quizmaker.android.ui.quizlist
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -27,19 +29,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NoteAdd
@@ -50,10 +56,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -65,6 +73,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -79,15 +88,20 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.quizmaker.android.core.theme.AiCardBg
+import com.quizmaker.android.core.theme.AiCardBorder
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
+import com.quizmaker.android.core.theme.BrandIndigoLight
 import com.quizmaker.android.core.theme.ErrorRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.Quiz
+import com.quizmaker.android.data.model.QuizAiSummary
+import com.quizmaker.android.ui.common.AiSummaryCard
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
@@ -106,7 +120,6 @@ fun QuizListScreen(
     onCreateQuiz: () -> Unit,
     onOpenAi: () -> Unit,
     onViewLeaderboard: (String) -> Unit,
-    onOpenComingSoon: (String) -> Unit,
     onOpenMasterPaper: (String) -> Unit,
     onOpenQuizAnalysis: (String) -> Unit,
     onOpenQuizDetailView: (String) -> Unit,
@@ -118,6 +131,7 @@ fun QuizListScreen(
     var quizPendingDelete by remember { mutableStateOf<Quiz?>(null) }
     var quizPendingShare by remember { mutableStateOf<Quiz?>(null) }
     var quizPendingMenu by remember { mutableStateOf<Quiz?>(null) }
+    var quizPendingLinkToClass by remember { mutableStateOf<Quiz?>(null) }
 
     // A newly-created quiz (QuizCreatedScreen's Done button) or an edit made elsewhere pops back
     // to this same screen instance — hiltViewModel() keeps the same ViewModel alive across that
@@ -224,6 +238,11 @@ fun QuizListScreen(
                                 quiz = quiz,
                                 questionCount = uiState.questionCounts[quiz.id],
                                 responseCount = uiState.responseCounts[quiz.id],
+                                aiSummary = uiState.aiSummaries[quiz.id],
+                                isAiSummaryExpanded = quiz.id in uiState.expandedAiSummaryQuizIds,
+                                isAiSummaryLoading = quiz.id in uiState.loadingAiSummaryQuizIds,
+                                isDeleting = quiz.id == uiState.deletingQuizId,
+                                onToggleAiSummary = { viewModel.onToggleAiSummary(quiz.id) },
                                 onClick = { onOpenQuiz(quiz.id) },
                                 onViewLeaderboard = { onViewLeaderboard(quiz.id) },
                                 onOpenQuizDetailView = { onOpenQuizDetailView(quiz.id) },
@@ -284,13 +303,17 @@ fun QuizListScreen(
             quiz = quiz,
             onDismiss = { quizPendingMenu = null },
             onDuplicate = { viewModel.duplicateQuiz(quiz.id) },
-            onComingSoon = onOpenComingSoon,
             onOpenMasterPaper = { onOpenMasterPaper(quiz.id) },
             onOpenQuizAnalysis = { onOpenQuizAnalysis(quiz.id) },
             onOpenQuizDetailView = { onOpenQuizDetailView(quiz.id) },
+            onLinkToClass = { quizPendingLinkToClass = quiz },
             onClose = { viewModel.closeQuiz(quiz.id) },
             onRequestDelete = { quizPendingDelete = quiz }
         )
+    }
+
+    quizPendingLinkToClass?.let { quiz ->
+        LinkToClassSheet(quiz = quiz, onDismiss = { quizPendingLinkToClass = null })
     }
 }
 
@@ -299,6 +322,11 @@ private fun QuizListRow(
     quiz: Quiz,
     questionCount: Int?,
     responseCount: Int?,
+    aiSummary: QuizAiSummary?,
+    isAiSummaryExpanded: Boolean,
+    isAiSummaryLoading: Boolean,
+    isDeleting: Boolean,
+    onToggleAiSummary: () -> Unit,
     onClick: () -> Unit,
     onViewLeaderboard: () -> Unit,
     onOpenQuizDetailView: () -> Unit,
@@ -306,34 +334,82 @@ private fun QuizListRow(
     onMenuClick: () -> Unit,
     onEditQuiz: () -> Unit
 ) {
-    Column(
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .elevatedSurface(shape = RoundedCornerShape(20.dp))
+                .padding(18.dp)
+                .alpha(if (isDeleting) 0.4f else 1f)
+        ) {
+            Column(modifier = Modifier.clickable(enabled = !isDeleting, onClick = onClick)) {
+                Text(quiz.title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary)
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(formatShortDate(quiz.createdAt), color = TextSecondary, fontSize = 13.sp)
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("${questionCount ?: "-"} questions", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text("${responseCount ?: "-"} submissions", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AiSummaryIconButton(isExpanded = isAiSummaryExpanded, onClick = onToggleAiSummary)
+                CircleIconButton(icon = Icons.Default.Edit, onClick = onEditQuiz)
+                CircleIconButton(icon = Icons.Default.EmojiEvents, onClick = onViewLeaderboard)
+                CircleIconButton(icon = Icons.Default.Visibility, onClick = onOpenQuizDetailView)
+                CircleIconButton(icon = Icons.Default.Share, onClick = onShare)
+                CircleIconButton(icon = Icons.Default.MoreVert, onClick = onMenuClick)
+            }
+            AnimatedVisibility(visible = isAiSummaryExpanded, enter = expandVertically(), exit = shrinkVertically()) {
+                Column {
+                    Spacer(Modifier.height(14.dp))
+                    AiSummaryCard(summary = aiSummary, isLoading = isAiSummaryLoading)
+                }
+            }
+        }
+        if (isDeleting) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .clip(RoundedCornerShape(50))
+                    .background(SurfaceWhite)
+                    .border(1.dp, ErrorRed, RoundedCornerShape(50))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = ErrorRed, strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Deleting…", color = ErrorRed, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+/** The "AI" icon that toggles a quiz card's AI Summary open/closed — same light tint as the
+ *  AiSummaryCard it opens (see its KDoc: this is branded as AI but is just cached SQL stats),
+ *  not a bold fill, so it reads as a subtle toggle rather than competing with the row's other icons. */
+@Composable
+private fun AiSummaryIconButton(isExpanded: Boolean, onClick: () -> Unit) {
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .elevatedSurface(shape = RoundedCornerShape(20.dp))
-            .padding(18.dp)
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(AiCardBg)
+            .border(1.dp, AiCardBorder, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        Column(modifier = Modifier.clickable(onClick = onClick)) {
-            Text(quiz.title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary)
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(formatShortDate(quiz.createdAt), color = TextSecondary, fontSize = 13.sp)
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("${questionCount ?: "-"} questions", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                Text("${responseCount ?: "-"} submissions", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-            }
-        }
-        Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            CircleIconButton(icon = Icons.Default.Edit, onClick = onEditQuiz)
-            CircleIconButton(icon = Icons.Default.EmojiEvents, onClick = onViewLeaderboard)
-            CircleIconButton(icon = Icons.Default.Visibility, onClick = onOpenQuizDetailView)
-            CircleIconButton(icon = Icons.Default.Share, onClick = onShare)
-            CircleIconButton(icon = Icons.Default.MoreVert, onClick = onMenuClick)
-        }
+        Icon(
+            if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.AutoAwesome,
+            contentDescription = "AI Summary",
+            tint = BrandIndigo,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
@@ -347,10 +423,10 @@ private fun QuizActionsSheet(
     quiz: Quiz,
     onDismiss: () -> Unit,
     onDuplicate: () -> Unit,
-    onComingSoon: (String) -> Unit,
     onOpenMasterPaper: () -> Unit,
     onOpenQuizAnalysis: () -> Unit,
     onOpenQuizDetailView: () -> Unit,
+    onLinkToClass: () -> Unit,
     onClose: () -> Unit,
     onRequestDelete: () -> Unit
 ) {
@@ -402,10 +478,10 @@ private fun QuizActionsSheet(
                     Spacer(Modifier.height(8.dp))
 
                     SheetActionRow("Master Paper", Icons.Default.Description) { onDismiss(); onOpenMasterPaper() }
-                    SheetActionRow("Quiz Analysis", Icons.Default.BarChart) { onDismiss(); onOpenQuizAnalysis() }
+                    SheetActionRow("Question Performance", Icons.Default.BarChart) { onDismiss(); onOpenQuizAnalysis() }
                     SheetActionRow("Quiz Detail View", Icons.Default.Assignment) { onDismiss(); onOpenQuizDetailView() }
                     SheetActionRow("Duplicate Quiz", Icons.Default.ContentCopy) { onDismiss(); onDuplicate() }
-                    SheetActionRow("Assign to Group", Icons.Default.GroupAdd) { onDismiss(); onComingSoon("Assign to Group") }
+                    SheetActionRow("Link to Class", Icons.Default.GroupAdd) { onDismiss(); onLinkToClass() }
                     if (!quiz.isClosed) {
                         SheetActionRow("Close Quiz", Icons.Default.Lock) { onDismiss(); onClose() }
                     }
@@ -414,6 +490,100 @@ private fun QuizActionsSheet(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LinkToClassSheet(quiz: Quiz, onDismiss: () -> Unit, viewModel: LinkToClassViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+    LaunchedEffect(quiz.id) { viewModel.load(quiz.id) }
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Text("Link to Class", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary)
+            Spacer(Modifier.height(4.dp))
+            Text("Add \"${quiz.title}\" to one or more classes", color = TextSecondary, fontSize = 13.sp)
+            Spacer(Modifier.height(16.dp))
+            when {
+                uiState.isLoading -> Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = BrandIndigo)
+                }
+                uiState.classes.isEmpty() -> Text(
+                    "You don't have any classes yet — create one below.",
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+                else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    uiState.classes.forEach { quizClass ->
+                        val isLinked = quizClass.id in uiState.linkedClassIds
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .elevatedSurface(shape = RoundedCornerShape(14.dp), elevation = 2.dp, color = if (isLinked) BrandIndigoLight else SurfaceWhite)
+                                .clickable { viewModel.toggleClass(quizClass.id) }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(quizClass.name, color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                            if (isLinked) {
+                                Icon(Icons.Default.Check, contentDescription = "Linked", tint = BrandIndigo)
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "+ New Class",
+                color = BrandIndigo,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                modifier = Modifier.clickable(onClick = viewModel::openCreateDialog)
+            )
+        }
+    }
+
+    if (uiState.isCreateDialogOpen) {
+        CreateAndLinkClassDialog(
+            isCreating = uiState.isCreating,
+            onDismiss = viewModel::dismissCreateDialog,
+            onCreate = viewModel::createAndLinkClass
+        )
+    }
+}
+
+@Composable
+private fun CreateAndLinkClassDialog(isCreating: Boolean, onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New Class") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Class name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(enabled = !isCreating, onClick = { onCreate(name) }) {
+                Text(if (isCreating) "Creating…" else "Create & Link", color = BrandIndigo, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

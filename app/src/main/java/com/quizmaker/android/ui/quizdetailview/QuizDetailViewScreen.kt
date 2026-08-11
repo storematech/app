@@ -64,6 +64,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.QuizDetailViewData
 import com.quizmaker.android.data.model.StudentAnswerRow
+import com.quizmaker.android.ui.common.AiSummaryCard
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.CsvFileIcon
 import com.quizmaker.android.ui.common.ErrorBanner
@@ -90,6 +91,7 @@ fun QuizDetailViewScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     var isExporting by remember { mutableStateOf(false) }
+    var isAiSummaryExpanded by remember { mutableStateOf(true) }
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -200,6 +202,13 @@ fun QuizDetailViewScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
+                            Spacer(Modifier.height(20.dp))
+                            AiSummaryCard(
+                                summary = uiState.aiSummary,
+                                isLoading = uiState.isLoadingAiSummary,
+                                isExpanded = isAiSummaryExpanded,
+                                onToggleExpanded = { isAiSummaryExpanded = !isAiSummaryExpanded }
+                            )
                             Spacer(Modifier.height(20.dp))
                         }
 

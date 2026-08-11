@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Quiz
+import com.quizmaker.android.data.model.QuizAiSummary
 import com.quizmaker.android.repository.AuthRepository
+import com.quizmaker.android.repository.QuizAiSummaryRepository
 import com.quizmaker.android.repository.QuizRepository
 import com.quizmaker.android.util.TrialStatus
 import com.quizmaker.android.util.trialStatus
@@ -31,7 +33,16 @@ data class QuizListUiState(
     val questionCounts: Map<String, Int> = emptyMap(),
     val responseCounts: Map<String, Int> = emptyMap(),
     val isCreationBlocked: Boolean = false,
-    val showTrialPaywall: Boolean = false
+    val showTrialPaywall: Boolean = false,
+    // "AI Summary" per-card state (see QuizAiSummaryRepository — it's cached SQL stats, not
+    // real AI). Keyed by quiz id, not `remember`, so LazyColumn recycling can't mix up which
+    // row is expanded/loading as the user scrolls.
+    val aiSummaries: Map<String, QuizAiSummary> = emptyMap(),
+    val expandedAiSummaryQuizIds: Set<String> = emptySet(),
+    val loadingAiSummaryQuizIds: Set<String> = emptySet(),
+    // Non-null while that quiz's delete request is in flight — lets the row show a "Deleting…" state
+    // instead of just vanishing instantly or sitting there with no feedback until refresh() lands.
+    val deletingQuizId: String? = null
 ) {
     val filteredQuizzes: List<Quiz>
         get() = searchResults ?: allQuizzes
@@ -40,7 +51,8 @@ data class QuizListUiState(
 @HiltViewModel
 class QuizListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val quizRepository: QuizRepository
+    private val quizRepository: QuizRepository,
+    private val quizAiSummaryRepository: QuizAiSummaryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(QuizListUiState())
@@ -87,6 +99,7 @@ class QuizListViewModel @Inject constructor(
                         endReached = result.data.size < QuizRepository.PAGE_SIZE
                     )
                     loadCounts(result.data.map { it.id })
+                    prefetchAiSummaries(result.data)
                 }
                 is AppResult.Error -> _uiState.value =
                     _uiState.value.copy(isLoading = false, errorMessage = result.message)
@@ -146,9 +159,44 @@ class QuizListViewModel @Inject constructor(
                 is AppResult.Success -> {
                     _uiState.value = _uiState.value.copy(searchResults = result.data)
                     loadCounts(result.data.map { it.id })
+                    prefetchAiSummaries(result.data)
                 }
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(errorMessage = result.message)
             }
+        }
+    }
+
+    /** Silently loads the AI Summary for the first 2 quizzes of a freshly-loaded list/search result
+     *  so they open instantly on tap — every quiz beyond that only loads when its AI icon is tapped,
+     *  see [onToggleAiSummary]. Never expands the card on its own. */
+    private fun prefetchAiSummaries(quizzes: List<Quiz>) {
+        quizzes.take(2).forEach { quiz ->
+            // Silent — the user hasn't tapped anything yet, so a failure here shouldn't pop the
+            // app-wide error banner; it just means that card falls back to loading on tap instead.
+            if (quiz.id !in _uiState.value.aiSummaries) loadAiSummary(quiz.id, notifyOnError = false)
+        }
+    }
+
+    /** AI icon tap: expand/collapse a card, fetching its summary the first time it's expanded. */
+    fun onToggleAiSummary(quizId: String) {
+        val expanded = _uiState.value.expandedAiSummaryQuizIds
+        val nowExpanding = quizId !in expanded
+        _uiState.value = _uiState.value.copy(
+            expandedAiSummaryQuizIds = if (nowExpanding) expanded + quizId else expanded - quizId
+        )
+        if (nowExpanding && quizId !in _uiState.value.aiSummaries) loadAiSummary(quizId, notifyOnError = true)
+    }
+
+    private fun loadAiSummary(quizId: String, notifyOnError: Boolean) {
+        if (quizId in _uiState.value.loadingAiSummaryQuizIds) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(loadingAiSummaryQuizIds = _uiState.value.loadingAiSummaryQuizIds + quizId)
+            val result = quizAiSummaryRepository.getSummary(quizId, notifyOnError)
+            val summaries = if (result is AppResult.Success) _uiState.value.aiSummaries + (quizId to result.data) else _uiState.value.aiSummaries
+            _uiState.value = _uiState.value.copy(
+                aiSummaries = summaries,
+                loadingAiSummaryQuizIds = _uiState.value.loadingAiSummaryQuizIds - quizId
+            )
         }
     }
 
@@ -163,9 +211,14 @@ class QuizListViewModel @Inject constructor(
 
     fun deleteQuiz(quizId: String) {
         viewModelScope.launch {
-            when (quizRepository.deleteQuiz(quizId)) {
-                is AppResult.Success -> refresh()
-                is AppResult.Error -> Unit
+            _uiState.value = _uiState.value.copy(deletingQuizId = quizId)
+            when (val result = quizRepository.deleteQuiz(quizId)) {
+                is AppResult.Success -> {
+                    _uiState.value = _uiState.value.copy(deletingQuizId = null)
+                    refresh()
+                }
+                is AppResult.Error -> _uiState.value =
+                    _uiState.value.copy(deletingQuizId = null, errorMessage = result.message)
             }
         }
     }

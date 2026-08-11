@@ -64,6 +64,48 @@ sealed class Screen(val route: String) {
     }
 
     data object Responses : Screen("responses")
+    data object Revision : Screen("revision")
+
+    data object Classes : Screen("classes")
+
+    data object ClassDashboard : Screen("class_dashboard/{classId}") {
+        fun createRoute(classId: String) = "class_dashboard/$classId"
+    }
+
+    data object ClassWeakLearners : Screen("class_weak_learners/{classId}") {
+        fun createRoute(classId: String) = "class_weak_learners/$classId"
+    }
+
+    data object Tools : Screen("tools")
+    data object OnboardingForms : Screen("onboarding_forms")
+
+    data object OnboardingSubmissions : Screen("onboarding_submissions/{formId}") {
+        fun createRoute(formId: String) = "onboarding_submissions/$formId"
+    }
+
+    data object FeedbackForms : Screen("feedback_forms")
+
+    data object FeedbackSubmissions : Screen("feedback_submissions/{formId}") {
+        fun createRoute(formId: String) = "feedback_submissions/$formId"
+    }
+
+    data object Polls : Screen("polls")
+
+    data object PollResults : Screen("poll_results/{pollId}") {
+        fun createRoute(pollId: String) = "poll_results/$pollId"
+    }
+
+    data object Voting : Screen("voting")
+
+    data object VotingResults : Screen("voting_results/{campaignId}") {
+        fun createRoute(campaignId: String) = "voting_results/$campaignId"
+    }
+
+    data object RsvpEvents : Screen("rsvp_events")
+
+    data object RsvpRegistrations : Screen("rsvp_registrations/{eventId}") {
+        fun createRoute(eventId: String) = "rsvp_registrations/$eventId"
+    }
 
     data object Pricing : Screen("pricing")
     data object Faq : Screen("faq")

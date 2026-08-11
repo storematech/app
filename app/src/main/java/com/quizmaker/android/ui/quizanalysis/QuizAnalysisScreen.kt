@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
@@ -34,6 +37,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -44,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
+import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.PdfRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.StatAmberBg
@@ -79,7 +84,7 @@ fun QuizAnalysisScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Quiz Analysis", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("Question Performance", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         uiState.data?.quizTitle?.let { Text(it, fontSize = 12.sp, color = TextSecondary) }
                     }
                 },
@@ -96,7 +101,7 @@ fun QuizAnalysisScreen(
                     if (data != null && data.questions.isNotEmpty()) {
                         IconButton(onClick = {
                             val intent = QuizAnalysisPdfExporter.export(context, data)
-                            context.startActivity(Intent.createChooser(intent, "Export quiz analysis (PDF)"))
+                            context.startActivity(Intent.createChooser(intent, "Export question performance (PDF)"))
                         }) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
                         }
@@ -176,7 +181,11 @@ fun QuizAnalysisScreen(
                             }
                         } else {
                             items(data.questions, key = { it.questionId }) { stat ->
-                                QuestionStatRow(stat = stat)
+                                QuestionStatRow(
+                                    stat = stat,
+                                    isBookmarked = stat.questionId in uiState.bookmarkedQuestionIds,
+                                    onToggleRevision = { viewModel.toggleRevision(stat.questionId) }
+                                )
                                 Spacer(Modifier.height(10.dp))
                             }
                         }
@@ -188,14 +197,14 @@ fun QuizAnalysisScreen(
 }
 
 @Composable
-private fun QuestionStatRow(stat: QuestionStat) {
+private fun QuestionStatRow(stat: QuestionStat, isBookmarked: Boolean, onToggleRevision: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .elevatedSurface(shape = RoundedCornerShape(16.dp), elevation = 3.dp)
             .padding(14.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 "Q${stat.order}. ${stat.text}",
                 color = TextPrimary,
@@ -208,6 +217,13 @@ private fun QuestionStatRow(stat: QuestionStat) {
             Spacer(Modifier.width(8.dp))
             if (!stat.isUngraded) {
                 Text("${stat.correctPercent}%", color = scoreBandColor(stat.correctPercent), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
+            IconButton(onClick = onToggleRevision, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    contentDescription = if (isBookmarked) "Remove from revision" else "Add for revision",
+                    tint = BrandIndigo
+                )
             }
         }
         Spacer(Modifier.height(8.dp))

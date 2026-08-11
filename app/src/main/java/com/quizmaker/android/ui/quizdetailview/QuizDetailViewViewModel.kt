@@ -4,9 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.network.AppResult
+import com.quizmaker.android.data.model.QuizAiSummary
 import com.quizmaker.android.data.model.QuizDetailViewData
 import com.quizmaker.android.data.model.QuizDetailViewSummary
 import com.quizmaker.android.data.model.StudentAnswerRow
+import com.quizmaker.android.repository.QuizAiSummaryRepository
 import com.quizmaker.android.repository.QuizDetailViewRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,12 +23,18 @@ data class QuizDetailViewUiState(
     val errorMessage: String? = null,
     val summary: QuizDetailViewSummary? = null,
     val rows: List<StudentAnswerRow> = emptyList(),
-    val hasMore: Boolean = true
+    val hasMore: Boolean = true,
+    // "AI Summary" section — see QuizAiSummaryRepository's KDoc: cached SQL stats, not real AI.
+    // Fetched independently of the rest of this screen so a slow/failed call never blocks the
+    // main summary/rows from showing, same pattern as QuizListViewModel.loadTrialGate().
+    val aiSummary: QuizAiSummary? = null,
+    val isLoadingAiSummary: Boolean = true
 )
 
 @HiltViewModel
 class QuizDetailViewViewModel @Inject constructor(
     private val repository: QuizDetailViewRepository,
+    private val aiSummaryRepository: QuizAiSummaryRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -39,9 +47,26 @@ class QuizDetailViewViewModel @Inject constructor(
         refresh()
     }
 
-    fun refresh() {
+    private fun loadAiSummary() {
         viewModelScope.launch {
-            _uiState.value = QuizDetailViewUiState(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoadingAiSummary = true)
+            val result = aiSummaryRepository.getSummary(quizId, notifyOnError = false)
+            _uiState.value = _uiState.value.copy(
+                isLoadingAiSummary = false,
+                aiSummary = (result as? AppResult.Success)?.data
+            )
+        }
+    }
+
+    fun refresh() {
+        loadAiSummary()
+        viewModelScope.launch {
+            // A targeted copy(), not a fresh QuizDetailViewUiState(), so this reset never clobbers
+            // whatever loadAiSummary() is concurrently doing to aiSummary/isLoadingAiSummary above.
+            _uiState.value = _uiState.value.copy(
+                isLoading = true, isLoadingMore = false, errorMessage = null,
+                summary = null, rows = emptyList(), hasMore = true
+            )
 
             val summaryResult = repository.getSummary(quizId)
             val summary = when (summaryResult) {

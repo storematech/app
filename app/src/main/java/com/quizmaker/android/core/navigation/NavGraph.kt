@@ -63,6 +63,20 @@ import com.quizmaker.android.ui.aiquiz.AiQuizScreen
 import com.quizmaker.android.ui.auth.CollectPhoneScreen
 import com.quizmaker.android.ui.auth.ForgotPasswordScreen
 import com.quizmaker.android.ui.auth.LoginScreen
+import com.quizmaker.android.ui.classdashboard.ClassDashboardScreen
+import com.quizmaker.android.ui.classlist.ClassListScreen
+import com.quizmaker.android.ui.classweaklearners.ClassWeakLearnersScreen
+import com.quizmaker.android.ui.tools.ToolsScreen
+import com.quizmaker.android.ui.tools.feedback.FeedbackFormListScreen
+import com.quizmaker.android.ui.tools.feedback.FeedbackSubmissionsScreen
+import com.quizmaker.android.ui.tools.onboarding.OnboardingFormListScreen
+import com.quizmaker.android.ui.tools.onboarding.OnboardingSubmissionsScreen
+import com.quizmaker.android.ui.tools.poll.PollListScreen
+import com.quizmaker.android.ui.tools.poll.PollResultsScreen
+import com.quizmaker.android.ui.tools.rsvp.RsvpEventListScreen
+import com.quizmaker.android.ui.tools.rsvp.RsvpRegistrationsScreen
+import com.quizmaker.android.ui.tools.voting.VotingListScreen
+import com.quizmaker.android.ui.tools.voting.VotingResultsScreen
 import com.quizmaker.android.ui.common.AlertHost
 import com.quizmaker.android.ui.common.AppLoadingScreen
 import com.quizmaker.android.ui.common.ComingSoonScreen
@@ -82,6 +96,7 @@ import com.quizmaker.android.ui.quizcreated.QuizCreatedScreen
 import com.quizmaker.android.ui.quizdetail.QuizDetailScreen
 import com.quizmaker.android.ui.quizdetailview.QuizDetailViewScreen
 import com.quizmaker.android.ui.quizlist.QuizListScreen
+import com.quizmaker.android.ui.revision.RevisionScreen
 import com.quizmaker.android.ui.responsedetail.ResponseDetailScreen
 import com.quizmaker.android.ui.responses.ResponsesScreen
 import com.quizmaker.android.ui.takequiz.TakeQuizScreen
@@ -320,7 +335,6 @@ fun QuizMakerNavGraph(
                     onCreateQuiz = { navController.navigate(Screen.CreateQuiz.createRoute()) },
                     onOpenAi = { navController.navigate(Screen.AiQuiz.createRoute(source = "quiz_list")) },
                     onViewLeaderboard = { quizId -> navController.navigate(Screen.Leaderboard.createRoute(quizId)) },
-                    onOpenComingSoon = { title -> navController.navigate(Screen.ComingSoon.createRoute(title)) },
                     onOpenMasterPaper = { quizId -> navController.navigate(Screen.MasterPaper.createRoute(quizId)) },
                     onOpenQuizAnalysis = { quizId -> navController.navigate(Screen.QuizAnalysis.createRoute(quizId)) },
                     onOpenQuizDetailView = { quizId -> navController.navigate(Screen.QuizDetailView.createRoute(quizId)) },
@@ -341,8 +355,88 @@ fun QuizMakerNavGraph(
                     onOpenResponses = { navController.navigate(Screen.Responses.route) },
                     onOpenPricing = { navController.navigate(Screen.Pricing.route) },
                     onOpenFaq = { navController.navigate(Screen.Faq.route) },
-                    onOpenImportQuestions = { navController.navigate(Screen.ImportQuestions.route) }
+                    onOpenImportQuestions = { navController.navigate(Screen.ImportQuestions.route) },
+                    onOpenRevision = { navController.navigate(Screen.Revision.route) },
+                    onOpenClasses = { navController.navigate(Screen.Classes.route) },
+                    onOpenTools = { navController.navigate(Screen.Tools.route) }
                 )
+            }
+            composable(Screen.Revision.route) {
+                RevisionScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onCreateRetest = { ids -> navController.navigate(Screen.CreateQuiz.createRoute(ids)) }
+                )
+            }
+            composable(Screen.Classes.route) {
+                ClassListScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenClass = { classId -> navController.navigate(Screen.ClassDashboard.createRoute(classId)) }
+                )
+            }
+            composable(Screen.ClassDashboard.route) {
+                ClassDashboardScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenWeakLearners = { classId -> navController.navigate(Screen.ClassWeakLearners.createRoute(classId)) }
+                )
+            }
+            composable(Screen.ClassWeakLearners.route) {
+                ClassWeakLearnersScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.Tools.route) {
+                ToolsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenOnboardingForms = { navController.navigate(Screen.OnboardingForms.route) },
+                    onOpenFeedbackForms = { navController.navigate(Screen.FeedbackForms.route) },
+                    onOpenPolls = { navController.navigate(Screen.Polls.route) },
+                    onOpenVoting = { navController.navigate(Screen.Voting.route) },
+                    onOpenRsvpEvents = { navController.navigate(Screen.RsvpEvents.route) },
+                    onOpenComingSoon = { title -> navController.navigate(Screen.ComingSoon.createRoute(title)) }
+                )
+            }
+            composable(Screen.OnboardingForms.route) {
+                OnboardingFormListScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onViewSubmissions = { formId -> navController.navigate(Screen.OnboardingSubmissions.createRoute(formId)) }
+                )
+            }
+            composable(Screen.OnboardingSubmissions.route) {
+                OnboardingSubmissionsScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.FeedbackForms.route) {
+                FeedbackFormListScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onViewSubmissions = { formId -> navController.navigate(Screen.FeedbackSubmissions.createRoute(formId)) }
+                )
+            }
+            composable(Screen.FeedbackSubmissions.route) {
+                FeedbackSubmissionsScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.Polls.route) {
+                PollListScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onViewResults = { pollId -> navController.navigate(Screen.PollResults.createRoute(pollId)) }
+                )
+            }
+            composable(Screen.PollResults.route) {
+                PollResultsScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.Voting.route) {
+                VotingListScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onViewResults = { campaignId -> navController.navigate(Screen.VotingResults.createRoute(campaignId)) }
+                )
+            }
+            composable(Screen.VotingResults.route) {
+                VotingResultsScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.RsvpEvents.route) {
+                RsvpEventListScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onViewRegistrations = { eventId -> navController.navigate(Screen.RsvpRegistrations.createRoute(eventId)) }
+                )
+            }
+            composable(Screen.RsvpRegistrations.route) {
+                RsvpRegistrationsScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(Screen.Faq.route) {
                 FaqScreen(onNavigateBack = { navController.popBackStack() })

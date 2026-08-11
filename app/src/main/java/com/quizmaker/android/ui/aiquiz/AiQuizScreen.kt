@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,14 +36,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -67,7 +77,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +100,8 @@ import com.quizmaker.android.core.theme.SuccessGreen
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.data.model.AiPromptCategory
+import com.quizmaker.android.data.model.AiPromptTemplate
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
@@ -204,6 +219,13 @@ fun AiQuizScreen(
             }
             null -> viewModel.generate()
         }
+    }
+
+    // Fires every time this screen enters composition — including each time the user taps the
+    // bottom-nav AI tab back in, even if the ViewModel instance itself was retained — so the
+    // carousel always shows a fresh random 10 of the 50 templates per visit, not a fixed set.
+    LaunchedEffect(Unit) {
+        viewModel.reshuffleTemplates()
     }
 
     LaunchedEffect(uiState.navigateToCreateQuizWith) {
@@ -383,6 +405,14 @@ fun AiQuizScreen(
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
 
+            if (isEmptyState && uiState.trendingTemplates.isNotEmpty()) {
+                Spacer(Modifier.height(24.dp))
+                TrendingTemplatesCarousel(
+                    templates = uiState.trendingTemplates,
+                    onSelect = { template -> viewModel.onPromptChange(template.prompt) }
+                )
+            }
+
             if (uiState.hasReview && !busy) {
                 Spacer(Modifier.height(20.dp))
                 ReviewSection(
@@ -446,6 +476,89 @@ private fun ReviewSection(
             loading = false,
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+/** Half-width cards with the next one peeking off the trailing edge — that partial crop is the
+ *  "scroll for more" hint, no separate text needed. Only shown before anything's been generated. */
+@Composable
+private fun TrendingTemplatesCarousel(templates: List<AiPromptTemplate>, onSelect: (AiPromptTemplate) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "Trending Templates",
+            fontFamily = PoppinsFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            color = TextPrimary,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(templates, key = { it.label }) { template ->
+                TemplateChip(template = template, onClick = { onSelect(template) })
+            }
+        }
+    }
+}
+
+/** Per-category icon + gradient — same "colored card, watermark icon, white text" recipe as
+ *  Dashboard's WelcomeBanner, just scaled down to card size instead of a full-width banner. */
+private data class CategoryTheme(val icon: ImageVector, val start: Color, val end: Color)
+
+private fun themeFor(category: AiPromptCategory): CategoryTheme = when (category) {
+    AiPromptCategory.HISTORY -> CategoryTheme(Icons.Default.AccountBalance, Color(0xFFB45309), Color(0xFF78350F))
+    AiPromptCategory.SCIENCE -> CategoryTheme(Icons.Default.Science, Color(0xFF16A34A), Color(0xFF15803D))
+    AiPromptCategory.MATH -> CategoryTheme(Icons.Default.Calculate, Color(0xFF2563EB), Color(0xFF1D4ED8))
+    AiPromptCategory.LANGUAGE -> CategoryTheme(Icons.AutoMirrored.Filled.MenuBook, Color(0xFF9333EA), Color(0xFF6B21A8))
+    AiPromptCategory.EXAM -> CategoryTheme(Icons.Default.EmojiEvents, Color(0xFFDC2626), Color(0xFF991B1B))
+    AiPromptCategory.SOCIAL -> CategoryTheme(Icons.Default.Public, Color(0xFF0D9488), Color(0xFF115E59))
+    AiPromptCategory.GENERAL -> CategoryTheme(Icons.Default.Lightbulb, Color(0xFFD97706), Color(0xFF92400E))
+    AiPromptCategory.TECH -> CategoryTheme(Icons.Default.Computer, Color(0xFF4F46E5), Color(0xFF3730A3))
+}
+
+@Composable
+private fun TemplateChip(template: AiPromptTemplate, onClick: () -> Unit) {
+    val theme = themeFor(template.category)
+    Box(
+        modifier = Modifier
+            .width(150.dp)
+            .height(100.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Brush.horizontalGradient(listOf(theme.start, theme.end)))
+            .clickable(onClick = onClick)
+    ) {
+        Icon(
+            theme.icon,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.16f),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 16.dp, y = 16.dp)
+                .size(64.dp)
+                .rotate(-15f)
+        )
+        Column(modifier = Modifier.padding(12.dp)) {
+            Box(
+                modifier = Modifier.size(28.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(theme.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                template.label,
+                color = Color.White,
+                fontFamily = PoppinsFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                lineHeight = 14.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 

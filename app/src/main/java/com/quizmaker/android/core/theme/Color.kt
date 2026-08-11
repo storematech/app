@@ -56,4 +56,16 @@ val ScoreHighBg = Color(0xFF22C55E)
 val ScoreMidBg = Color(0xFFF59E0B)
 val ScoreLowBg = Color(0xFFEF4444)
 
+// Kept for the small round "AI" icon buttons (e.g. the quiz list row's AI toggle) — vibrant is
+// fine at icon size. The AI Summary card itself uses the light AiCard* tokens below instead.
+val AiGradientStart = Color(0xFFFF5C7A)
+val AiGradientMid = Color(0xFF9B5DE5)
+val AiGradientEnd = Color(0xFF5B6EF5)
+
+// Light lavender tint + single accent color for the "AI Summary" card's text/typing content —
+// a full loud gradient fill read as too much for a block of text people are meant to actually read.
+val AiCardBg = Color(0xFFF6F3FF)
+val AiCardBorder = Color(0xFFE4DAFF)
+val AiAccent = Color(0xFF7C5CFC)
+
 val SurfaceDark = Color(0xFF1C1B1F)

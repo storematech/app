@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChecklistRtl
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
@@ -41,13 +40,13 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -62,6 +61,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -92,7 +92,7 @@ import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.OutlinedPill
-import com.quizmaker.android.ui.common.QuestionTypeOption
+import com.quizmaker.android.ui.common.QuestionEditSheet
 import com.quizmaker.android.ui.common.TrialPaywallSheet
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.formatShortDate
@@ -236,6 +236,7 @@ fun QuestionBankScreen(
                                 question = question,
                                 isSelectionMode = uiState.isSelectionMode,
                                 isSelected = question.id in uiState.selectedQuestionIds,
+                                isDeleting = question.id == uiState.deletingQuestionId,
                                 onToggleSelect = { viewModel.toggleQuestionSelection(question.id) },
                                 onEditClick = { viewModel.startEditQuestion(question) },
                                 onDeleteClick = { questionPendingDelete = question }
@@ -282,8 +283,14 @@ fun QuestionBankScreen(
         )
     }
 
-    if (uiState.draft != null) {
-        NewQuestionSheet(viewModel = viewModel)
+    uiState.draft?.let { draft ->
+        QuestionEditSheet(
+            draft = draft,
+            isSaving = uiState.isSaving,
+            onUpdateDraft = viewModel::updateDraft,
+            onSave = { viewModel.saveDraft(keepEditing = false) },
+            onDismiss = viewModel::dismissDraft
+        )
     }
 
     if (uiState.showTrialPaywall) {
@@ -311,55 +318,74 @@ private fun QuestionCard(
     question: Question,
     isSelectionMode: Boolean,
     isSelected: Boolean,
+    isDeleting: Boolean,
     onToggleSelect: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .elevatedSurface(shape = RoundedCornerShape(20.dp))
-            .then(if (isSelectionMode) Modifier.clickable(onClick = onToggleSelect) else Modifier)
-            .padding(18.dp)
-    ) {
-        Row(verticalAlignment = Alignment.Top) {
-            if (isSelectionMode) {
-                Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
-                Spacer(Modifier.width(4.dp))
-            }
-            Text(question.text, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary, modifier = Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledPill(text = questionTypeLabel(question.type))
-            question.difficulty?.let { OutlinedPill(text = it.value.replaceFirstChar { c -> c.uppercase() }, borderColor = ErrorRed, contentColor = ErrorRed) }
-        }
-        if (!question.createdAt.isNullOrBlank()) {
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(formatShortDate(question.createdAt), color = TextSecondary, fontSize = 13.sp)
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .elevatedSurface(shape = RoundedCornerShape(20.dp))
+                .then(if (isSelectionMode) Modifier.clickable(enabled = !isDeleting, onClick = onToggleSelect) else Modifier)
+                .padding(18.dp)
+                .alpha(if (isDeleting) 0.4f else 1f)
         ) {
-            if (question.tags.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    question.tags.forEach { OutlinedPill(text = it) }
+            Row(verticalAlignment = Alignment.Top) {
+                if (isSelectionMode) {
+                    Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
+                    Spacer(Modifier.width(4.dp))
                 }
-            } else {
-                Spacer(Modifier)
+                Text(question.text, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary, modifier = Modifier.weight(1f))
             }
-            if (!isSelectionMode) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SmallIconButton(icon = Icons.Default.Edit, tint = BrandIndigo, onClick = onEditClick)
-                    SmallIconButton(icon = Icons.Default.Delete, tint = ErrorRed, onClick = onDeleteClick)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledPill(text = questionTypeLabel(question.type))
+                question.difficulty?.let { OutlinedPill(text = it.value.replaceFirstChar { c -> c.uppercase() }, borderColor = ErrorRed, contentColor = ErrorRed) }
+            }
+            if (!question.createdAt.isNullOrBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(formatShortDate(question.createdAt), color = TextSecondary, fontSize = 13.sp)
                 }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (question.tags.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        question.tags.forEach { OutlinedPill(text = it) }
+                    }
+                } else {
+                    Spacer(Modifier)
+                }
+                if (!isSelectionMode) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        SmallIconButton(icon = Icons.Default.Edit, tint = BrandIndigo, onClick = onEditClick)
+                        SmallIconButton(icon = Icons.Default.Delete, tint = ErrorRed, onClick = onDeleteClick)
+                    }
+                }
+            }
+        }
+        if (isDeleting) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .clip(RoundedCornerShape(50))
+                    .background(SurfaceWhite)
+                    .border(1.dp, ErrorRed, RoundedCornerShape(50))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = ErrorRed, strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Deleting…", color = ErrorRed, fontWeight = FontWeight.Medium, fontSize = 13.sp)
             }
         }
     }
@@ -474,188 +500,5 @@ private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun NewQuestionSheet(viewModel: QuestionBankViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
-    val draft = uiState.draft ?: return
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(onDismissRequest = viewModel::dismissDraft, sheetState = sheetState, containerColor = SurfaceWhite) {
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    val isEditing = draft.editingQuestionId != null
-                    Text(
-                        if (isEditing) "Edit Question" else "Create New Question",
-                        fontFamily = PoppinsFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        color = TextPrimary
-                    )
-                    Text(
-                        if (isEditing) "Update this question in your bank" else "Add a question to your bank",
-                        color = TextSecondary,
-                        fontSize = 13.sp
-                    )
-                }
-                IconButton(onClick = viewModel::dismissDraft) {
-                    Icon(Icons.Default.Close, contentDescription = "Close")
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-
-            Text("QUESTION TYPE", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuestionTypeOption(
-                    label = "Single Choice",
-                    subtitle = "One correct answer",
-                    selected = draft.type == QuestionType.SINGLE_CHOICE,
-                    modifier = Modifier.weight(1f),
-                    onClick = { viewModel.updateDraft { it.copy(type = QuestionType.SINGLE_CHOICE) } }
-                )
-                QuestionTypeOption(
-                    label = "Multiple Choice",
-                    subtitle = "Many correct answers",
-                    selected = draft.type == QuestionType.MULTI_CHOICE,
-                    modifier = Modifier.weight(1f),
-                    onClick = { viewModel.updateDraft { it.copy(type = QuestionType.MULTI_CHOICE) } }
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuestionTypeOption(
-                    label = "Free Text",
-                    subtitle = "Open written response",
-                    selected = draft.type == QuestionType.FREE_TEXT,
-                    modifier = Modifier.weight(1f),
-                    onClick = { viewModel.updateDraft { it.copy(type = QuestionType.FREE_TEXT) } }
-                )
-                QuestionTypeOption(
-                    label = "Fill in the Blanks",
-                    subtitle = "Auto-graded text",
-                    selected = draft.type == QuestionType.FILL_IN_BLANK,
-                    modifier = Modifier.weight(1f),
-                    onClick = { viewModel.updateDraft { it.copy(type = QuestionType.FILL_IN_BLANK) } }
-                )
-            }
-
-            Spacer(Modifier.height(20.dp))
-            Text("QUESTION TEXT", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = draft.text,
-                onValueChange = { text -> viewModel.updateDraft { it.copy(text = text) } },
-                placeholder = { Text("Type your question here...") },
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth().height(120.dp)
-            )
-
-            if (draft.type == QuestionType.SINGLE_CHOICE || draft.type == QuestionType.MULTI_CHOICE) {
-                Spacer(Modifier.height(20.dp))
-                Text("OPTIONS", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
-                Spacer(Modifier.height(8.dp))
-                draft.options.forEachIndexed { index, optionText ->
-                    Row(modifier = Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (draft.type == QuestionType.SINGLE_CHOICE) {
-                            RadioButton(
-                                selected = draft.correctOptionIndex == index,
-                                onClick = { viewModel.updateDraft { it.copy(correctOptionIndex = index) } }
-                            )
-                        } else {
-                            Checkbox(
-                                checked = index in draft.correctOptionIndices,
-                                onCheckedChange = { checked ->
-                                    viewModel.updateDraft {
-                                        val updated = if (checked) it.correctOptionIndices + index else it.correctOptionIndices - index
-                                        it.copy(correctOptionIndices = updated)
-                                    }
-                                }
-                            )
-                        }
-                        OutlinedTextField(
-                            value = optionText,
-                            onValueChange = { text ->
-                                viewModel.updateDraft { it.copy(options = it.options.toMutableList().also { list -> list[index] = text }) }
-                            },
-                            placeholder = { Text("Option ${index + 1}") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    if (draft.options.size < 6) {
-                        Text(
-                            "+ Add option",
-                            color = BrandIndigo,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            modifier = Modifier.clickable {
-                                viewModel.updateDraft { it.copy(options = it.options + "") }
-                            }
-                        )
-                    }
-                    if (draft.options.size > 2) {
-                        Text(
-                            "− Remove option",
-                            color = TextSecondary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            modifier = Modifier.clickable {
-                                viewModel.updateDraft {
-                                    val newOptions = it.options.dropLast(1)
-                                    it.copy(
-                                        options = newOptions,
-                                        correctOptionIndex = it.correctOptionIndex.coerceAtMost(newOptions.size - 1),
-                                        correctOptionIndices = it.correctOptionIndices.filter { i -> i < newOptions.size }.toSet()
-                                    )
-                                }
-                            }
-                        )
-                    }
-                }
-            } else if (draft.type == QuestionType.FILL_IN_BLANK || draft.type == QuestionType.FREE_TEXT) {
-                Spacer(Modifier.height(16.dp))
-                Text("ANSWER", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = draft.freeTextAnswer,
-                    onValueChange = { text -> viewModel.updateDraft { it.copy(freeTextAnswer = text) } },
-                    placeholder = { Text("Expected answer") },
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp)
-                        .clip(RoundedCornerShape(50))
-                        .border(1.dp, BorderGray, RoundedCornerShape(50))
-                        .clickable(onClick = viewModel::dismissDraft),
-                    contentAlignment = Alignment.Center
-                ) { Text("Cancel", color = TextPrimary, fontWeight = FontWeight.Bold) }
-
-                Box(modifier = Modifier.weight(1f)) {
-                    GradientButton(
-                        text = if (draft.editingQuestionId != null) "Update" else "Save",
-                        onClick = { viewModel.saveDraft(keepEditing = false) },
-                        loading = uiState.isSaving,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        }
-    }
-}
+// "New/Edit Question" sheet extracted to ui/common/QuestionEditSheet.kt — shared with the
+// Revision screen, which also needs to open it (edit-only) for a bookmarked question.

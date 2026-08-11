@@ -6,7 +6,14 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 enum class AlertType { SUCCESS, ERROR }
 
-data class AppAlert(val message: String, val type: AlertType)
+data class AppAlert(
+    val message: String,
+    val type: AlertType,
+    // Optional "UNDO"-style trailing action — only success alerts use this today (e.g. bookmarking
+    // a question, marking a revision item done). null on every plain alert, including all errors.
+    val actionLabel: String? = null,
+    val onAction: (() -> Unit)? = null
+)
 
 /**
  * App-wide toast/strip alert channel. A plain object rather than a Hilt-injected singleton
@@ -19,8 +26,8 @@ object AlertBus {
     private val _alerts = MutableSharedFlow<AppAlert>(extraBufferCapacity = 8)
     val alerts: SharedFlow<AppAlert> = _alerts.asSharedFlow()
 
-    suspend fun success(message: String) {
-        _alerts.emit(AppAlert(message, AlertType.SUCCESS))
+    suspend fun success(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+        _alerts.emit(AppAlert(message, AlertType.SUCCESS, actionLabel, onAction))
     }
 
     suspend fun error(message: String) {

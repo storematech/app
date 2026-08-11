@@ -27,14 +27,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Construction
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -78,6 +81,9 @@ fun MoreScreen(
     onOpenPricing: () -> Unit,
     onOpenFaq: () -> Unit,
     onOpenImportQuestions: () -> Unit,
+    onOpenRevision: () -> Unit,
+    onOpenClasses: () -> Unit,
+    onOpenTools: () -> Unit,
     viewModel: MoreViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -136,9 +142,15 @@ fun MoreScreen(
             ) {
                 MoreRow(icon = Icons.Default.Person, label = "My Profile", onClick = onOpenProfile)
                 RowDivider()
-                MoreRow(icon = Icons.Default.FileDownload, label = "Import Questions", onClick = onOpenImportQuestions)
-                RowDivider()
                 MoreRow(icon = Icons.Default.ChatBubbleOutline, label = "Responses", onClick = onOpenResponses)
+                RowDivider()
+                MoreRow(icon = Icons.AutoMirrored.Filled.MenuBook, label = "Revision", onClick = onOpenRevision)
+                RowDivider()
+                MoreRow(icon = Icons.Default.School, label = "Classes", onClick = onOpenClasses)
+                RowDivider()
+                MoreRow(icon = Icons.Default.Construction, label = "Tools", onClick = onOpenTools)
+                RowDivider()
+                MoreRow(icon = Icons.Default.FileDownload, label = "Import Questions", onClick = onOpenImportQuestions)
                 RowDivider()
                 MoreRow(
                     icon = Icons.Default.CreditCard,
@@ -163,7 +175,7 @@ fun MoreScreen(
                     }
                 )
                 RowDivider()
-                MoreRow(icon = Icons.AutoMirrored.Filled.HelpOutline, label = "FAQ", onClick = onOpenFaq)
+                MoreRow(icon = Icons.AutoMirrored.Filled.HelpOutline, label = "FAQ And Documentation", onClick = onOpenFaq)
                 RowDivider()
                 MoreRow(
                     icon = Icons.Default.PrivacyTip,

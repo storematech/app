@@ -1,5 +1,6 @@
 package com.quizmaker.android.core.network
 
+import android.util.Log
 import com.quizmaker.android.core.alert.AlertBus
 
 /**
@@ -34,6 +35,9 @@ suspend fun <T> safeCall(notifyOnError: Boolean = true, block: suspend () -> T):
     return try {
         AppResult.Success(block())
     } catch (t: Throwable) {
+        // The user only ever sees GENERIC_API_ERROR_MESSAGE (see toUserMessage()'s KDoc for why) —
+        // this is the one place the real cause survives, for `adb logcat -s AppResult` while debugging.
+        Log.e("AppResult", "safeCall failed", t)
         val message = t.toUserMessage()
         if (notifyOnError) AlertBus.error(message)
         AppResult.Error(message, t)
