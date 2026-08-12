@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.aiquiz
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.AI_PROMPT_TEMPLATES
 import com.quizmaker.android.data.model.AiPromptTemplate
@@ -46,6 +47,7 @@ data class AiQuizUiState(
 class AiQuizViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val aiQuizRepository: AiQuizRepository,
+    private val analyticsLogger: AnalyticsLogger,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -112,7 +114,7 @@ class AiQuizViewModel @Inject constructor(
         if (prompt.isBlank() || state.isGenerating) return
         val userId = authRepository.currentUserId() ?: return
 
-        runGeneration { aiQuizRepository.generateQuestionsFromPrompt(userId, prompt, state.questionCount) }
+        runGeneration(source = "prompt") { aiQuizRepository.generateQuestionsFromPrompt(userId, prompt, state.questionCount) }
     }
 
     fun generateFromPdf(pdfBase64: String) {
@@ -120,7 +122,7 @@ class AiQuizViewModel @Inject constructor(
         if (state.isGenerating) return
         val userId = authRepository.currentUserId() ?: return
 
-        runGeneration { aiQuizRepository.generateQuestionsFromPdf(userId, state.prompt.trim(), pdfBase64, state.questionCount) }
+        runGeneration(source = "pdf") { aiQuizRepository.generateQuestionsFromPdf(userId, state.prompt.trim(), pdfBase64, state.questionCount) }
     }
 
     fun generateFromImages(images: List<Pair<String, String>>) {
@@ -128,18 +130,21 @@ class AiQuizViewModel @Inject constructor(
         if (state.isGenerating) return
         val userId = authRepository.currentUserId() ?: return
 
-        runGeneration { aiQuizRepository.generateQuestionsFromImages(userId, state.prompt.trim(), images, state.questionCount) }
+        runGeneration(source = "images") { aiQuizRepository.generateQuestionsFromImages(userId, state.prompt.trim(), images, state.questionCount) }
     }
 
-    private fun runGeneration(block: suspend () -> AppResult<List<Question>>) {
+    private fun runGeneration(source: String, block: suspend () -> AppResult<List<Question>>) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isGenerating = true, errorMessage = null)
             when (val result = block()) {
-                is AppResult.Success -> _uiState.value = _uiState.value.copy(
-                    isGenerating = false,
-                    reviewQuestions = result.data,
-                    selectedReviewIds = result.data.map { it.id }.toSet()
-                )
+                is AppResult.Success -> {
+                    analyticsLogger.logAiQuizGenerated(source = source, questionCount = result.data.size)
+                    _uiState.value = _uiState.value.copy(
+                        isGenerating = false,
+                        reviewQuestions = result.data,
+                        selectedReviewIds = result.data.map { it.id }.toSet()
+                    )
+                }
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isGenerating = false, errorMessage = result.message)
             }
         }

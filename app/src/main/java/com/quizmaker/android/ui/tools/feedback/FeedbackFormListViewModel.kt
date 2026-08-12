@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.tools.feedback
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.FeedbackForm
 import com.quizmaker.android.data.model.ToolField
@@ -29,7 +30,8 @@ data class FeedbackFormListUiState(
 @HiltViewModel
 class FeedbackFormListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val repository: FeedbackFormRepository
+    private val repository: FeedbackFormRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedbackFormListUiState())
@@ -100,6 +102,7 @@ class FeedbackFormListViewModel @Inject constructor(
             }
             when (result) {
                 is AppResult.Success -> {
+                    if (editingId == null) analyticsLogger.logToolCreated("feedback")
                     val updatedForms = if (editingId != null) {
                         _uiState.value.forms.map { if (it.id == editingId) result.data else it }
                     } else {
@@ -123,11 +126,13 @@ class FeedbackFormListViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             forms = _uiState.value.forms.map { if (it.id == form.id) it.copy(isActive = newActive) else it }
         )
+        analyticsLogger.logToolActiveToggled("feedback", newActive)
         viewModelScope.launch { repository.setActive(form.id, newActive) }
     }
 
     fun deleteForm(formId: String) {
         _uiState.value = _uiState.value.copy(forms = _uiState.value.forms.filterNot { it.id == formId })
+        analyticsLogger.logToolDeleted("feedback")
         viewModelScope.launch {
             repository.deleteForm(formId)
             AlertBus.success("Form deleted")

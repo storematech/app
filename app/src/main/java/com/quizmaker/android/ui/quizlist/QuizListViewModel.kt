@@ -2,6 +2,7 @@ package com.quizmaker.android.ui.quizlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.data.model.QuizAiSummary
@@ -52,7 +53,8 @@ data class QuizListUiState(
 class QuizListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val quizRepository: QuizRepository,
-    private val quizAiSummaryRepository: QuizAiSummaryRepository
+    private val quizAiSummaryRepository: QuizAiSummaryRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(QuizListUiState())
@@ -203,7 +205,10 @@ class QuizListViewModel @Inject constructor(
     fun closeQuiz(quizId: String) {
         viewModelScope.launch {
             when (quizRepository.closeQuiz(quizId)) {
-                is AppResult.Success -> refresh()
+                is AppResult.Success -> {
+                    analyticsLogger.logQuizClosed()
+                    refresh()
+                }
                 is AppResult.Error -> Unit
             }
         }
@@ -214,6 +219,7 @@ class QuizListViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(deletingQuizId = quizId)
             when (val result = quizRepository.deleteQuiz(quizId)) {
                 is AppResult.Success -> {
+                    analyticsLogger.logQuizDeleted()
                     _uiState.value = _uiState.value.copy(deletingQuizId = null)
                     refresh()
                 }
@@ -226,7 +232,10 @@ class QuizListViewModel @Inject constructor(
     fun duplicateQuiz(quizId: String) {
         viewModelScope.launch {
             when (quizRepository.duplicateQuiz(quizId)) {
-                is AppResult.Success -> refresh()
+                is AppResult.Success -> {
+                    analyticsLogger.logQuizDuplicated()
+                    refresh()
+                }
                 is AppResult.Error -> Unit
             }
         }

@@ -2,6 +2,7 @@ package com.quizmaker.android.ui.quizlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.QuizClass
 import com.quizmaker.android.repository.AuthRepository
@@ -27,7 +28,8 @@ data class LinkToClassUiState(
 @HiltViewModel
 class LinkToClassViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val classRepository: ClassRepository
+    private val classRepository: ClassRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LinkToClassUiState())
@@ -89,6 +91,7 @@ class LinkToClassViewModel @Inject constructor(
             when (val result = classRepository.createClass(userId, name.trim(), null)) {
                 is AppResult.Success -> {
                     classRepository.linkQuiz(result.data.id, quizId)
+                    analyticsLogger.logClassCreated()
                     _uiState.value = _uiState.value.copy(
                         isCreating = false,
                         isCreateDialogOpen = false,

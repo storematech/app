@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.tools.poll
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Poll
 import com.quizmaker.android.data.model.PollOption
@@ -29,7 +30,8 @@ data class PollListUiState(
 @HiltViewModel
 class PollListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val repository: PollRepository
+    private val repository: PollRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PollListUiState())
@@ -112,6 +114,7 @@ class PollListViewModel @Inject constructor(
             }
             when (result) {
                 is AppResult.Success -> {
+                    if (editingId == null) analyticsLogger.logToolCreated("poll")
                     val updatedPolls = if (editingId != null) {
                         _uiState.value.polls.map { if (it.id == editingId) result.data else it }
                     } else {
@@ -135,11 +138,13 @@ class PollListViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             polls = _uiState.value.polls.map { if (it.id == poll.id) it.copy(isActive = newActive) else it }
         )
+        analyticsLogger.logToolActiveToggled("poll", newActive)
         viewModelScope.launch { repository.setActive(poll.id, newActive) }
     }
 
     fun deletePoll(pollId: String) {
         _uiState.value = _uiState.value.copy(polls = _uiState.value.polls.filterNot { it.id == pollId })
+        analyticsLogger.logToolDeleted("poll")
         viewModelScope.launch {
             repository.deletePoll(pollId)
             AlertBus.success("Poll deleted")

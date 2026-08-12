@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.questionbank
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.NewQuestionDraft
 import com.quizmaker.android.data.model.Question
@@ -53,7 +54,8 @@ data class QuestionBankUiState(
 @HiltViewModel
 class QuestionBankViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val questionRepository: QuestionRepository
+    private val questionRepository: QuestionRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     companion object {
@@ -153,10 +155,13 @@ class QuestionBankViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(deletingQuestionId = questionId)
             when (val result = questionRepository.deleteQuestion(questionId)) {
-                is AppResult.Success -> _uiState.value = _uiState.value.copy(
-                    deletingQuestionId = null,
-                    questions = _uiState.value.questions.filterNot { it.id == questionId }
-                )
+                is AppResult.Success -> {
+                    analyticsLogger.logQuestionDeleted()
+                    _uiState.value = _uiState.value.copy(
+                        deletingQuestionId = null,
+                        questions = _uiState.value.questions.filterNot { it.id == questionId }
+                    )
+                }
                 is AppResult.Error -> _uiState.value =
                     _uiState.value.copy(deletingQuestionId = null, errorMessage = result.message)
             }

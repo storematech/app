@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.tools.onboarding
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.OnboardingForm
 import com.quizmaker.android.data.model.ToolField
@@ -29,7 +30,8 @@ data class OnboardingFormListUiState(
 @HiltViewModel
 class OnboardingFormListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val repository: OnboardingFormRepository
+    private val repository: OnboardingFormRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingFormListUiState())
@@ -100,6 +102,7 @@ class OnboardingFormListViewModel @Inject constructor(
             }
             when (result) {
                 is AppResult.Success -> {
+                    if (editingId == null) analyticsLogger.logToolCreated("onboarding")
                     val updatedForms = if (editingId != null) {
                         _uiState.value.forms.map { if (it.id == editingId) result.data else it }
                     } else {
@@ -123,11 +126,13 @@ class OnboardingFormListViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             forms = _uiState.value.forms.map { if (it.id == form.id) it.copy(isActive = newActive) else it }
         )
+        analyticsLogger.logToolActiveToggled("onboarding", newActive)
         viewModelScope.launch { repository.setActive(form.id, newActive) }
     }
 
     fun deleteForm(formId: String) {
         _uiState.value = _uiState.value.copy(forms = _uiState.value.forms.filterNot { it.id == formId })
+        analyticsLogger.logToolDeleted("onboarding")
         viewModelScope.launch {
             repository.deleteForm(formId)
             AlertBus.success("Form deleted")

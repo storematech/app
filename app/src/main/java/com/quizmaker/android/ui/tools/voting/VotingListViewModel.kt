@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.tools.voting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Candidate
 import com.quizmaker.android.data.model.VotingCampaign
@@ -29,7 +30,8 @@ data class VotingListUiState(
 @HiltViewModel
 class VotingListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val repository: VotingRepository
+    private val repository: VotingRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(VotingListUiState())
@@ -115,6 +117,7 @@ class VotingListViewModel @Inject constructor(
             }
             when (result) {
                 is AppResult.Success -> {
+                    if (editingId == null) analyticsLogger.logToolCreated("voting")
                     val updatedCampaigns = if (editingId != null) {
                         _uiState.value.campaigns.map { if (it.id == editingId) result.data else it }
                     } else {
@@ -138,11 +141,13 @@ class VotingListViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             campaigns = _uiState.value.campaigns.map { if (it.id == campaign.id) it.copy(isActive = newActive) else it }
         )
+        analyticsLogger.logToolActiveToggled("voting", newActive)
         viewModelScope.launch { repository.setActive(campaign.id, newActive) }
     }
 
     fun deleteCampaign(campaignId: String) {
         _uiState.value = _uiState.value.copy(campaigns = _uiState.value.campaigns.filterNot { it.id == campaignId })
+        analyticsLogger.logToolDeleted("voting")
         viewModelScope.launch {
             repository.deleteCampaign(campaignId)
             AlertBus.success("Campaign deleted")

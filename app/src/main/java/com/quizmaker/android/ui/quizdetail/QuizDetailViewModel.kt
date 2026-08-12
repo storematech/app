@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.quizdetail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.repository.QuizRepository
@@ -26,6 +27,7 @@ data class QuizDetailUiState(
 @HiltViewModel
 class QuizDetailViewModel @Inject constructor(
     private val quizRepository: QuizRepository,
+    private val analyticsLogger: AnalyticsLogger,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -70,7 +72,10 @@ class QuizDetailViewModel @Inject constructor(
     fun closeQuiz() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(actionInProgress = true)
-            quizRepository.closeQuiz(quizId)
+            when (quizRepository.closeQuiz(quizId)) {
+                is AppResult.Success -> analyticsLogger.logQuizClosed()
+                is AppResult.Error -> Unit
+            }
             _uiState.value = _uiState.value.copy(actionInProgress = false)
             refresh()
         }
@@ -80,7 +85,10 @@ class QuizDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(actionInProgress = true)
             when (quizRepository.deleteQuiz(quizId)) {
-                is AppResult.Success -> _uiState.value = _uiState.value.copy(actionInProgress = false, deleted = true)
+                is AppResult.Success -> {
+                    analyticsLogger.logQuizDeleted()
+                    _uiState.value = _uiState.value.copy(actionInProgress = false, deleted = true)
+                }
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(actionInProgress = false)
             }
         }

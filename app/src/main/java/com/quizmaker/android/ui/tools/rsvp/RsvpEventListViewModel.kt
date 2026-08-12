@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.tools.rsvp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.RsvpEvent
 import com.quizmaker.android.repository.AuthRepository
@@ -28,7 +29,8 @@ data class RsvpEventListUiState(
 @HiltViewModel
 class RsvpEventListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val repository: RsvpRepository
+    private val repository: RsvpRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RsvpEventListUiState())
@@ -110,6 +112,7 @@ class RsvpEventListViewModel @Inject constructor(
             }
             when (result) {
                 is AppResult.Success -> {
+                    if (editingId == null) analyticsLogger.logToolCreated("rsvp")
                     val updatedEvents = if (editingId != null) {
                         _uiState.value.events.map { if (it.id == editingId) result.data else it }
                     } else {
@@ -133,11 +136,13 @@ class RsvpEventListViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             events = _uiState.value.events.map { if (it.id == event.id) it.copy(isActive = newActive) else it }
         )
+        analyticsLogger.logToolActiveToggled("rsvp", newActive)
         viewModelScope.launch { repository.setActive(event.id, newActive) }
     }
 
     fun deleteEvent(eventId: String) {
         _uiState.value = _uiState.value.copy(events = _uiState.value.events.filterNot { it.id == eventId })
+        analyticsLogger.logToolDeleted("rsvp")
         viewModelScope.launch {
             repository.deleteEvent(eventId)
             AlertBus.success("Event deleted")

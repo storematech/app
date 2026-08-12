@@ -2,6 +2,7 @@ package com.quizmaker.android.ui.importquestions
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuestionRepository
@@ -29,7 +30,8 @@ data class ImportQuestionsUiState(
 @HiltViewModel
 class ImportQuestionsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val questionRepository: QuestionRepository
+    private val questionRepository: QuestionRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ImportQuestionsUiState())
@@ -82,6 +84,7 @@ class ImportQuestionsViewModel @Inject constructor(
                 }
             }
 
+            if (successCount > 0) analyticsLogger.logQuestionsImported(successCount)
             _uiState.value = _uiState.value.copy(
                 isImporting = false,
                 hasImported = true,

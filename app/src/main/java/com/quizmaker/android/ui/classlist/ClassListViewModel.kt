@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.QuizClass
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.ClassRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,7 +26,8 @@ data class ClassListUiState(
 @HiltViewModel
 class ClassListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val classRepository: ClassRepository
+    private val classRepository: ClassRepository,
+    private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ClassListUiState())
@@ -63,11 +65,14 @@ class ClassListViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isCreating = true, errorMessage = null)
             when (val result = classRepository.createClass(userId, name.trim(), description.trim().ifBlank { null })) {
-                is AppResult.Success -> _uiState.value = _uiState.value.copy(
-                    isCreating = false,
-                    isCreateDialogOpen = false,
-                    classes = listOf(result.data) + _uiState.value.classes
-                )
+                is AppResult.Success -> {
+                    analyticsLogger.logClassCreated()
+                    _uiState.value = _uiState.value.copy(
+                        isCreating = false,
+                        isCreateDialogOpen = false,
+                        classes = listOf(result.data) + _uiState.value.classes
+                    )
+                }
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isCreating = false, errorMessage = result.message)
             }
         }

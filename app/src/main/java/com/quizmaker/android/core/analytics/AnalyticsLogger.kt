@@ -147,4 +147,109 @@ class AnalyticsLogger @Inject constructor(
             properties = mapOf("value" to amountMajor, "currency" to currency, "item_name" to planLabel)
         )
     }
+
+    fun logClassCreated() {
+        firebaseAnalytics.logEvent("class_created", null)
+        PostHog.capture(event = "class_created")
+    }
+
+    fun logLearnerCreated() {
+        firebaseAnalytics.logEvent("learner_created", null)
+        PostHog.capture(event = "learner_created")
+    }
+
+    fun logLearnerDeleted() {
+        firebaseAnalytics.logEvent("learner_deleted", null)
+        PostHog.capture(event = "learner_deleted")
+    }
+
+    fun logGroupCreated() {
+        firebaseAnalytics.logEvent("group_created", null)
+        PostHog.capture(event = "group_created")
+    }
+
+    fun logQuizDeleted() {
+        firebaseAnalytics.logEvent("quiz_deleted", null)
+        PostHog.capture(event = "quiz_deleted")
+    }
+
+    fun logQuizDuplicated() {
+        firebaseAnalytics.logEvent("quiz_duplicated", null)
+        PostHog.capture(event = "quiz_duplicated")
+    }
+
+    /** A quiz being closed stops it accepting new responses — a meaningful lifecycle change, distinct from deletion. */
+    fun logQuizClosed() {
+        firebaseAnalytics.logEvent("quiz_closed", null)
+        PostHog.capture(event = "quiz_closed")
+    }
+
+    /** Question Bank deletion — a reusable bank question, not a per-quiz question edit (those aren't tracked individually). */
+    fun logQuestionDeleted() {
+        firebaseAnalytics.logEvent("question_deleted", null)
+        PostHog.capture(event = "question_deleted")
+    }
+
+    /** [source] is "prompt" | "pdf" | "images" — which AI Quiz entry point was used. */
+    fun logAiQuizGenerated(source: String, questionCount: Int) {
+        firebaseAnalytics.logEvent(
+            "ai_quiz_generated",
+            Bundle().apply {
+                putString("source", source)
+                putInt("question_count", questionCount)
+            }
+        )
+        PostHog.capture(
+            event = "ai_quiz_generated",
+            properties = mapOf("source" to source, "question_count" to questionCount)
+        )
+    }
+
+    fun logQuestionsImported(count: Int) {
+        firebaseAnalytics.logEvent(
+            "questions_imported",
+            Bundle().apply { putInt("count", count) }
+        )
+        PostHog.capture(event = "questions_imported", properties = mapOf("count" to count))
+    }
+
+    /** [toolType] is "poll" | "rsvp" | "voting" | "feedback" | "onboarding" — shared across all five Tools list ViewModels rather than five near-identical methods. */
+    fun logToolCreated(toolType: String) {
+        firebaseAnalytics.logEvent(
+            "tool_created",
+            Bundle().apply { putString("tool_type", toolType) }
+        )
+        PostHog.capture(event = "tool_created", properties = mapOf("tool_type" to toolType))
+    }
+
+    fun logToolDeleted(toolType: String) {
+        firebaseAnalytics.logEvent(
+            "tool_deleted",
+            Bundle().apply { putString("tool_type", toolType) }
+        )
+        PostHog.capture(event = "tool_deleted", properties = mapOf("tool_type" to toolType))
+    }
+
+    fun logToolActiveToggled(toolType: String, isActive: Boolean) {
+        firebaseAnalytics.logEvent(
+            "tool_active_toggled",
+            Bundle().apply {
+                putString("tool_type", toolType)
+                putBoolean("is_active", isActive)
+            }
+        )
+        PostHog.capture(
+            event = "tool_active_toggled",
+            properties = mapOf("tool_type" to toolType, "is_active" to isActive)
+        )
+    }
+
+    /** [channel] is "link" | "qr_code" | "pdf_flyer" — the three ways to distribute a quiz from the QuizCreated screen. */
+    fun logQuizShared(channel: String) {
+        firebaseAnalytics.logEvent(
+            FirebaseAnalytics.Event.SHARE,
+            Bundle().apply { putString("channel", channel) }
+        )
+        PostHog.capture(event = "share", properties = mapOf("channel" to channel))
+    }
 }
