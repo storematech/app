@@ -66,6 +66,7 @@ import com.quizmaker.android.ui.auth.LoginScreen
 import com.quizmaker.android.ui.classdashboard.ClassDashboardScreen
 import com.quizmaker.android.ui.classlist.ClassListScreen
 import com.quizmaker.android.ui.classweaklearners.ClassWeakLearnersScreen
+import com.quizmaker.android.ui.learners.LearnersScreen
 import com.quizmaker.android.ui.tools.ToolsScreen
 import com.quizmaker.android.ui.tools.feedback.FeedbackFormListScreen
 import com.quizmaker.android.ui.tools.feedback.FeedbackSubmissionsScreen
@@ -358,6 +359,7 @@ fun QuizMakerNavGraph(
                     onOpenImportQuestions = { navController.navigate(Screen.ImportQuestions.route) },
                     onOpenRevision = { navController.navigate(Screen.Revision.route) },
                     onOpenClasses = { navController.navigate(Screen.Classes.route) },
+                    onOpenLearners = { navController.navigate(Screen.Learners.route) },
                     onOpenTools = { navController.navigate(Screen.Tools.route) }
                 )
             }
@@ -372,6 +374,9 @@ fun QuizMakerNavGraph(
                     onNavigateBack = { navController.popBackStack() },
                     onOpenClass = { classId -> navController.navigate(Screen.ClassDashboard.createRoute(classId)) }
                 )
+            }
+            composable(Screen.Learners.route) {
+                LearnersScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(Screen.ClassDashboard.route) {
                 ClassDashboardScreen(

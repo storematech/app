@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Gavel
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.School
@@ -83,6 +84,7 @@ fun MoreScreen(
     onOpenImportQuestions: () -> Unit,
     onOpenRevision: () -> Unit,
     onOpenClasses: () -> Unit,
+    onOpenLearners: () -> Unit,
     onOpenTools: () -> Unit,
     viewModel: MoreViewModel = hiltViewModel()
 ) {
@@ -147,6 +149,8 @@ fun MoreScreen(
                 MoreRow(icon = Icons.AutoMirrored.Filled.MenuBook, label = "Revision", onClick = onOpenRevision)
                 RowDivider()
                 MoreRow(icon = Icons.Default.School, label = "Classes", onClick = onOpenClasses)
+                RowDivider()
+                MoreRow(icon = Icons.Default.Group, label = "Learners", onClick = onOpenLearners)
                 RowDivider()
                 MoreRow(icon = Icons.Default.Construction, label = "Tools", onClick = onOpenTools)
                 RowDivider()
