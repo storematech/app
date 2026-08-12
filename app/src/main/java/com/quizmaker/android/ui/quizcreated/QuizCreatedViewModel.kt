@@ -3,10 +3,13 @@ package com.quizmaker.android.ui.quizcreated
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.repository.QuizRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +29,8 @@ data class QuizCreatedUiState(
 @HiltViewModel
 class QuizCreatedViewModel @Inject constructor(
     private val quizRepository: QuizRepository,
+    private val pdfBrandingProvider: PdfBrandingProvider,
+    private val analyticsLogger: AnalyticsLogger,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -49,4 +54,9 @@ class QuizCreatedViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
+
+    /** [channel] is "link" | "qr_code" | "pdf_flyer". */
+    fun logShared(channel: String) = analyticsLogger.logQuizShared(channel)
 }

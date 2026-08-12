@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.LeaderboardData
 import com.quizmaker.android.repository.LeaderboardRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +24,7 @@ data class LeaderboardUiState(
 @HiltViewModel
 class LeaderboardViewModel @Inject constructor(
     private val repository: LeaderboardRepository,
+    private val pdfBrandingProvider: PdfBrandingProvider,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -43,4 +46,6 @@ class LeaderboardViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 }

@@ -42,6 +42,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +75,7 @@ import com.quizmaker.android.ui.common.scoreBandColor
 import com.quizmaker.android.util.ResponsesCsvExporter
 import com.quizmaker.android.util.ResponsesPdfExporter
 import com.quizmaker.android.util.formatDateTime
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +86,7 @@ fun ResponsesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = AppBackground,
@@ -101,8 +104,11 @@ fun ResponsesScreen(
                     }
                     if (uiState.filteredResponses.isNotEmpty()) {
                         IconButton(onClick = {
-                            val intent = ResponsesPdfExporter.export(context, uiState.filteredResponses, uiState.quizTitleById)
-                            context.startActivity(Intent.createChooser(intent, "Export responses (PDF)"))
+                            scope.launch {
+                                val branding = viewModel.getPdfBranding()
+                                val intent = ResponsesPdfExporter.export(context, uiState.filteredResponses, uiState.quizTitleById, branding)
+                                context.startActivity(Intent.createChooser(intent, "Export responses (PDF)"))
+                            }
                         }) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
                         }

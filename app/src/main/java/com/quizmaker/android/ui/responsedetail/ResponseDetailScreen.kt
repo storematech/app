@@ -34,6 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -68,6 +69,9 @@ import com.quizmaker.android.util.PdfPrinter
 import com.quizmaker.android.util.ResponseDetailCsvExporter
 import com.quizmaker.android.util.ResponseDetailPdfExporter
 import androidx.core.content.FileProvider
+import com.quizmaker.android.data.model.ResponseDetailData
+import kotlinx.coroutines.launch
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +81,14 @@ fun ResponseDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    fun exportPdf(data: ResponseDetailData, onFile: (File) -> Unit) {
+        scope.launch {
+            val branding = viewModel.getPdfBranding()
+            onFile(ResponseDetailPdfExporter.export(context, data, branding))
+        }
+    }
 
     Scaffold(
         containerColor = AppBackground,
@@ -103,31 +115,34 @@ fun ResponseDetailScreen(
                     val data = uiState.data
                     if (data != null && data.answers.isNotEmpty()) {
                         IconButton(onClick = {
-                            val file = ResponseDetailPdfExporter.export(context, data)
-                            PdfPrinter.print(context, "Response - ${data.userName}", file)
+                            exportPdf(data) { file ->
+                                PdfPrinter.print(context, "Response - ${data.userName}", file)
+                            }
                         }) {
                             Icon(Icons.Default.Print, contentDescription = "Print")
                         }
                         IconButton(onClick = {
-                            val file = ResponseDetailPdfExporter.export(context, data)
-                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/pdf"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            exportPdf(data) { file ->
+                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/pdf"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Share response"))
                             }
-                            context.startActivity(Intent.createChooser(intent, "Share response"))
                         }) {
                             Icon(Icons.Default.Share, contentDescription = "Share")
                         }
                         IconButton(onClick = {
-                            val file = ResponseDetailPdfExporter.export(context, data)
-                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(uri, "application/pdf")
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            exportPdf(data) { file ->
+                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(uri, "application/pdf")
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Open PDF"))
                             }
-                            context.startActivity(Intent.createChooser(intent, "Open PDF"))
                         }) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = "Open PDF", tint = PdfRed)
                         }

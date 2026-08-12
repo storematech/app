@@ -33,6 +33,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -61,6 +62,7 @@ import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.LeaderboardPdfExporter
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.launch
 
 private val GoldColor = Color(0xFFF5B700)
 private val SilverColor = Color(0xFF94A3B8)
@@ -74,6 +76,7 @@ fun LeaderboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = AppBackground,
@@ -99,8 +102,11 @@ fun LeaderboardScreen(
                     val data = uiState.data
                     if (data != null && data.entries.isNotEmpty()) {
                         IconButton(onClick = {
-                            val intent = LeaderboardPdfExporter.export(context, data.quizTitle, data)
-                            context.startActivity(Intent.createChooser(intent, "Export leaderboard"))
+                            scope.launch {
+                                val branding = viewModel.getPdfBranding()
+                                val intent = LeaderboardPdfExporter.export(context, data.quizTitle, data, branding)
+                                context.startActivity(Intent.createChooser(intent, "Export leaderboard"))
+                            }
                         }) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
                         }

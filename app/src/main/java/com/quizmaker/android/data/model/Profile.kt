@@ -13,7 +13,11 @@ data class Profile(
     val role: String,
     val userType: String?,
     val licenseExpiredDate: String?,
-    val createdAt: Instant?
+    val createdAt: Instant?,
+    /** Public URL into the `business-logos` Storage bucket, or null if never uploaded — the PDF letterhead's logo. */
+    val businessLogo: String?,
+    /** The PDF letterhead's address line, shown alongside the logo. */
+    val address: String?
 ) {
     /** Mirrors the web app's premium check (TrialAndPricing.tsx): paid plan tiers only. */
     val isPremium: Boolean

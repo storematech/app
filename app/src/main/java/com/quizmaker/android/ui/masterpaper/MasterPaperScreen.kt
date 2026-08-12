@@ -31,6 +31,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +56,7 @@ import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.MasterPaperMode
 import com.quizmaker.android.util.MasterPaperPdfExporter
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,10 +66,14 @@ fun MasterPaperScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     fun exportAndShare(mode: MasterPaperMode) {
-        val intent = MasterPaperPdfExporter.export(context, uiState.quizTitle, uiState.questions, mode)
-        context.startActivity(Intent.createChooser(intent, "Export Master Paper"))
+        scope.launch {
+            val branding = viewModel.getPdfBranding()
+            val intent = MasterPaperPdfExporter.export(context, uiState.quizTitle, uiState.questions, mode, branding)
+            context.startActivity(Intent.createChooser(intent, "Export Master Paper"))
+        }
     }
 
     Scaffold(

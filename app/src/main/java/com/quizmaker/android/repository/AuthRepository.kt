@@ -160,7 +160,9 @@ class AuthRepository @Inject constructor(
             role = profileDto.role ?: "user",
             userType = profileDto.userType,
             licenseExpiredDate = profileDto.licenseExpiredDate,
-            createdAt = profileDto.createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            createdAt = profileDto.createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
+            businessLogo = profileDto.businessLogo,
+            address = profileDto.address
         )
     }
 }

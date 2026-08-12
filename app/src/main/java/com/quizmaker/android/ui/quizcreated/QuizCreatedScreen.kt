@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,8 +59,10 @@ import com.quizmaker.android.ui.common.SuccessCheckmark
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.MasterPaperMode
 import com.quizmaker.android.util.MasterPaperPdfExporter
+import com.quizmaker.android.util.PdfBranding
 import com.quizmaker.android.util.QrCodeGenerator
 import com.quizmaker.android.util.QrFlyerPdfExporter
+import kotlinx.coroutines.launch
 
 /**
  * Shown once, right after creating a brand-new quiz — a shareable "flyer" (QR + downloads +
@@ -86,7 +89,9 @@ fun QuizCreatedScreen(
                 uiState.quiz != null -> QuizCreatedContent(
                     quiz = uiState.quiz!!,
                     questions = uiState.questions,
-                    onDone = onDone
+                    onDone = onDone,
+                    getPdfBranding = viewModel::getPdfBranding,
+                    onShared = viewModel::logShared
                 )
             }
         }
@@ -94,13 +99,23 @@ fun QuizCreatedScreen(
 }
 
 @Composable
-private fun QuizCreatedContent(quiz: Quiz, questions: List<Question>, onDone: () -> Unit) {
+private fun QuizCreatedContent(
+    quiz: Quiz,
+    questions: List<Question>,
+    onDone: () -> Unit,
+    getPdfBranding: suspend () -> PdfBranding,
+    onShared: (String) -> Unit
+) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val qrBitmap = remember(quiz.shareUrl) { QrCodeGenerator.generate(quiz.shareUrl) }
 
     fun exportMasterPaper(mode: MasterPaperMode) {
-        val intent = MasterPaperPdfExporter.export(context, quiz.title, questions, mode)
-        context.startActivity(Intent.createChooser(intent, "Export"))
+        scope.launch {
+            val branding = getPdfBranding()
+            val intent = MasterPaperPdfExporter.export(context, quiz.title, questions, mode, branding)
+            context.startActivity(Intent.createChooser(intent, "Export"))
+        }
     }
 
     Column(
@@ -143,6 +158,7 @@ private fun QuizCreatedContent(quiz: Quiz, questions: List<Question>, onDone: ()
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = {
+                        onShared("qr_code")
                         val intent = QrCodeGenerator.sharePng(context, qrBitmap, quiz.title)
                         context.startActivity(Intent.createChooser(intent, "Download QR Code"))
                     },
@@ -154,6 +170,7 @@ private fun QuizCreatedContent(quiz: Quiz, questions: List<Question>, onDone: ()
                 }
                 OutlinedButton(
                     onClick = {
+                        onShared("pdf_flyer")
                         val intent = QrFlyerPdfExporter.export(context, quiz.title, quiz.shareUrl, qrBitmap)
                         context.startActivity(Intent.createChooser(intent, "Download Flyer"))
                     },
@@ -169,6 +186,7 @@ private fun QuizCreatedContent(quiz: Quiz, questions: List<Question>, onDone: ()
                 text = "Share Link",
                 leadingIcon = Icons.Default.Share,
                 onClick = {
+                    onShared("link")
                     val sendIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, "Take my quiz \"${quiz.title}\": ${quiz.shareUrl}")

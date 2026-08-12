@@ -26,7 +26,12 @@ object ResponsesPdfExporter {
         "Status" to 65f, "Time" to 55f, "Completed" to 66f
     )
 
-    fun export(context: Context, responses: List<QuizResponse>, quizTitleById: Map<String, String>): Intent {
+    fun export(
+        context: Context,
+        responses: List<QuizResponse>,
+        quizTitleById: Map<String, String>,
+        branding: PdfBranding = PdfBranding.NONE
+    ): Intent {
         val document = PdfDocument()
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 16f; isFakeBoldText = true }
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 10f }
@@ -39,7 +44,7 @@ object ResponsesPdfExporter {
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
         var canvas = page.canvas
-        var y = MARGIN
+        var y = PdfLetterhead.draw(canvas, MARGIN, PAGE_WIDTH - MARGIN, MARGIN, branding)
 
         fun drawHeaderRow() {
             var x = MARGIN

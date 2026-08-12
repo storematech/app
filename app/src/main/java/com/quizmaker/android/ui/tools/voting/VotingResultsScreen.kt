@@ -34,6 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -60,6 +61,7 @@ import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.GenericCsvExporter
 import com.quizmaker.android.util.GenericTablePdfExporter
 import com.quizmaker.android.util.formatShortDate
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +71,7 @@ fun VotingResultsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = AppBackground,
@@ -94,14 +97,18 @@ fun VotingResultsScreen(
                     }
                     if (uiState.tallies.isNotEmpty()) {
                         IconButton(onClick = {
-                            val intent = GenericTablePdfExporter.export(
-                                context = context,
-                                fileName = "voting_results.pdf",
-                                title = uiState.campaign?.title ?: "Voting Results",
-                                columns = listOf("Candidate" to 200f, "Role" to 130f, "Votes" to 80f, "Percentage" to 90f),
-                                rows = uiState.tallies.map { candidateTallyRow(it) }
-                            )
-                            context.startActivity(Intent.createChooser(intent, "Export results (PDF)"))
+                            scope.launch {
+                                val branding = viewModel.getPdfBranding()
+                                val intent = GenericTablePdfExporter.export(
+                                    context = context,
+                                    fileName = "voting_results.pdf",
+                                    title = uiState.campaign?.title ?: "Voting Results",
+                                    columns = listOf("Candidate" to 200f, "Role" to 130f, "Votes" to 80f, "Percentage" to 90f),
+                                    rows = uiState.tallies.map { candidateTallyRow(it) },
+                                    branding = branding
+                                )
+                                context.startActivity(Intent.createChooser(intent, "Export results (PDF)"))
+                            }
                         }) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
                         }

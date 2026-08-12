@@ -21,6 +21,9 @@ data class ProfileUiState(
     val businessName: String = "",
     val phoneNumber: String = "",
     val country: String = "",
+    val address: String = "",
+    val businessLogoUrl: String? = null,
+    val isUploadingLogo: Boolean = false,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
     val newPassword: String = "",
@@ -54,7 +57,9 @@ class ProfileViewModel @Inject constructor(
                     name = result.data.name,
                     businessName = result.data.businessName,
                     phoneNumber = result.data.phoneNumber,
-                    country = result.data.country
+                    country = result.data.country,
+                    address = result.data.address.orEmpty(),
+                    businessLogoUrl = result.data.businessLogo
                 )
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
             }
@@ -65,6 +70,7 @@ class ProfileViewModel @Inject constructor(
     fun onBusinessNameChange(value: String) { _uiState.value = _uiState.value.copy(businessName = value, saveSuccess = false) }
     fun onPhoneNumberChange(value: String) { _uiState.value = _uiState.value.copy(phoneNumber = value, saveSuccess = false) }
     fun onCountryChange(value: String) { _uiState.value = _uiState.value.copy(country = value, saveSuccess = false) }
+    fun onAddressChange(value: String) { _uiState.value = _uiState.value.copy(address = value, saveSuccess = false) }
     fun onNewPasswordChange(value: String) { _uiState.value = _uiState.value.copy(newPassword = value, passwordChangeSuccess = false) }
     fun onConfirmPasswordChange(value: String) { _uiState.value = _uiState.value.copy(confirmPassword = value, passwordChangeSuccess = false) }
 
@@ -78,11 +84,35 @@ class ProfileViewModel @Inject constructor(
                 name = state.name.trim(),
                 businessName = state.businessName.trim(),
                 phoneNumber = state.phoneNumber.trim(),
-                country = state.country.trim()
+                country = state.country.trim(),
+                address = state.address.trim()
             )
             when (result) {
                 is AppResult.Success -> _uiState.value = _uiState.value.copy(isSaving = false, saveSuccess = true)
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = result.message)
+            }
+        }
+    }
+
+    /** [contentType] e.g. "image/jpeg" — read from the picked image's Uri via ContentResolver at the call site. */
+    fun uploadLogo(bytes: ByteArray, contentType: String) {
+        val userId = authRepository.currentUserId() ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isUploadingLogo = true, errorMessage = null)
+            when (val result = profileRepository.uploadLogo(userId, bytes, contentType)) {
+                is AppResult.Success -> _uiState.value = _uiState.value.copy(isUploadingLogo = false, businessLogoUrl = result.data)
+                is AppResult.Error -> _uiState.value = _uiState.value.copy(isUploadingLogo = false, errorMessage = result.message)
+            }
+        }
+    }
+
+    fun removeLogo() {
+        val userId = authRepository.currentUserId() ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isUploadingLogo = true, errorMessage = null)
+            when (val result = profileRepository.removeLogo(userId)) {
+                is AppResult.Success -> _uiState.value = _uiState.value.copy(isUploadingLogo = false, businessLogoUrl = null)
+                is AppResult.Error -> _uiState.value = _uiState.value.copy(isUploadingLogo = false, errorMessage = result.message)
             }
         }
     }

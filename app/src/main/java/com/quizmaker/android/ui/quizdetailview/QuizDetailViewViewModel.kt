@@ -10,6 +10,8 @@ import com.quizmaker.android.data.model.QuizDetailViewSummary
 import com.quizmaker.android.data.model.StudentAnswerRow
 import com.quizmaker.android.repository.QuizAiSummaryRepository
 import com.quizmaker.android.repository.QuizDetailViewRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +37,7 @@ data class QuizDetailViewUiState(
 class QuizDetailViewViewModel @Inject constructor(
     private val repository: QuizDetailViewRepository,
     private val aiSummaryRepository: QuizAiSummaryRepository,
+    private val pdfBrandingProvider: PdfBrandingProvider,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -122,4 +125,6 @@ class QuizDetailViewViewModel @Inject constructor(
             rows = rows
         )
     }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 }

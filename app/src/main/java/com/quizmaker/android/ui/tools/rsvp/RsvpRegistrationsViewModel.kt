@@ -9,6 +9,8 @@ import com.quizmaker.android.data.model.RsvpRegistration
 import com.quizmaker.android.data.model.RsvpSummary
 import com.quizmaker.android.data.model.summarize
 import com.quizmaker.android.repository.RsvpRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,7 @@ data class RsvpRegistrationsUiState(
 @HiltViewModel
 class RsvpRegistrationsViewModel @Inject constructor(
     private val repository: RsvpRepository,
+    private val pdfBrandingProvider: PdfBrandingProvider,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -59,4 +62,6 @@ class RsvpRegistrationsViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 }

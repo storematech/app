@@ -21,7 +21,7 @@ object QuizDetailPdfExporter {
     private const val MARGIN = 32f
     private const val ROW_HEIGHT = 22f
 
-    fun export(context: Context, data: QuizDetailViewData): Intent {
+    fun export(context: Context, data: QuizDetailViewData, branding: PdfBranding = PdfBranding.NONE): Intent {
         val columns = listOf(
             "Name" to 105f, "Email" to 145f, "Score" to 55f,
             "Correct" to 65f, "Time" to 55f, "Completed" to 106f
@@ -39,7 +39,7 @@ object QuizDetailPdfExporter {
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
         var canvas = page.canvas
-        var y = MARGIN
+        var y = PdfLetterhead.draw(canvas, MARGIN, PAGE_WIDTH - MARGIN, MARGIN, branding)
 
         fun drawHeaderRow() {
             var x = MARGIN

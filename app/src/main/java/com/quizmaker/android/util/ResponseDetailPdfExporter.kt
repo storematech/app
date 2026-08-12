@@ -20,7 +20,7 @@ object ResponseDetailPdfExporter {
     private const val MARGIN = 36f
     private const val CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN
 
-    fun export(context: Context, data: ResponseDetailData): File {
+    fun export(context: Context, data: ResponseDetailData, branding: PdfBranding = PdfBranding.NONE): File {
         val document = PdfDocument()
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6D28D9"); textSize = 16f; isFakeBoldText = true }
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6B7280"); textSize = 8f }
@@ -35,7 +35,7 @@ object ResponseDetailPdfExporter {
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
         var canvas = page.canvas
-        var y = MARGIN
+        var y = PdfLetterhead.draw(canvas, MARGIN, PAGE_WIDTH - MARGIN, MARGIN, branding)
 
         fun newPage() {
             document.finishPage(page)

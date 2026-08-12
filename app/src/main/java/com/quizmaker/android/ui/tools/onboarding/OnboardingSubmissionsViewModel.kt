@@ -7,6 +7,8 @@ import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.OnboardingSubmission
 import com.quizmaker.android.data.model.excludingIdentityFields
 import com.quizmaker.android.repository.OnboardingFormRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +29,7 @@ data class OnboardingSubmissionsUiState(
 @HiltViewModel
 class OnboardingSubmissionsViewModel @Inject constructor(
     private val repository: OnboardingFormRepository,
+    private val pdfBrandingProvider: PdfBrandingProvider,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -58,4 +61,6 @@ class OnboardingSubmissionsViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 }

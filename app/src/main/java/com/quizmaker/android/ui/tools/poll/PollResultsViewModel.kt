@@ -9,6 +9,8 @@ import com.quizmaker.android.data.model.PollOptionTally
 import com.quizmaker.android.data.model.PollVote
 import com.quizmaker.android.data.model.tally
 import com.quizmaker.android.repository.PollRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +34,7 @@ data class PollResultsUiState(
 @HiltViewModel
 class PollResultsViewModel @Inject constructor(
     private val repository: PollRepository,
+    private val pdfBrandingProvider: PdfBrandingProvider,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -63,4 +66,6 @@ class PollResultsViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 }

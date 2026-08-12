@@ -34,6 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -68,6 +69,7 @@ import com.quizmaker.android.util.GenericCsvExporter
 import com.quizmaker.android.util.GenericTablePdfExporter
 import com.quizmaker.android.util.formatDateTime
 import com.quizmaker.android.util.formatShortDate
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +79,7 @@ fun RsvpRegistrationsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = AppBackground,
@@ -104,17 +107,21 @@ fun RsvpRegistrationsScreen(
                     }
                     if (uiState.registrations.isNotEmpty()) {
                         IconButton(onClick = {
-                            val intent = GenericTablePdfExporter.export(
-                                context = context,
-                                fileName = "rsvp_registrations.pdf",
-                                title = uiState.event?.title ?: "Registrations",
-                                columns = listOf(
-                                    "Name" to 90f, "Email" to 100f, "Phone" to 70f,
-                                    "Attending" to 65f, "Guests" to 45f, "Registered" to 90f
-                                ),
-                                rows = uiState.registrations.map { registrationRow(it) }
-                            )
-                            context.startActivity(Intent.createChooser(intent, "Export registrations (PDF)"))
+                            scope.launch {
+                                val branding = viewModel.getPdfBranding()
+                                val intent = GenericTablePdfExporter.export(
+                                    context = context,
+                                    fileName = "rsvp_registrations.pdf",
+                                    title = uiState.event?.title ?: "Registrations",
+                                    columns = listOf(
+                                        "Name" to 90f, "Email" to 100f, "Phone" to 70f,
+                                        "Attending" to 65f, "Guests" to 45f, "Registered" to 90f
+                                    ),
+                                    rows = uiState.registrations.map { registrationRow(it) },
+                                    branding = branding
+                                )
+                                context.startActivity(Intent.createChooser(intent, "Export registrations (PDF)"))
+                            }
                         }) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
                         }

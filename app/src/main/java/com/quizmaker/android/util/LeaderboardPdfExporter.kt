@@ -23,7 +23,7 @@ object LeaderboardPdfExporter {
 
     private val columns = listOf("Rank" to 45f, "Name" to 125f, "Email" to 175f, "Points" to 80f, "Score" to 55f, "Time" to 51f)
 
-    fun export(context: Context, quizTitle: String, data: LeaderboardData): Intent {
+    fun export(context: Context, quizTitle: String, data: LeaderboardData, branding: PdfBranding = PdfBranding.NONE): Intent {
         val document = PdfDocument()
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 18f; isFakeBoldText = true }
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 11f }
@@ -36,7 +36,7 @@ object LeaderboardPdfExporter {
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
         var canvas = page.canvas
-        var y = MARGIN
+        var y = PdfLetterhead.draw(canvas, MARGIN, PAGE_WIDTH - MARGIN, MARGIN, branding)
 
         fun drawHeaderRow() {
             var x = MARGIN

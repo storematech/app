@@ -22,7 +22,7 @@ object QuizAnalysisPdfExporter {
     private const val CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN
     private const val BAR_HEIGHT = 7f
 
-    fun export(context: Context, data: QuizAnalysisData): Intent {
+    fun export(context: Context, data: QuizAnalysisData, branding: PdfBranding = PdfBranding.NONE): Intent {
         val document = PdfDocument()
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6D28D9"); textSize = 16f; isFakeBoldText = true }
         val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 10f }
@@ -35,7 +35,7 @@ object QuizAnalysisPdfExporter {
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
         var canvas = page.canvas
-        var y = MARGIN
+        var y = PdfLetterhead.draw(canvas, MARGIN, PAGE_WIDTH - MARGIN, MARGIN, branding)
 
         fun newPage() {
             document.finishPage(page)

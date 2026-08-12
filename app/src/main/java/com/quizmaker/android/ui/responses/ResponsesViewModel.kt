@@ -7,6 +7,8 @@ import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.data.model.QuizResponse
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuizRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,7 +48,8 @@ data class ResponsesUiState(
 @HiltViewModel
 class ResponsesViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val quizRepository: QuizRepository
+    private val quizRepository: QuizRepository,
+    private val pdfBrandingProvider: PdfBrandingProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ResponsesUiState())
@@ -136,4 +139,6 @@ class ResponsesViewModel @Inject constructor(
 
         _uiState.value = state.copy(isLoading = false, errorMessage = null, filteredResponses = filtered)
     }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 }

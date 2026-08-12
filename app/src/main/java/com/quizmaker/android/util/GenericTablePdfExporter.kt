@@ -25,7 +25,14 @@ object GenericTablePdfExporter {
     private const val ROW_HEIGHT = 24f
 
     /** [columns] pairs a header label with its column width in points; widths should sum to roughly PAGE_WIDTH - 2*MARGIN. */
-    fun export(context: Context, fileName: String, title: String, columns: List<Pair<String, Float>>, rows: List<List<String>>): Intent {
+    fun export(
+        context: Context,
+        fileName: String,
+        title: String,
+        columns: List<Pair<String, Float>>,
+        rows: List<List<String>>,
+        branding: PdfBranding = PdfBranding.NONE
+    ): Intent {
         val document = PdfDocument()
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 16f; isFakeBoldText = true }
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 10f }
@@ -38,7 +45,7 @@ object GenericTablePdfExporter {
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
         var canvas = page.canvas
-        var y = MARGIN
+        var y = PdfLetterhead.draw(canvas, MARGIN, PAGE_WIDTH - MARGIN, MARGIN, branding)
 
         fun drawHeaderRow() {
             var x = MARGIN

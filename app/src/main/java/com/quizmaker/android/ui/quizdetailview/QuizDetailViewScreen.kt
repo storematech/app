@@ -104,11 +104,12 @@ fun QuizDetailViewScreen(
         if (shouldLoadMore) viewModel.loadMore()
     }
 
-    fun exportWith(action: (QuizDetailViewData) -> Unit) {
+    fun exportWith(action: suspend (QuizDetailViewData) -> Unit) {
         if (isExporting) return
         scope.launch {
             isExporting = true
-            viewModel.loadAllForExport()?.let(action)
+            val data = viewModel.loadAllForExport()
+            if (data != null) action(data)
             isExporting = false
         }
     }
@@ -148,7 +149,8 @@ fun QuizDetailViewScreen(
                             }
                             IconButton(onClick = {
                                 exportWith { data ->
-                                    val intent = QuizDetailPdfExporter.export(context, data)
+                                    val branding = viewModel.getPdfBranding()
+                                    val intent = QuizDetailPdfExporter.export(context, data, branding)
                                     context.startActivity(Intent.createChooser(intent, "Export detail view (PDF)"))
                                 }
                             }) {

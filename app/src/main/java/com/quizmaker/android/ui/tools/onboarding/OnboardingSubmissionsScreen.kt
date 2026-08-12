@@ -31,6 +31,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +55,7 @@ import com.quizmaker.android.util.GenericCsvExporter
 import com.quizmaker.android.util.GenericTablePdfExporter
 import com.quizmaker.android.util.formatDateTime
 import com.quizmaker.android.util.formatShortDate
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,6 +65,7 @@ fun OnboardingSubmissionsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = AppBackground,
@@ -90,14 +93,18 @@ fun OnboardingSubmissionsScreen(
                     }
                     if (uiState.submissions.isNotEmpty()) {
                         IconButton(onClick = {
-                            val intent = GenericTablePdfExporter.export(
-                                context = context,
-                                fileName = "onboarding_submissions.pdf",
-                                title = uiState.formTitle.ifBlank { "Submissions" },
-                                columns = onboardingPdfColumns(uiState.fieldLabels),
-                                rows = uiState.submissions.map { onboardingRow(it, uiState.fieldLabels) }
-                            )
-                            context.startActivity(Intent.createChooser(intent, "Export submissions (PDF)"))
+                            scope.launch {
+                                val branding = viewModel.getPdfBranding()
+                                val intent = GenericTablePdfExporter.export(
+                                    context = context,
+                                    fileName = "onboarding_submissions.pdf",
+                                    title = uiState.formTitle.ifBlank { "Submissions" },
+                                    columns = onboardingPdfColumns(uiState.fieldLabels),
+                                    rows = uiState.submissions.map { onboardingRow(it, uiState.fieldLabels) },
+                                    branding = branding
+                                )
+                                context.startActivity(Intent.createChooser(intent, "Export submissions (PDF)"))
+                            }
                         }) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
                         }

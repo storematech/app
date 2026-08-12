@@ -7,6 +7,8 @@ import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.FeedbackSubmission
 import com.quizmaker.android.data.model.excludingIdentityFields
 import com.quizmaker.android.repository.FeedbackFormRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +29,7 @@ data class FeedbackSubmissionsUiState(
 @HiltViewModel
 class FeedbackSubmissionsViewModel @Inject constructor(
     private val repository: FeedbackFormRepository,
+    private val pdfBrandingProvider: PdfBrandingProvider,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -58,4 +61,6 @@ class FeedbackSubmissionsViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 }

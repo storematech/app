@@ -46,7 +46,13 @@ object MasterPaperPdfExporter {
         return (fm.descent - fm.ascent) * multiplier
     }
 
-    fun export(context: Context, quizTitle: String, questions: List<Question>, mode: MasterPaperMode): Intent {
+    fun export(
+        context: Context,
+        quizTitle: String,
+        questions: List<Question>,
+        mode: MasterPaperMode,
+        branding: PdfBranding = PdfBranding.NONE
+    ): Intent {
         val document = PdfDocument()
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6D28D9"); textSize = 16f; isFakeBoldText = true }
         val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 11f }
@@ -71,7 +77,7 @@ object MasterPaperPdfExporter {
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
         var canvas = page.canvas
-        var y = MARGIN
+        var y = PdfLetterhead.draw(canvas, MARGIN, PAGE_WIDTH - MARGIN, MARGIN, branding)
 
         fun newPage() {
             document.finishPage(page)

@@ -9,6 +9,8 @@ import com.quizmaker.android.data.model.QuizAnalysisData
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuizAnalysisRepository
 import com.quizmaker.android.repository.RevisionRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +33,7 @@ class QuizAnalysisViewModel @Inject constructor(
     private val repository: QuizAnalysisRepository,
     private val revisionRepository: RevisionRepository,
     private val authRepository: AuthRepository,
+    private val pdfBrandingProvider: PdfBrandingProvider,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -88,4 +91,6 @@ class QuizAnalysisViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 }

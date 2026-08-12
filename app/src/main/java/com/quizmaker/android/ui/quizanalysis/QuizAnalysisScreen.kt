@@ -37,6 +37,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +69,7 @@ import com.quizmaker.android.ui.common.StatTile
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.ui.common.scoreBandColor
 import com.quizmaker.android.util.QuizAnalysisPdfExporter
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +79,7 @@ fun QuizAnalysisScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = AppBackground,
@@ -100,8 +103,11 @@ fun QuizAnalysisScreen(
                     val data = uiState.data
                     if (data != null && data.questions.isNotEmpty()) {
                         IconButton(onClick = {
-                            val intent = QuizAnalysisPdfExporter.export(context, data)
-                            context.startActivity(Intent.createChooser(intent, "Export question performance (PDF)"))
+                            scope.launch {
+                                val branding = viewModel.getPdfBranding()
+                                val intent = QuizAnalysisPdfExporter.export(context, data, branding)
+                                context.startActivity(Intent.createChooser(intent, "Export question performance (PDF)"))
+                            }
                         }) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
                         }
