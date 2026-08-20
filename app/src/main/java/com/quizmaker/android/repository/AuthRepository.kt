@@ -1,5 +1,6 @@
 package com.quizmaker.android.repository
 
+import android.util.Log
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.core.network.safeCall
 import com.quizmaker.android.data.model.Profile
@@ -7,6 +8,8 @@ import com.quizmaker.android.data.remote.dto.CheckEmailExistsRequest
 import com.quizmaker.android.data.remote.dto.CheckEmailExistsResponse
 import com.quizmaker.android.data.remote.dto.ProfileDto
 import com.quizmaker.android.data.remote.dto.ProfileInsertDto
+import com.quizmaker.android.ui.dashboard.DashboardStateCache
+import com.quizmaker.android.ui.more.MoreStateCache
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.Google
@@ -36,13 +39,17 @@ import javax.inject.Singleton
  */
 @Singleton
 class AuthRepository @Inject constructor(
-    private val supabase: SupabaseClient
+    private val supabase: SupabaseClient,
+    private val dashboardStateCache: DashboardStateCache,
+    private val moreStateCache: MoreStateCache
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
     val sessionStatus: StateFlow<SessionStatus> get() = supabase.auth.sessionStatus
 
     fun currentUserId(): String? = supabase.auth.currentUserOrNull()?.id
+
+    fun currentUserEmail(): String? = supabase.auth.currentUserOrNull()?.email
 
     suspend fun awaitSessionRestore() {
         runCatching { supabase.auth.awaitInitialization() }
@@ -70,12 +77,19 @@ class AuthRepository @Inject constructor(
         }
         // The web app's `profiles` table is normally populated by a DB trigger on auth.users;
         // upsert defensively in case the trigger hasn't run yet (mirrors AuthContext.tsx's
-        // PGRST116 "no profile found, creating one" fallback).
+        // PGRST116 "no profile found, creating one" fallback). The auth account above is already
+        // created by this point — session/gate navigation reacts to that independently (see
+        // NavGraph's sessionStatus listener) — so a transient failure here (e.g. RLS not yet
+        // recognizing the brand-new session) must never surface as a user-facing error or fail
+        // the whole signUp() call; getCurrentProfile()'s own create-if-missing fallback covers it
+        // if this one genuinely didn't land.
         val userId = user?.id ?: supabase.auth.currentUserOrNull()?.id
         if (userId != null) {
-            supabase.from("profiles").upsert(
-                ProfileInsertDto(id = userId, email = email, name = name)
-            )
+            runCatching {
+                supabase.from("profiles").upsert(
+                    ProfileInsertDto(id = userId, email = email, name = name)
+                )
+            }.onFailure { Log.e("AuthRepository", "Defensive profile upsert failed after signUp", it) }
         }
         supabase.auth.currentSessionOrNull() == null
     }
@@ -112,20 +126,33 @@ class AuthRepository @Inject constructor(
         if (user != null) {
             // Create-if-missing only — every sign-in (not just the first) reaches this point, so a
             // blind upsert here would silently clobber a name the user later set via My Profile.
-            val existing = supabase.from("profiles")
-                .select { filter { eq("id", user.id) } }
-                .decodeSingleOrNull<ProfileDto>()
-            if (existing == null) {
-                val fallbackName = user.email?.substringBefore("@").orEmpty()
-                supabase.from("profiles").upsert(
-                    ProfileInsertDto(id = user.id, email = user.email, name = fallbackName)
-                )
-            }
+            // The sign-in above already succeeded by this point — session/gate navigation reacts to
+            // that independently — so a transient failure in this best-effort sync (select or
+            // upsert) must never surface as a user-facing error or fail the whole call; it would
+            // otherwise hit every Google sign-in, not just brand-new ones. getCurrentProfile()'s own
+            // create-if-missing fallback covers it if this one genuinely didn't land.
+            runCatching {
+                val existing = supabase.from("profiles")
+                    .select { filter { eq("id", user.id) } }
+                    .decodeSingleOrNull<ProfileDto>()
+                if (existing == null) {
+                    val fallbackName = user.email?.substringBefore("@").orEmpty()
+                    supabase.from("profiles").upsert(
+                        ProfileInsertDto(id = user.id, email = user.email, name = fallbackName)
+                    )
+                }
+            }.onFailure { Log.e("AuthRepository", "Defensive profile sync failed after Google sign-in", it) }
         }
     }
 
     suspend fun signOut(): AppResult<Unit> = safeCall {
         supabase.auth.signOut()
+        // These two survive ViewModel re-creation *within* a session (see their own doc comments)
+        // but must not survive a sign-out — otherwise the next account to sign in on this process
+        // gets seeded with the previous account's Dashboard/More state for a beat before its own
+        // fetch resolves.
+        dashboardStateCache.lastState = null
+        moreStateCache.lastState = null
     }
 
     suspend fun resetPassword(email: String): AppResult<Unit> = safeCall {

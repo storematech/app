@@ -10,12 +10,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -66,13 +63,15 @@ fun AlertHost(modifier: Modifier = Modifier) {
         }
     }
 
+    // No inset padding here (unlike the old top-aligned version, which needed statusBars padding
+    // of its own) — the call site in NavGraph.kt already accounts for the bottom nav bar / system
+    // gesture inset, since whether that padding is needed depends on whether the app's own bottom
+    // tab bar is showing, which only NavGraph knows.
     AnimatedVisibility(
         visible = currentAlert != null,
-        enter = slideInVertically(tween(280)) { -it } + fadeIn(tween(280)),
-        exit = slideOutVertically(tween(220)) { -it } + fadeOut(tween(220)),
-        modifier = modifier
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(horizontal = 20.dp, vertical = 10.dp)
+        enter = slideInVertically(tween(280)) { it } + fadeIn(tween(280)),
+        exit = slideOutVertically(tween(220)) { it } + fadeOut(tween(220)),
+        modifier = modifier.padding(horizontal = 20.dp, vertical = 10.dp)
     ) {
         currentAlert?.let { AlertStrip(it, onDismiss = { currentAlert = null }) }
     }

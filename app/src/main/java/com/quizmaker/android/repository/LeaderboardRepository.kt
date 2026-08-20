@@ -28,7 +28,7 @@ class LeaderboardRepository @Inject constructor(
         val quiz = supabase.from("quizzes")
             .select { filter { eq("id", quizId) } }
             .decodeSingle<QuizDto>()
-        val maxPoints = quiz.maxPoints ?: 0
+        val maxPoints = (quiz.maxPoints ?: 0.0).roundToInt()
 
         val responses = supabase.from("quiz_responses")
             .select {
@@ -50,7 +50,9 @@ class LeaderboardRepository @Inject constructor(
             .select { filter { isIn("response_id", responses.map { it.id }) } }
             .decodeList<QuizAnswerDetailDto>()
             .groupBy { it.responseId }
-            .mapValues { (_, details) -> details.sumOf { it.pointsEarned ?: 0.0 }.roundToInt() }
+            // Floors at 0 to stay consistent with quiz_responses.score, which QuizTakingRepository
+            // already floors at the total level — a negative leaderboard total would be confusing.
+            .mapValues { (_, details) -> details.sumOf { it.pointsEarned ?: 0.0 }.roundToInt().coerceAtLeast(0) }
 
         val validEmails = responses.map { it.userEmail }.filter(::isValidEmail)
         val timeTakenByEmail: Map<String, Int> = if (validEmails.isEmpty()) emptyMap() else {

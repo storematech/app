@@ -136,7 +136,7 @@ fun CollectPhoneScreen(
             Text("We'll only ask once — this helps us reach you about your account.", color = TextSecondary, fontSize = 13.sp)
             Spacer(Modifier.height(24.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Bottom) {
                 CountryCodeChip(
                     country = uiState.selectedCountry,
                     onClick = viewModel::openCountryPicker

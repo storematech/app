@@ -15,6 +15,7 @@ import io.github.jan.supabase.postgrest.from
 import kotlin.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.roundToInt
 
 /** Powers the "Response Details" screen — one participant's full question-by-question breakdown. */
 @Singleton
@@ -39,7 +40,7 @@ class ResponseDetailRepository @Inject constructor(
             supabase.from("questions")
                 .select { filter { isIn("id", questionIds) } }
                 .decodeList<QuestionDto>()
-                .associate { it.id to (it.points ?: 1) }
+                .associate { it.id to (it.points ?: 1.0).roundToInt() }
         }
 
         val answers = details.map { d ->

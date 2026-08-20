@@ -9,7 +9,7 @@ import java.io.InputStream
 data class ParsedQuestion(
     val text: String,
     val type: QuestionType,
-    val points: Int,
+    val points: Double,
     val difficulty: QuestionDifficulty,
     val tags: List<String>,
     val options: List<Pair<String, Boolean>>,
@@ -51,7 +51,7 @@ object QuestionExcelImporter {
                 continue
             }
 
-            val points = row.getCellText(7).trim().toIntOrNull()?.takeIf { it > 0 } ?: 1
+            val points = row.getCellText(7).trim().toDoubleOrNull()?.takeIf { it > 0 } ?: 1.0
             val tags = row.getCellText(8).split(",").map { it.trim() }.filter { it.isNotBlank() }
             val difficultyRaw = row.getCellText(9).trim().lowercase().ifBlank { "medium" }
             val difficulty = QuestionDifficulty.entries.firstOrNull { it.value == difficultyRaw }

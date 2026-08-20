@@ -215,7 +215,7 @@ class QuizRepository @Inject constructor(
                 .decodeList<QuestionDto>()
             val maxPoints = selectedQuestions
                 .filter { it.isUngraded != true }
-                .sumOf { it.points ?: 1 }
+                .sumOf { it.points ?: 1.0 }
 
             supabase.from("quizzes").update({ set("max_points", maxPoints) }) {
                 filter { eq("id", created.id) }
@@ -272,9 +272,9 @@ class QuizRepository @Inject constructor(
                 .select { filter { isIn("id", questionIds) } }
                 .decodeList<QuestionDto>()
                 .filter { it.isUngraded != true }
-                .sumOf { it.points ?: 1 }
+                .sumOf { it.points ?: 1.0 }
         } else {
-            0
+            0.0
         }
 
         supabase.from("quizzes").update({ set("max_points", maxPoints) }) {
@@ -337,7 +337,7 @@ class QuizRepository @Inject constructor(
                 }
             )
 
-            supabase.from("quizzes").update({ set("max_points", original.maxPoints ?: 0) }) {
+            supabase.from("quizzes").update({ set("max_points", original.maxPoints ?: 0.0) }) {
                 filter { eq("id", created.id) }
             }
         }

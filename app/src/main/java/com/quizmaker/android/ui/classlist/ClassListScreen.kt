@@ -28,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,8 +46,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
+import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.PoppinsFamily
+import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.QuizClass
@@ -163,16 +166,37 @@ private fun CreateClassDialog(isCreating: Boolean, onDismiss: () -> Unit, onCrea
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
+    // Explicit colors rather than the OutlinedTextField/AlertDialog defaults: those fall back to
+    // MaterialTheme.colorScheme, which flips to a dark scheme under system dark mode — but every
+    // other screen in this app is hardcoded to the light palette, so on a dark-mode device this
+    // dialog was the one place with a near-invisible border/label against a mismatched background.
+    // A placeholder is added too, since a 1dp outline plus a small floating label alone wasn't
+    // enough of an affordance for "this is tappable text input."
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = BrandIndigo,
+        unfocusedBorderColor = BorderGray,
+        focusedLabelColor = BrandIndigo,
+        unfocusedLabelColor = TextSecondary,
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        cursorColor = BrandIndigo,
+        focusedContainerColor = SurfaceWhite,
+        unfocusedContainerColor = SurfaceWhite
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create Class") },
+        containerColor = SurfaceWhite,
+        title = { Text("Create Class", color = TextPrimary) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Class name") },
+                    placeholder = { Text("e.g. Grade 10 - Section A") },
                     singleLine = true,
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
@@ -180,7 +204,9 @@ private fun CreateClassDialog(isCreating: Boolean, onDismiss: () -> Unit, onCrea
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("Description (optional)") },
+                    placeholder = { Text("What's this class for?") },
                     minLines = 2,
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -191,7 +217,7 @@ private fun CreateClassDialog(isCreating: Boolean, onDismiss: () -> Unit, onCrea
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text("Cancel", color = TextSecondary) }
         }
     )
 }

@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 enum class TakeQuizPhase { LOADING, NOT_FOUND, ALREADY_COMPLETED, REGISTRATION, OTP, QUESTIONS, SUBMITTING, RESULT }
 
@@ -46,12 +47,14 @@ data class TakeQuizUiState(
     val overallSecondsRemaining: Int? = null,
     val perQuestionSecondsRemaining: Int? = null,
 
-    val finalScore: Int = 0
+    val finalScore: Double = 0.0
 ) {
     val currentQuestion: Question? get() = quizForTaking?.questions?.getOrNull(currentQuestionIndex)
     val isLastQuestion: Boolean get() = quizForTaking?.let { currentQuestionIndex == it.questions.lastIndex } ?: true
-    val maxPoints: Int get() = quizForTaking?.questions?.filter { !it.isUngraded }?.sumOf { it.points } ?: 0
-    val scorePercent: Int get() = if (maxPoints == 0) 0 else (finalScore * 100 / maxPoints)
+    val maxPoints: Double get() = quizForTaking?.questions?.filter { !it.isUngraded }?.sumOf { it.points } ?: 0.0
+    // finalScore is already floored at 0 by QuizTakingRepository.submitQuizResponse() before it
+    // ever lands here — the explicit coerceAtLeast is just defense-in-depth, not load-bearing.
+    val scorePercent: Int get() = if (maxPoints == 0.0) 0 else (finalScore * 100 / maxPoints).roundToInt().coerceAtLeast(0)
 }
 
 @HiltViewModel
@@ -274,6 +277,7 @@ class TakeQuizViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(phase = TakeQuizPhase.SUBMITTING)
             val result = repository.submitQuizResponse(
                 quizId = quizForTaking.quiz.id,
+                quizCreatorId = quizForTaking.quiz.createdBy,
                 userEmail = state.email.trim().ifBlank { "anonymous@yunolms.com" },
                 userName = state.name.trim().ifBlank { null },
                 phoneNumber = state.phone.trim().ifBlank { null },
@@ -283,7 +287,7 @@ class TakeQuizViewModel @Inject constructor(
             when (result) {
                 is AppResult.Success -> {
                     _uiState.value = _uiState.value.copy(phase = TakeQuizPhase.RESULT, finalScore = result.data)
-                    val scorePercent = if (state.maxPoints == 0) 0 else (result.data * 100 / state.maxPoints)
+                    val scorePercent = if (state.maxPoints == 0.0) 0 else (result.data * 100 / state.maxPoints).roundToInt().coerceAtLeast(0)
                     analyticsLogger.logQuizSubmitted(quizForTaking.quiz.id, scorePercent)
                 }
                 is AppResult.Error -> _uiState.value =
@@ -304,7 +308,7 @@ class TakeQuizViewModel @Inject constructor(
                 correctOptionId = null,
                 correctOptionText = null,
                 isCorrect = false,
-                pointsEarned = 0,
+                pointsEarned = 0.0,
                 status = "ungraded"
             )
         }
@@ -325,7 +329,13 @@ class TakeQuizViewModel @Inject constructor(
                     correctOptionId = correctOption?.id,
                     correctOptionText = correctOption?.text,
                     isCorrect = isCorrect,
-                    pointsEarned = if (isCorrect) question.points else 0,
+                    // A skipped question is never penalized — only an attempted, wrong answer
+                    // triggers the negative-marking deduction.
+                    pointsEarned = when {
+                        isCorrect -> question.points
+                        selectedId == null -> 0.0
+                        else -> -question.negativePoints
+                    },
                     status = if (selectedId == null) "incorrect" else if (isCorrect) "correct" else "incorrect"
                 )
             }
@@ -343,7 +353,11 @@ class TakeQuizViewModel @Inject constructor(
                     correctOptionId = null,
                     correctOptionText = question.options.filter { it.isCorrect }.joinToString(", ") { it.text },
                     isCorrect = isCorrect,
-                    pointsEarned = if (isCorrect) question.points else 0,
+                    pointsEarned = when {
+                        isCorrect -> question.points
+                        input.selectedOptionIds.isEmpty() -> 0.0
+                        else -> -question.negativePoints
+                    },
                     status = if (isCorrect) "correct" else "incorrect"
                 )
             }
@@ -358,7 +372,7 @@ class TakeQuizViewModel @Inject constructor(
                 correctOptionId = null,
                 correctOptionText = question.correctAnswer,
                 isCorrect = false,
-                pointsEarned = 0,
+                pointsEarned = 0.0,
                 status = "ungraded"
             )
         }

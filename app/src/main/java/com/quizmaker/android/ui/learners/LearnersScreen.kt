@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Visibility
@@ -40,17 +41,24 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -71,6 +79,12 @@ import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.util.GenericCsvExporter
+import com.quizmaker.android.util.GenericTablePdfExporter
+import com.quizmaker.android.util.formatShortDate
+import kotlin.time.Instant
+import kotlinx.coroutines.launch
+import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +93,8 @@ fun LearnersScreen(
     viewModel: LearnersViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = AppBackground,
@@ -109,6 +125,37 @@ fun LearnersScreen(
                         onClick = viewModel::openCreateLearnerDialog,
                         leadingIcon = Icons.Default.PersonAdd,
                         modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+
+                var showAutoCreateInfo by remember { mutableStateOf(false) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .elevatedSurface(shape = RoundedCornerShape(14.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Auto Create Learners", color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    IconButton(onClick = { showAutoCreateInfo = true }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Info, contentDescription = "What is Auto Create?", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Switch(
+                        checked = uiState.autoCreateEnabled,
+                        onCheckedChange = viewModel::onAutoCreateToggle,
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = BrandIndigo)
+                    )
+                }
+                if (showAutoCreateInfo) {
+                    AlertDialog(
+                        onDismissRequest = { showAutoCreateInfo = false },
+                        title = { Text("Auto Create Learners") },
+                        text = { Text("When learners submit a quiz, we'll automatically create a learner profile for them using their name and email.") },
+                        confirmButton = {
+                            TextButton(onClick = { showAutoCreateInfo = false }) { Text("Got it") }
+                        }
                     )
                 }
                 Spacer(Modifier.height(16.dp))
@@ -258,7 +305,49 @@ fun LearnersScreen(
             learner = profileLearner,
             attempts = uiState.profileAttempts,
             isLoadingAttempts = uiState.isLoadingProfileAttempts,
+            onExportRequest = viewModel::requestExport,
             onDismiss = viewModel::dismissStudentProfile
+        )
+    }
+
+    val pendingFormat = uiState.pendingExportFormat
+    if (pendingFormat != null && profileLearner != null) {
+        ExportDateRangeDialog(
+            format = pendingFormat,
+            onDismiss = viewModel::dismissExportDialog,
+            onExport = { fromMillis, toMillis ->
+                scope.launch {
+                    val filtered = uiState.profileAttempts.filter { attempt ->
+                        val completedMillis = attempt.completedAt
+                            ?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                            ?.toEpochMilliseconds()
+                        completedMillis != null && completedMillis in fromMillis..toMillis
+                    }
+                    val columns = listOf("Quiz" to 180f, "Score" to 60f, "Time Taken" to 80f, "Completed" to 120f)
+                    val rows = filtered.map { attempt ->
+                        listOf(
+                            attempt.quizTitle,
+                            attempt.score?.let { "$it%" } ?: "-",
+                            attempt.timeTaken?.let { "${it / 60}m ${it % 60}s" } ?: "-",
+                            formatShortDate(attempt.completedAt)
+                        )
+                    }
+                    val safeName = profileLearner.name.ifBlank { "learner" }.replace(Regex("[^A-Za-z0-9]+"), "_")
+                    val intent = when (pendingFormat) {
+                        ExportFormat.CSV -> GenericCsvExporter.export(context, "${safeName}_attempts.csv", columns.map { it.first }, rows)
+                        ExportFormat.PDF -> GenericTablePdfExporter.export(
+                            context = context,
+                            fileName = "${safeName}_attempts.pdf",
+                            title = "${profileLearner.name} — Quiz Attempts",
+                            columns = columns,
+                            rows = rows,
+                            branding = viewModel.getPdfBranding()
+                        )
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Export"))
+                    viewModel.dismissExportDialog()
+                }
+            }
         )
     }
 }

@@ -207,6 +207,10 @@ private fun SubmissionNotificationAnimation(modifier: Modifier = Modifier) {
     ) {
         val bubbleSize = 56.dp
         val travel = maxWidth - bubbleSize
+        // Resolved here, in @Composable context, rather than read inside Canvas's draw lambda
+        // below — that lambda is a plain DrawScope.() -> Unit, not @Composable, and BorderGray is
+        // now a @Composable, theme-aware token (see Color.kt).
+        val lineColor = BorderGray
 
         Canvas(
             modifier = Modifier
@@ -216,7 +220,7 @@ private fun SubmissionNotificationAnimation(modifier: Modifier = Modifier) {
                 .padding(horizontal = bubbleSize / 2)
         ) {
             drawLine(
-                color = BorderGray,
+                color = lineColor,
                 start = Offset(0f, size.height / 2f),
                 end = Offset(size.width, size.height / 2f),
                 strokeWidth = 2.dp.toPx(),

@@ -21,10 +21,21 @@ import javax.inject.Singleton
 class AnalyticsLogger @Inject constructor(
     private val firebaseAnalytics: FirebaseAnalytics
 ) {
-    /** Ties all subsequent events to this account across sessions/devices. Call with null on sign-out. */
-    fun setUserId(userId: String?) {
+    /**
+     * Ties all subsequent events to this account across sessions/devices. Call with null on sign-out.
+     * [email] is attached as a PostHog person property only — Firebase Analytics' terms disallow
+     * logging PII (like email) as a user ID/property, so it's deliberately left out of that call.
+     */
+    fun setUserId(userId: String?, email: String? = null) {
         firebaseAnalytics.setUserId(userId)
-        if (userId != null) PostHog.identify(distinctId = userId) else PostHog.reset()
+        if (userId != null) {
+            PostHog.identify(
+                distinctId = userId,
+                userProperties = email?.let { mapOf("email" to it) }
+            )
+        } else {
+            PostHog.reset()
+        }
     }
 
     fun setPremiumStatus(isPremium: Boolean) {
@@ -241,6 +252,42 @@ class AnalyticsLogger @Inject constructor(
         PostHog.capture(
             event = "tool_active_toggled",
             properties = mapOf("tool_type" to toolType, "is_active" to isActive)
+        )
+    }
+
+    /** Outcome of the one-time "what Tools can do" interstitial shown on first opening More → Tools — see ToolsIntroScreen. */
+    fun logToolsIntroResult(used: Boolean) {
+        firebaseAnalytics.logEvent(
+            "tools_intro_result",
+            Bundle().apply { putString("result", if (used) "used" else "skipped") }
+        )
+        PostHog.capture(
+            event = "tools_intro_result",
+            properties = mapOf("result" to if (used) "used" else "skipped")
+        )
+    }
+
+    /** Outcome of the one-time "what Learners can do" interstitial shown on first opening More → Learners — see LearnersIntroScreen. */
+    fun logLearnersIntroResult(used: Boolean) {
+        firebaseAnalytics.logEvent(
+            "learners_intro_result",
+            Bundle().apply { putString("result", if (used) "used" else "skipped") }
+        )
+        PostHog.capture(
+            event = "learners_intro_result",
+            properties = mapOf("result" to if (used) "used" else "skipped")
+        )
+    }
+
+    /** Outcome of the one-time "what Classes can do" interstitial shown on first opening More → Classes — see ClassesIntroScreen. */
+    fun logClassesIntroResult(used: Boolean) {
+        firebaseAnalytics.logEvent(
+            "classes_intro_result",
+            Bundle().apply { putString("result", if (used) "used" else "skipped") }
+        )
+        PostHog.capture(
+            event = "classes_intro_result",
+            properties = mapOf("result" to if (used) "used" else "skipped")
         )
     }
 

@@ -34,6 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionType
 import com.quizmaker.android.ui.common.ErrorBanner
+import com.quizmaker.android.util.formatPoints
 
 @Composable
 fun TakeQuizScreen(
@@ -312,7 +313,7 @@ private fun ResultContent(uiState: TakeQuizUiState, onViewLeaderboard: (String) 
         if (quiz?.showResults != false) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${uiState.finalScore} / ${uiState.maxPoints}", style = MaterialTheme.typography.headlineMedium)
+                    Text("${uiState.finalScore.formatPoints()} / ${uiState.maxPoints.formatPoints()}", style = MaterialTheme.typography.headlineMedium)
                     Text("${uiState.scorePercent}%", style = MaterialTheme.typography.titleMedium)
                 }
             }

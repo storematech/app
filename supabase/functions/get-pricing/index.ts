@@ -47,6 +47,7 @@ const PRICING = {
     "Unlimited Responses",
     "Premium Support",
     "Mobile Friendly",
+    "Desktop/Laptop App",
   ],
 };
 

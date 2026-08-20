@@ -34,13 +34,26 @@ object GenericTablePdfExporter {
         branding: PdfBranding = PdfBranding.NONE
     ): Intent {
         val document = PdfDocument()
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 16f; isFakeBoldText = true }
+        val template = branding.template
+        val headerFilled = template == ReportTemplate.MODERN || template == ReportTemplate.BOLD
+        val bodyFilled = template == ReportTemplate.BOLD
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (headerFilled) branding.accentColor else Color.BLACK; textSize = 16f; isFakeBoldText = true
+        }
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 10f }
-        val headerTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 9.5f; isFakeBoldText = true }
-        val headerBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6366F1") }
-        val cellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 9.5f }
-        val altRowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F5F5FB") }
+        val headerTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (headerFilled) Color.WHITE else Color.BLACK; textSize = 9.5f; isFakeBoldText = true
+        }
+        val headerBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor }
+        val headerRulePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor; strokeWidth = 1.5f }
+        val cellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (bodyFilled) Color.WHITE else Color.BLACK; textSize = 9.5f
+        }
+        val bodyFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor }
+        val altRowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor; alpha = 18 }
+        val boldAltRowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; alpha = 25 }
         val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E5E7EB"); strokeWidth = 1f }
+        val boldLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; alpha = 70; strokeWidth = 1f }
 
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
@@ -49,7 +62,11 @@ object GenericTablePdfExporter {
 
         fun drawHeaderRow() {
             var x = MARGIN
-            canvas.drawRect(x, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, headerBgPaint)
+            when {
+                headerFilled -> canvas.drawRect(x, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, headerBgPaint)
+                template == ReportTemplate.CLASSIC -> canvas.drawLine(x, y + ROW_HEIGHT, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, headerRulePaint)
+                else -> canvas.drawLine(x, y + ROW_HEIGHT, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, linePaint)
+            }
             columns.forEach { (label, width) ->
                 canvas.drawText(label, x + 4f, y + ROW_HEIGHT - 7f, headerTextPaint)
                 x += width
@@ -76,7 +93,10 @@ object GenericTablePdfExporter {
 
         rows.forEachIndexed { index, row ->
             if (y + ROW_HEIGHT > PAGE_HEIGHT - MARGIN) newPage()
-            if (index % 2 == 1) {
+            if (bodyFilled) {
+                canvas.drawRect(MARGIN, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, bodyFillPaint)
+                if (index % 2 == 1) canvas.drawRect(MARGIN, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, boldAltRowPaint)
+            } else if (template == ReportTemplate.MODERN && index % 2 == 1) {
                 canvas.drawRect(MARGIN, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, altRowPaint)
             }
             var x = MARGIN
@@ -87,7 +107,7 @@ object GenericTablePdfExporter {
                 canvas.drawText(truncated, x + 4f, y + ROW_HEIGHT - 7f, cellPaint)
                 x += colWidth
             }
-            canvas.drawLine(MARGIN, y + ROW_HEIGHT, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, linePaint)
+            canvas.drawLine(MARGIN, y + ROW_HEIGHT, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, if (bodyFilled) boldLinePaint else linePaint)
             y += ROW_HEIGHT
         }
 

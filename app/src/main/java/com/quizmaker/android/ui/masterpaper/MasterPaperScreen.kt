@@ -56,6 +56,7 @@ import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.MasterPaperMode
 import com.quizmaker.android.util.MasterPaperPdfExporter
+import com.quizmaker.android.util.formatPoints
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -182,7 +183,7 @@ private fun QuestionPreviewCard(index: Int, question: Question) {
                 }
             )
             Spacer(Modifier.width(8.dp))
-            Text("${question.points} pt${if (question.points > 1) "s" else ""}", color = TextSecondary, fontSize = 12.sp)
+            Text("${question.points.formatPoints()} pt${if (question.points > 1) "s" else ""}", color = TextSecondary, fontSize = 12.sp)
         }
         Spacer(Modifier.height(10.dp))
         Text(question.text, fontWeight = FontWeight.Medium, color = TextPrimary, fontSize = 15.sp)

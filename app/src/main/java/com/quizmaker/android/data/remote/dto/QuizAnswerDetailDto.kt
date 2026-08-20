@@ -16,7 +16,7 @@ data class QuizAnswerDetailInsertDto(
     @SerialName("correct_option_id") val correctOptionId: String?,
     @SerialName("correct_option_text") val correctOptionText: String?,
     @SerialName("is_correct") val isCorrect: Boolean,
-    @SerialName("points_earned") val pointsEarned: Int,
+    @SerialName("points_earned") val pointsEarned: Double,
     val status: String
 )
 

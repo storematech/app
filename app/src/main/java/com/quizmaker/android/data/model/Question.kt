@@ -34,7 +34,9 @@ data class Question(
     val explanation: String?,
     val difficulty: QuestionDifficulty?,
     val tags: List<String>,
-    val points: Int,
+    val points: Double,
+    /** Points deducted for an attempted-but-wrong answer; 0 means negative marking is off. */
+    val negativePoints: Double,
     val imageUrl: String?,
     val isUngraded: Boolean,
     val createdAt: String?
@@ -52,7 +54,8 @@ fun QuestionDto.toDomain(): Question = Question(
     explanation = explanation,
     difficulty = difficulty?.let { d -> QuestionDifficulty.entries.firstOrNull { it.value == d } },
     tags = tags.orEmpty(),
-    points = points ?: 1,
+    points = points ?: 1.0,
+    negativePoints = negativePoints ?: 0.0,
     imageUrl = imageUrl,
     isUngraded = isUngraded ?: false,
     createdAt = createdAt

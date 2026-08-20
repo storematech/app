@@ -16,6 +16,7 @@ import com.quizmaker.android.data.remote.dto.VerifyOtpRequest
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.ktor.client.request.setBody
@@ -27,6 +28,8 @@ import kotlin.time.Clock
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -104,14 +107,18 @@ class QuizTakingRepository @Inject constructor(
      */
     suspend fun submitQuizResponse(
         quizId: String,
+        quizCreatorId: String,
         userEmail: String,
         userName: String?,
         phoneNumber: String?,
         answers: List<GradedAnswer>,
-        maxPoints: Int
-    ): AppResult<Int> = safeCall {
-        val totalScore = answers.sumOf { it.pointsEarned }
-        val scorePercent = if (maxPoints > 0) (totalScore * 100.0 / maxPoints).roundToInt() else 0
+        maxPoints: Double
+    ): AppResult<Double> = safeCall {
+        // Per-question pointsEarned (written to quiz_answer_details below) can be negative — that's
+        // the whole point of negative marking. Only the TOTAL floors at 0, so a student's overall
+        // score/percentage never displays as negative.
+        val totalScore = answers.sumOf { it.pointsEarned }.coerceAtLeast(0.0)
+        val scorePercent = if (maxPoints > 0) (totalScore * 100.0 / maxPoints).roundToInt().coerceAtLeast(0) else 0
 
         val response = supabase.from("quiz_responses")
             .insert(
@@ -152,6 +159,23 @@ class QuizTakingRepository @Inject constructor(
             )
         }
 
+        // Best-effort, never blocks or fails the student's own submission — if the creator hasn't
+        // turned on Auto Create Learners (or this row already exists) the function itself is a
+        // no-op; see supabase/sql/learner_auto_create.sql for why this is a security-definer RPC
+        // rather than a direct insert (this session has no auth relationship to the quiz creator).
+        if (userEmail.contains("@") && userEmail != "anonymous@yunolms.com") {
+            runCatching {
+                supabase.postgrest.rpc(
+                    "auto_create_learner_if_enabled",
+                    buildJsonObject {
+                        put("p_creator_id", quizCreatorId)
+                        put("p_name", userName?.ifBlank { null } ?: userEmail.substringBefore("@"))
+                        put("p_email", userEmail)
+                    }
+                )
+            }
+        }
+
         totalScore
     }
 }
@@ -167,6 +191,6 @@ data class GradedAnswer(
     val correctOptionId: String?,
     val correctOptionText: String?,
     val isCorrect: Boolean,
-    val pointsEarned: Int,
+    val pointsEarned: Double,
     val status: String
 )

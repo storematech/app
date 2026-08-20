@@ -33,7 +33,8 @@ data class NewQuestionDraft(
     val correctOptionIndex: Int = 0,
     val correctOptionIndices: Set<Int> = setOf(0),
     val freeTextAnswer: String = "",
-    val points: Int = 1,
+    val points: Double = 1.0,
+    val negativePoints: Double = 0.0,
     val difficulty: QuestionDifficulty = QuestionDifficulty.MEDIUM,
     val tags: List<String> = emptyList(),
     val explanation: String? = null
@@ -279,6 +280,7 @@ class CreateQuizViewModel @Inject constructor(
                 text = draft.text.trim(),
                 type = draft.type,
                 points = draft.points,
+                negativePoints = draft.negativePoints,
                 difficulty = draft.difficulty,
                 explanation = draft.explanation,
                 tags = draft.tags,

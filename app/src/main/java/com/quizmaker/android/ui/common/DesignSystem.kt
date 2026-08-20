@@ -23,11 +23,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.isUnspecified
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,15 +54,23 @@ import com.quizmaker.android.core.theme.TextSecondary
 /**
  * Soft drop-shadow + clip + fill in one call — the "floating card" look used throughout
  * app.yunolms.com, as opposed to a flat `.clip().background()` with no depth.
+ *
+ * [color] defaults to [Color.Unspecified] rather than [SurfaceWhite] directly: SurfaceWhite is
+ * now a @Composable-only, dark-theme-aware token (see Color.kt), and default parameter values on
+ * a plain (non-@Composable) function like this one can't call it — `composed {}` below is what
+ * gives us a @Composable context to resolve the real default in instead.
  */
 fun Modifier.elevatedSurface(
     shape: Shape = RoundedCornerShape(20.dp),
     elevation: Dp = 8.dp,
-    color: Color = SurfaceWhite
-): Modifier = this
-    .shadow(elevation = elevation, shape = shape, ambientColor = Color.Black.copy(alpha = 0.10f), spotColor = Color.Black.copy(alpha = 0.16f))
-    .clip(shape)
-    .background(color)
+    color: Color = Color.Unspecified
+): Modifier = composed {
+    val resolvedColor = if (color.isUnspecified) SurfaceWhite else color
+    this
+        .shadow(elevation = elevation, shape = shape, ambientColor = Color.Black.copy(alpha = 0.10f), spotColor = Color.Black.copy(alpha = 0.16f))
+        .clip(shape)
+        .background(resolvedColor)
+}
 
 /** Shows `loadingContent` (a centered spinner by default) while `isLoading`, cross-fading into `content` once data arrives. */
 @Composable

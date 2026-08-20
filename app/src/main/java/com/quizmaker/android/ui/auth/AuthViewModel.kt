@@ -80,7 +80,7 @@ class AuthViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             when (val result = authRepository.signIn(email, password)) {
                 is AppResult.Success -> {
-                    analyticsLogger.setUserId(authRepository.currentUserId())
+                    analyticsLogger.setUserId(authRepository.currentUserId(), authRepository.currentUserEmail())
                     analyticsLogger.logLogin()
                     _uiState.value = _uiState.value.copy(isLoading = false)
                 }
@@ -102,7 +102,7 @@ class AuthViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isGoogleLoading = true, errorMessage = null)
             when (val result = authRepository.signInWithGoogleIdToken(idToken, rawNonce)) {
                 is AppResult.Success -> {
-                    analyticsLogger.setUserId(authRepository.currentUserId())
+                    analyticsLogger.setUserId(authRepository.currentUserId(), authRepository.currentUserEmail())
                     analyticsLogger.logLogin(method = "google")
                     _uiState.value = _uiState.value.copy(isGoogleLoading = false)
                 }
@@ -129,7 +129,7 @@ class AuthViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             when (val result = authRepository.signUp(email, password, name.trim())) {
                 is AppResult.Success -> {
-                    analyticsLogger.setUserId(authRepository.currentUserId())
+                    analyticsLogger.setUserId(authRepository.currentUserId(), authRepository.currentUserEmail())
                     analyticsLogger.logSignUp()
                     // requiresConfirmation == false means the session is already established —
                     // NavGraph's own sessionStatus listener takes over navigation from here, so

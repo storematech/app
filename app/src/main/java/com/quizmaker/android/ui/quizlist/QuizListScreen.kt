@@ -57,6 +57,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -232,6 +233,19 @@ fun QuizListScreen(
                                 subtitle = if (uiState.allQuizzes.isEmpty()) "Create your first quiz to get started." else "Try a different search term."
                             )
                         }
+                        if (uiState.allQuizzes.isEmpty()) {
+                            item {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                    Spacer(Modifier.height(8.dp))
+                                    OutlinedButton(onClick = onOpenAi) {
+                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Explore Templates")
+                                    }
+                                    Spacer(Modifier.height(24.dp))
+                                }
+                            }
+                        }
                     } else {
                         items(uiState.filteredQuizzes, key = { it.id }) { quiz ->
                             QuizListRow(
@@ -278,7 +292,15 @@ fun QuizListScreen(
     }
 
     quizPendingShare?.let { quiz ->
-        ShareQuizSheet(quizTitle = quiz.title, shareUrl = quiz.shareUrl, onDismiss = { quizPendingShare = null })
+        ShareQuizSheet(
+            quizTitle = quiz.title,
+            shareUrl = quiz.shareUrl,
+            onDismiss = { quizPendingShare = null },
+            onOpenMasterPaper = {
+                quizPendingShare = null
+                onOpenMasterPaper(quiz.id)
+            }
+        )
     }
 
     quizPendingDelete?.let { quiz ->

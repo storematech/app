@@ -85,7 +85,7 @@ class AiQuizRepository @Inject constructor(
                 userId = userId,
                 text = aiQuestion.text,
                 type = QuestionType.SINGLE_CHOICE,
-                points = 1,
+                points = 1.0,
                 difficulty = QuestionDifficulty.MEDIUM,
                 explanation = null,
                 tags = listOf("AI Generated"),

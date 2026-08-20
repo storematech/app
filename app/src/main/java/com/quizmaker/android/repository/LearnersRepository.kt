@@ -10,8 +10,8 @@ import com.quizmaker.android.data.remote.dto.GroupDto
 import com.quizmaker.android.data.remote.dto.GroupInsertDto
 import com.quizmaker.android.data.remote.dto.LearnerDto
 import com.quizmaker.android.data.remote.dto.LearnerInsertDto
+import com.quizmaker.android.data.remote.dto.LearnerQuizAttemptDto
 import com.quizmaker.android.data.remote.dto.LearnerUpdateDto
-import com.quizmaker.android.data.remote.dto.QuizAttemptDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
@@ -38,7 +38,7 @@ class LearnersRepository @Inject constructor(
         "id, student_id, name, email, group_id, parent_name, parent_contact, notes, created_at, groups!left(name)"
     )
     private val groupColumns = Columns.raw("id, name, description, created_at, created_by")
-    private val quizAttemptColumns = Columns.raw("id, score, total_questions, completed_at, quizzes(title)")
+    private val quizAttemptColumns = Columns.raw("id, score, total_questions, completed_at, time_taken, quizzes(title)")
 
     suspend fun getLearners(userId: String): AppResult<List<Learner>> = safeCall {
         supabase.from("learners")
@@ -126,7 +126,7 @@ class LearnersRepository @Inject constructor(
                 filter { eq("learner_id", learnerId) }
                 order("completed_at", Order.DESCENDING)
             }
-            .decodeList<QuizAttemptDto>()
+            .decodeList<LearnerQuizAttemptDto>()
             .map { it.toDomain() }
     }
 

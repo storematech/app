@@ -10,6 +10,9 @@ import com.quizmaker.android.data.model.Learner
 import com.quizmaker.android.data.model.LearnerQuizAttempt
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.LearnersRepository
+import com.quizmaker.android.repository.SettingsRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,7 +45,11 @@ data class LearnersUiState(
     val profileLearner: Learner? = null,
     val isStudentProfileOpen: Boolean = false,
     val profileAttempts: List<LearnerQuizAttempt> = emptyList(),
-    val isLoadingProfileAttempts: Boolean = false
+    val isLoadingProfileAttempts: Boolean = false,
+
+    val autoCreateEnabled: Boolean = false,
+    /** Non-null while the date-range dialog is open for the format the user just tapped. */
+    val pendingExportFormat: ExportFormat? = null
 ) {
     val filteredLearners: List<Learner>
         get() = learners.filter { learner ->
@@ -73,6 +80,8 @@ data class LearnersUiState(
 class LearnersViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val learnersRepository: LearnersRepository,
+    private val settingsRepository: SettingsRepository,
+    private val pdfBrandingProvider: PdfBrandingProvider,
     private val analyticsLogger: AnalyticsLogger
 ) : ViewModel() {
 
@@ -89,6 +98,7 @@ class LearnersViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             val learnersResult = learnersRepository.getLearners(userId)
             val groupsResult = learnersRepository.getGroups(userId)
+            val autoCreateResult = settingsRepository.getLearnerAutoCreate(userId)
             val learners = (learnersResult as? AppResult.Success)?.data
             val groups = (groupsResult as? AppResult.Success)?.data
             val error = (learnersResult as? AppResult.Error)?.message ?: (groupsResult as? AppResult.Error)?.message
@@ -96,8 +106,20 @@ class LearnersViewModel @Inject constructor(
                 isLoading = false,
                 learners = learners ?: _uiState.value.learners,
                 groups = groups ?: _uiState.value.groups,
+                autoCreateEnabled = (autoCreateResult as? AppResult.Success)?.data ?: _uiState.value.autoCreateEnabled,
                 errorMessage = error
             )
+        }
+    }
+
+    /** Optimistic, same pattern as ReportDesignViewModel.onTemplateSelected(). */
+    fun onAutoCreateToggle(enabled: Boolean) {
+        val userId = authRepository.currentUserId() ?: return
+        _uiState.value = _uiState.value.copy(autoCreateEnabled = enabled)
+        viewModelScope.launch {
+            (settingsRepository.saveLearnerAutoCreate(userId, enabled) as? AppResult.Error)?.let {
+                _uiState.value = _uiState.value.copy(errorMessage = it.message)
+            }
         }
     }
 
@@ -275,4 +297,14 @@ class LearnersViewModel @Inject constructor(
     fun dismissStudentProfile() {
         _uiState.value = _uiState.value.copy(isStudentProfileOpen = false, profileLearner = null, profileAttempts = emptyList())
     }
+
+    fun requestExport(format: ExportFormat) {
+        _uiState.value = _uiState.value.copy(pendingExportFormat = format)
+    }
+
+    fun dismissExportDialog() {
+        _uiState.value = _uiState.value.copy(pendingExportFormat = null)
+    }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 }

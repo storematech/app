@@ -362,6 +362,57 @@ fun TrialActiveBanner(daysLeft: Int, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Dashboard hero banner for an account whose trial was manually extended by an admin
+ * (`profiles.user_type = 'trial_extend'` — see [com.quizmaker.android.util.TrialStatus.Extended]).
+ * Same slot/shape as [TrialActiveBanner]/[SaleDayBanner], but green→gold rather than indigo so the
+ * extension reads as a bonus being announced, not routine trial-countdown messaging.
+ */
+@Composable
+fun TrialExtendedBanner(daysLeft: Int, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+            .background(Brush.horizontalGradient(listOf(SuccessGreen, PremiumGoldEnd)))
+            .clickable(onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 20.dp, vertical = 22.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Congratulations! Your trial is extended", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (daysLeft <= 1) {
+                    "Last day of your extended trial — buy a license to keep every feature unlocked"
+                } else {
+                    "$daysLeft days left — buy a license to keep every feature unlocked"
+                },
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 13.sp
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("View Plans", color = SuccessGreen, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
 /** Dashboard hero banner once a free account's trial window has lapsed — same slot as [TrialActiveBanner]. */
 @Composable
 fun TrialEndedBanner(onClick: () -> Unit) {

@@ -3,6 +3,16 @@ package com.quizmaker.android.ui.pricing
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LockClock
@@ -34,7 +45,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -140,8 +150,7 @@ fun PricingScreen(
                     onBuyNow = {
                         val activity = context as? Activity ?: return@BuyPlanContent
                         viewModel.startCheckout(activity)
-                    },
-                    onActivateSale = viewModel::activateSalePrice
+                    }
                 )
             }
         }
@@ -149,7 +158,7 @@ fun PricingScreen(
 }
 
 @Composable
-private fun BuyPlanContent(uiState: PricingUiState, onBuyNow: () -> Unit, onActivateSale: () -> Unit) {
+private fun BuyPlanContent(uiState: PricingUiState, onBuyNow: () -> Unit) {
     val plan = uiState.plan ?: return
     val sale = uiState.activeSale
     val isSaleDay = sale != null
@@ -169,6 +178,19 @@ private fun BuyPlanContent(uiState: PricingUiState, onBuyNow: () -> Unit, onActi
     val remainingSeconds = uiState.saleActivatedUntil?.let { (it - now).inWholeSeconds }
     val isSalePriceLive = isSaleDay && remainingSeconds != null && remainingSeconds > 0
     val discountedAmount = uiState.discountedAmount()
+
+    // Brief celebration badge right when the sale discount auto-applies (see
+    // PricingViewModel.load()) — fires once per activation (keyed on saleActivatedUntil, not
+    // isSalePriceLive, so it never re-triggers on every tick of the countdown) then fades itself
+    // out; the price swap below animates independently.
+    var justUnlocked by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.saleActivatedUntil) {
+        if (uiState.saleActivatedUntil != null) {
+            justUnlocked = true
+            delay(1800)
+            justUnlocked = false
+        }
+    }
 
     val accentColor = if (isSaleDay) SaleRedStart else BrandIndigo
     val headerBg = if (isSaleDay) SaleRedLight else BrandIndigoLight
@@ -234,47 +256,82 @@ private fun BuyPlanContent(uiState: PricingUiState, onBuyNow: () -> Unit, onActi
                 Spacer(Modifier.height(4.dp))
                 Text("Full premium access to Yuno LMS", color = TextSecondary, fontSize = 13.sp)
                 Spacer(Modifier.height(20.dp))
-                if (isSalePriceLive && discountedAmount != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "${currencySymbol(plan.currency)}${plan.amount}",
-                            color = TextSecondary,
-                            fontSize = 18.sp,
-                            textDecoration = TextDecoration.LineThrough
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "${currencySymbol(plan.currency)}$discountedAmount",
-                            fontFamily = PoppinsFamily,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 40.sp,
-                            color = SaleRedStart
-                        )
+
+                AnimatedVisibility(
+                    visible = justUnlocked,
+                    enter = fadeIn(tween(250)) + scaleIn(initialScale = 0.6f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)),
+                    exit = fadeOut(tween(300)) + scaleOut(targetScale = 0.85f)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(Brush.horizontalGradient(listOf(SaleRedStart, SaleRedEnd)))
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Discount Unlocked!", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        Spacer(Modifier.height(10.dp))
                     }
-                    Text("per ${plan.interval}", color = TextSecondary, fontSize = 14.sp)
-                    Spacer(Modifier.height(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(SaleRedStart.copy(alpha = 0.12f))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            "Offer ends in ${formatCountdown(remainingSeconds!!)}",
-                            color = SaleRedStart,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
+                }
+
+                AnimatedContent(
+                    targetState = isSalePriceLive,
+                    transitionSpec = {
+                        (fadeIn(tween(350)) + scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)))
+                            .togetherWith(fadeOut(tween(150)))
+                    },
+                    label = "salePrice"
+                ) { salePriceLive ->
+                    if (salePriceLive && discountedAmount != null) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "${currencySymbol(plan.currency)}${plan.amount}",
+                                    color = TextSecondary,
+                                    fontSize = 18.sp,
+                                    textDecoration = TextDecoration.LineThrough
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "${currencySymbol(plan.currency)}$discountedAmount",
+                                    fontFamily = PoppinsFamily,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 40.sp,
+                                    color = SaleRedStart
+                                )
+                            }
+                            Text("per ${plan.interval}", color = TextSecondary, fontSize = 14.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(SaleRedStart.copy(alpha = 0.12f))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    "Offer ends in ${formatCountdown(remainingSeconds ?: 0)}",
+                                    color = SaleRedStart,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "${currencySymbol(plan.currency)}${plan.amount}",
+                                fontFamily = PoppinsFamily,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 44.sp,
+                                color = TextPrimary
+                            )
+                            Text("per ${plan.interval}", color = TextSecondary, fontSize = 14.sp)
+                        }
                     }
-                } else {
-                    Text(
-                        "${currencySymbol(plan.currency)}${plan.amount}",
-                        fontFamily = PoppinsFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 44.sp,
-                        color = TextPrimary
-                    )
-                    Text("per ${plan.interval}", color = TextSecondary, fontSize = 14.sp)
                 }
             }
 
@@ -290,21 +347,6 @@ private fun BuyPlanContent(uiState: PricingUiState, onBuyNow: () -> Unit, onActi
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-
-                if (isSaleDay && !isSalePriceLive && sale != null && sale.discountPercent > 0) {
-                    OutlinedButton(
-                        onClick = onActivateSale,
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, SaleRedStart),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SaleRedStart)
-                    ) {
-                        Icon(Icons.Default.LocalFireDepartment, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Unlock ${sale.discountPercent}% OFF for 15 Minutes", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                    Spacer(Modifier.height(10.dp))
-                }
 
                 Button(
                     onClick = onBuyNow,
@@ -447,6 +489,11 @@ private fun TrialContextHeader(trialStatus: TrialStatus) {
             Icons.Default.Schedule,
             BrandIndigo,
             if (trialStatus.daysLeft <= 1) "Last day of your free trial" else "${trialStatus.daysLeft} days left in your free trial"
+        )
+        is TrialStatus.Extended -> Triple(
+            Icons.Default.AutoAwesome,
+            SuccessGreen,
+            if (trialStatus.daysLeft <= 1) "Last day of your extended trial" else "Congratulations! ${trialStatus.daysLeft} days left in your extended trial"
         )
         else -> Triple(Icons.Default.LockClock, WarningAmber, "Your trial has ended")
     }

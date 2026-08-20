@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -64,7 +65,15 @@ fun LearnerFormDialog(
     onSave: (name: String, email: String, groupId: String?, parentName: String, parentContact: String, notes: String) -> Unit,
     onQuickCreateGroup: suspend (String) -> String?
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // confirmValueChange rejects any auto-driven transition to Hidden (e.g. the sheet's anchors
+    // recalculating when the keyboard closes after tapping Create/Save, which otherwise silently
+    // dismisses the form — including right when a validation error fires). Explicit dismissal
+    // (X, Cancel, a successful save) always goes through onDismiss directly instead, which unmounts
+    // this composable from LearnersScreen — so it's unaffected by this and still works normally.
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != SheetValue.Hidden }
+    )
     val scope = rememberCoroutineScope()
     val isEditing = editingLearner != null
 

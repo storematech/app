@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.core.prefs.NotificationPermissionPrefs
 import com.quizmaker.android.core.prefs.TrialPrefs
@@ -20,10 +21,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 /** Whether the initial nav graph should show the loading gate, the auth flow, the main app, or one of the one-time/recurring post-login interstitials. */
 enum class SessionGate { LOADING, LOGGED_OUT, LOGGED_IN, NEEDS_PHONE, NEEDS_NOTIFICATION_PERMISSION, TRIAL_STARTED, TRIAL_ENDED }
+
+/** A hung network call (bad connectivity, etc.) during cold-start gate resolution should never
+ *  leave the "Y" loading screen spinning forever — past this, resolution fails open the same way
+ *  a profile-fetch *error* already does below. */
+private const val GATE_RESOLUTION_TIMEOUT_MS = 12_000L
 
 /** Drives which nav graph (auth vs. main) is shown, based on the restored Supabase session. */
 @HiltViewModel
@@ -31,6 +38,7 @@ class SessionViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val trialPrefs: TrialPrefs,
     private val notificationPermissionPrefs: NotificationPermissionPrefs,
+    private val analyticsLogger: AnalyticsLogger,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -45,11 +53,11 @@ class SessionViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            authRepository.awaitSessionRestore()
+            withTimeoutOrNull(GATE_RESOLUTION_TIMEOUT_MS) { authRepository.awaitSessionRestore() }
             _gate.value = if (sessionStatus.value !is SessionStatus.Authenticated) {
                 SessionGate.LOGGED_OUT
             } else {
-                resolvePostAuthGate()
+                withTimeoutOrNull(GATE_RESOLUTION_TIMEOUT_MS) { resolvePostAuthGate() } ?: SessionGate.LOGGED_IN
             }
         }
     }
@@ -67,11 +75,22 @@ class SessionViewModel @Inject constructor(
         // top of the CollectPhone screen for brand-new accounts).
         val profile = (authRepository.getCurrentProfile(notifyOnError = false) as? AppResult.Success)?.data
             ?: return SessionGate.LOGGED_IN
+        // This is the only gate-resolution path that runs on *every* cold start once a session is
+        // restored — not just a fresh interactive sign-in (AuthViewModel already calls this too,
+        // redundantly but harmlessly, right when that happens). Without this, a user who just
+        // reopens the app with an already-valid session — the common case — never re-identifies to
+        // PostHog, so if the very first identify() for their account ever missed the email (or ran
+        // before this call existed), every event since keeps showing the bare distinct_id in the UI
+        // with no way to self-heal short of signing out and back in.
+        analyticsLogger.setUserId(profile.id, profile.email)
         if (profile.phoneNumber.isBlank()) return SessionGate.NEEDS_PHONE
         if (needsNotificationPermissionPrompt(profile.id)) return SessionGate.NEEDS_NOTIFICATION_PERMISSION
         return when (profile.trialStatus()) {
             TrialStatus.Premium -> SessionGate.LOGGED_IN
             TrialStatus.Expired -> SessionGate.TRIAL_ENDED
+            // An admin-granted extension isn't a "new" trial start, so it skips straight to the
+            // app — the Dashboard banner (see TrialExtendedBanner) is what actually breaks the news.
+            is TrialStatus.Extended -> SessionGate.LOGGED_IN
             is TrialStatus.Active ->
                 if (trialPrefs.hasShownTrialStarted(profile.id)) SessionGate.LOGGED_IN else SessionGate.TRIAL_STARTED
         }

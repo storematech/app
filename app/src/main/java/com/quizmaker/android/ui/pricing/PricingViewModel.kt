@@ -145,14 +145,22 @@ class PricingViewModel @Inject constructor(
                         activeSale = activeSale
                     )
                     analyticsLogger.logPlansViewed(saleActive = activeSale != null)
+                    // The discount now applies itself the moment a live sale is in view — no
+                    // manual "Unlock" tap. Guarded by isSalePriceActive() so a pull-to-refresh (or
+                    // the load() re-run after a purchase attempt) doesn't keep resetting an
+                    // already-running 15-minute window.
+                    if (activeSale != null && activeSale.discountPercent > 0 && !_uiState.value.isSalePriceActive()) {
+                        activateSalePrice()
+                    }
                 }
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = pricingResult.message)
             }
         }
     }
 
-    /** Starts the 15-minute sale-price window — see [PricingUiState.isSalePriceActive]. */
-    fun activateSalePrice() {
+    /** Starts the 15-minute sale-price window — see [PricingUiState.isSalePriceActive]. Auto-fired
+     *  from [load] whenever a sale is live; not user-triggered. */
+    private fun activateSalePrice() {
         val discountPercent = _uiState.value.activeSale?.discountPercent ?: return
         _uiState.value = _uiState.value.copy(saleActivatedUntil = Clock.System.now() + 15.minutes)
         analyticsLogger.logSalePriceActivated(discountPercent)

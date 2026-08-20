@@ -42,11 +42,15 @@ data class ProfileLogoUpdateDto(
     @SerialName("business_logo") val businessLogo: String?
 )
 
+/** [deviceType]/[browser] mirror the web app's own signup columns (there populated by browser
+ *  detection) so admins can tell an Android-app signup apart from a web one in the same columns. */
 @Serializable
 data class ProfileInsertDto(
     val id: String,
     val email: String? = null,
-    val name: String? = null
+    val name: String? = null,
+    @SerialName("device_type") val deviceType: String? = "Mobile App",
+    val browser: String? = "Android"
 )
 
 /** Onboarding's one-time phone collection — only ever touches these two columns, never name/business_name. */

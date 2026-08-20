@@ -18,17 +18,22 @@ object QrFlyerPdfExporter {
     private const val MARGIN = 48f
     private const val HEADER_HEIGHT = 150f
 
-    fun export(context: Context, quizTitle: String, shareUrl: String, qrBitmap: Bitmap): Intent {
+    fun export(context: Context, quizTitle: String, shareUrl: String, qrBitmap: Bitmap, branding: PdfBranding = PdfBranding.NONE): Intent {
         val document = PdfDocument()
         val page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create())
         val canvas = page.canvas
 
-        val headerBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6366F1") }
+        val template = branding.template
+        val headerFilled = template == ReportTemplate.MODERN || template == ReportTemplate.BOLD
+        val headerBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor }
+        val headerRulePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor; strokeWidth = 2f }
+        val headerNeutralRulePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E5E7EB"); strokeWidth = 1f }
         val headerTitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE; textSize = 26f; isFakeBoldText = true; textAlign = Paint.Align.CENTER
+            color = if (headerFilled) Color.WHITE else Color.BLACK; textSize = 26f; isFakeBoldText = true; textAlign = Paint.Align.CENTER
         }
         val headerSubtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#E0E7FF"); textSize = 13f; textAlign = Paint.Align.CENTER
+            color = if (headerFilled) Color.parseColor("#E0E7FF") else Color.parseColor("#6B7280")
+            textSize = 13f; textAlign = Paint.Align.CENTER
         }
         val quizNameBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F8FAFC") }
         val quizNameBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -50,7 +55,7 @@ object QrFlyerPdfExporter {
             color = Color.parseColor("#111827"); textSize = 12f; isFakeBoldText = true; textAlign = Paint.Align.CENTER
         }
         val linkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#6366F1"); textSize = 11f; textAlign = Paint.Align.CENTER
+            color = branding.accentColor; textSize = 11f; textAlign = Paint.Align.CENTER
         }
         val footerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.parseColor("#9CA3AF"); textSize = 10f; textAlign = Paint.Align.CENTER
@@ -60,7 +65,11 @@ object QrFlyerPdfExporter {
         val centerX = PAGE_WIDTH / 2f
 
         // Header band
-        canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), HEADER_HEIGHT, headerBgPaint)
+        when {
+            headerFilled -> canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), HEADER_HEIGHT, headerBgPaint)
+            template == ReportTemplate.CLASSIC -> canvas.drawLine(0f, HEADER_HEIGHT, PAGE_WIDTH.toFloat(), HEADER_HEIGHT, headerRulePaint)
+            else -> canvas.drawLine(0f, HEADER_HEIGHT, PAGE_WIDTH.toFloat(), HEADER_HEIGHT, headerNeutralRulePaint) // MINIMAL
+        }
         canvas.drawText("Scan to Take the Quiz", centerX, 70f, headerTitlePaint)
         canvas.drawText("Quick • Easy • Mobile-friendly", centerX, 95f, headerSubtitlePaint)
 

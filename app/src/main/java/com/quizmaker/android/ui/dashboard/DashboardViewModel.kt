@@ -7,9 +7,11 @@ import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.data.model.QuizResponse
 import com.quizmaker.android.data.model.SaleDay
 import com.quizmaker.android.repository.AuthRepository
+import com.quizmaker.android.repository.LearnersRepository
 import com.quizmaker.android.repository.ProfileRepository
 import com.quizmaker.android.repository.QuestionRepository
 import com.quizmaker.android.repository.QuizRepository
+import com.quizmaker.android.repository.ReportedQuestionsRepository
 import com.quizmaker.android.repository.SaleDayRepository
 import com.quizmaker.android.util.TrialStatus
 import com.quizmaker.android.util.trialStatus
@@ -42,6 +44,8 @@ data class DashboardUiState(
     val totalQuestions: Int = 0,
     val totalResponses: Int = 0,
     val averageScorePercent: Int = 0,
+    val reportedQuestionsCount: Int = 0,
+    val learnersCount: Int = 0,
     val searchQuery: String = "",
     val recentSubmissions: List<QuizResponse> = emptyList(),
     val quizzes: List<Quiz> = emptyList(),
@@ -70,6 +74,8 @@ class DashboardViewModel @Inject constructor(
     private val questionRepository: QuestionRepository,
     private val saleDayRepository: SaleDayRepository,
     private val profileRepository: ProfileRepository,
+    private val reportedQuestionsRepository: ReportedQuestionsRepository,
+    private val learnersRepository: LearnersRepository,
     private val stateCache: DashboardStateCache
 ) : ViewModel() {
 
@@ -80,6 +86,8 @@ class DashboardViewModel @Inject constructor(
     private var allCompletedResponses: List<QuizResponse> = emptyList()
     private var creatorName: String = ""
     private var totalQuestions: Int = 0
+    private var reportedQuestionsCount: Int = 0
+    private var learnersCount: Int = 0
     private var activeSale: SaleDay? = null
     private var trialStatus: TrialStatus = TrialStatus.Premium
 
@@ -114,6 +122,10 @@ class DashboardViewModel @Inject constructor(
             val responsesResult = quizRepository.getResponsesForUser(userId)
             val questionsResult = questionRepository.getQuestionsForUser(userId)
             val saleDaysResult = saleDayRepository.getSaleDays()
+            // Best-effort, same as responses below: a hiccup fetching either of these shouldn't
+            // block the rest of the Dashboard from loading, so both just fall back to 0 on error.
+            val reportedCountResult = reportedQuestionsRepository.getPendingCount(userId)
+            val learnersResult = learnersRepository.getLearners(userId)
 
             if (quizzesResult is AppResult.Error) {
                 _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = quizzesResult.message)
@@ -130,6 +142,8 @@ class DashboardViewModel @Inject constructor(
                 ?.filter { it.completed && !it.cancelled }
                 .orEmpty()
             totalQuestions = questions.size
+            reportedQuestionsCount = (reportedCountResult as? AppResult.Success)?.data ?: 0
+            learnersCount = (learnersResult as? AppResult.Success)?.data?.size ?: 0
             creatorName = when (profileResult) {
                 is AppResult.Success -> profileResult.data.name
                 is AppResult.Error -> ""
@@ -190,6 +204,8 @@ class DashboardViewModel @Inject constructor(
             totalQuestions = totalQuestions,
             totalResponses = completed.size,
             averageScorePercent = averageScore,
+            reportedQuestionsCount = reportedQuestionsCount,
+            learnersCount = learnersCount,
             recentSubmissions = submissions,
             quizzes = allQuizzes,
             quizTitleById = allQuizzes.associate { it.id to it.title },

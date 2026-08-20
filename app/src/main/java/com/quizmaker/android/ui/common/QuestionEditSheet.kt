@@ -9,22 +9,28 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -37,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.quizmaker.android.core.theme.AppBackground
@@ -49,6 +57,7 @@ import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.NewQuestionDraft
 import com.quizmaker.android.data.model.QuestionDifficulty
 import com.quizmaker.android.data.model.QuestionType
+import com.quizmaker.android.util.formatPoints
 
 /**
  * "New/Edit Question" bottom sheet — shared by Question Bank (create or edit) and Revision (edit
@@ -234,13 +243,45 @@ fun QuestionEditSheet(
             }
 
             Spacer(Modifier.height(20.dp))
-            Text("POINTS: ${draft.points}", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
-            Slider(
-                value = draft.points.toFloat(),
-                onValueChange = { onUpdateDraft { d -> d.copy(points = it.toInt().coerceAtLeast(1)) } },
-                valueRange = 1f..10f,
-                colors = SliderDefaults.colors(thumbColor = BrandIndigo, activeTrackColor = BrandIndigo)
+            Text("POINTS", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+            Spacer(Modifier.height(8.dp))
+            PointsStepper(
+                label = "Points",
+                value = draft.points,
+                onValueChange = { onUpdateDraft { d -> d.copy(points = it) } }
             )
+
+            Spacer(Modifier.height(20.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Enable Negative Marking",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = draft.negativePoints > 0,
+                    onCheckedChange = { enabled ->
+                        // Turning it off clears the value (rather than hiding a stale nonzero
+                        // amount) so the DB row always reflects reality: negative_points > 0 IS
+                        // the "enabled" flag, there's no separate boolean column.
+                        onUpdateDraft { d -> d.copy(negativePoints = if (enabled) 0.25 else 0.0) }
+                    },
+                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = BrandIndigo)
+                )
+            }
+            if (draft.negativePoints > 0) {
+                Spacer(Modifier.height(8.dp))
+                Text("Deduct on wrong answer", color = TextSecondary, fontSize = 12.sp)
+                Spacer(Modifier.height(6.dp))
+                PointsStepper(
+                    label = "Negative points",
+                    value = draft.negativePoints,
+                    onValueChange = { onUpdateDraft { d -> d.copy(negativePoints = it) } },
+                    minValue = 0.25
+                )
+            }
 
             Spacer(Modifier.height(12.dp))
             Text("TAGS", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
@@ -290,6 +331,48 @@ fun QuestionEditSheet(
                     )
                 }
             }
+        }
+    }
+}
+
+/** +/- always moves by exactly 1 regardless of the current decimal value; the field in the middle
+ *  can also be typed into directly, including decimals like "1.2". */
+@Composable
+private fun PointsStepper(
+    label: String,
+    value: Double,
+    onValueChange: (Double) -> Unit,
+    minValue: Double = 0.25,
+    maxValue: Double = 100.0
+) {
+    // Re-keyed on `value` (not on every keystroke) so the field only snaps back to the canonical
+    // formatted value once a valid number actually lands — an in-progress string like "1." never
+    // gets clobbered mid-type.
+    var text by remember(value) { mutableStateOf(value.formatPoints()) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(
+            onClick = { onValueChange((value - 1.0).coerceIn(minValue, maxValue)) },
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(Icons.Default.Remove, contentDescription = "Decrease $label", tint = BrandIndigo)
+        }
+        OutlinedTextField(
+            value = text,
+            onValueChange = { input ->
+                text = input
+                input.toDoubleOrNull()?.let { onValueChange(it.coerceIn(minValue, maxValue)) }
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.width(84.dp)
+        )
+        IconButton(
+            onClick = { onValueChange((value + 1.0).coerceIn(minValue, maxValue)) },
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Increase $label", tint = BrandIndigo)
         }
     }
 }

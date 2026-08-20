@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Search
@@ -79,6 +81,10 @@ import com.quizmaker.android.core.theme.StatGreenBg
 import com.quizmaker.android.core.theme.StatGreenIcon
 import com.quizmaker.android.core.theme.StatPurpleBg
 import com.quizmaker.android.core.theme.StatPurpleIcon
+import com.quizmaker.android.core.theme.StatRedBg
+import com.quizmaker.android.core.theme.StatRedIcon
+import com.quizmaker.android.core.theme.StatTealBg
+import com.quizmaker.android.core.theme.StatTealIcon
 import com.quizmaker.android.core.theme.SuccessGreen
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
@@ -96,6 +102,7 @@ import com.quizmaker.android.ui.common.SkeletonStatTiles
 import com.quizmaker.android.ui.common.StatTile
 import com.quizmaker.android.ui.common.TrialActiveBanner
 import com.quizmaker.android.ui.common.TrialEndedBanner
+import com.quizmaker.android.ui.common.TrialExtendedBanner
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.TrialStatus
 
@@ -106,6 +113,8 @@ fun DashboardScreen(
     onOpenQuizzes: () -> Unit,
     onOpenQuestions: () -> Unit,
     onOpenResponses: () -> Unit,
+    onOpenReportedQuestions: () -> Unit,
+    onOpenLearners: () -> Unit,
     onOpenPricing: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
@@ -152,6 +161,7 @@ fun DashboardScreen(
                     when {
                         activeSale != null -> SaleDayBanner(saleName = activeSale.name, onClick = onOpenPricing)
                         trialStatus is TrialStatus.Expired -> TrialEndedBanner(onClick = onOpenPricing)
+                        trialStatus is TrialStatus.Extended -> TrialExtendedBanner(daysLeft = trialStatus.daysLeft, onClick = onOpenPricing)
                         trialStatus is TrialStatus.Active -> TrialActiveBanner(daysLeft = trialStatus.daysLeft, onClick = onOpenPricing)
                         else -> WelcomeBanner()
                     }
@@ -235,6 +245,25 @@ fun DashboardScreen(
                                 label = "Avg Score",
                                 value = "${uiState.averageScorePercent}%",
                                 modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Row(modifier = Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            StatTile(
+                                icon = Icons.Default.Flag,
+                                iconBg = StatRedBg,
+                                iconTint = StatRedIcon,
+                                label = "Reported Questions",
+                                value = uiState.reportedQuestionsCount.toString(),
+                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).clickable(onClick = onOpenReportedQuestions)
+                            )
+                            StatTile(
+                                icon = Icons.Default.Group,
+                                iconBg = StatTealBg,
+                                iconTint = StatTealIcon,
+                                label = "Learners",
+                                value = uiState.learnersCount.toString(),
+                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).clickable(onClick = onOpenLearners)
                             )
                         }
                         Spacer(Modifier.height(20.dp))
@@ -431,6 +460,8 @@ private fun DashboardSkeleton() {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
             SkeletonBox(modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(50.dp))
             Spacer(Modifier.height(20.dp))
+            SkeletonStatTiles(count = 2)
+            Spacer(Modifier.height(14.dp))
             SkeletonStatTiles(count = 2)
             Spacer(Modifier.height(14.dp))
             SkeletonStatTiles(count = 2)

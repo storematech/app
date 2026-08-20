@@ -25,13 +25,33 @@ object LeaderboardPdfExporter {
 
     fun export(context: Context, quizTitle: String, data: LeaderboardData, branding: PdfBranding = PdfBranding.NONE): Intent {
         val document = PdfDocument()
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 18f; isFakeBoldText = true }
+        // Four points on the same spectrum — see ReportTemplate's KDoc. headerFilled/bodyFilled
+        // drive whether the accent color paints a background at all; the CLASSIC/MINIMAL branches
+        // below cover the two ways of showing *no* fill (a rule vs. nothing but a neutral hairline).
+        val template = branding.template
+        val headerFilled = template == ReportTemplate.MODERN || template == ReportTemplate.BOLD
+        val bodyFilled = template == ReportTemplate.BOLD
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (headerFilled) branding.accentColor else Color.BLACK; textSize = 18f; isFakeBoldText = true
+        }
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 11f }
-        val headerTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 10f; isFakeBoldText = true }
-        val headerBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6366F1") }
-        val cellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 10f }
-        val altRowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F5F5FB") }
+        val headerTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (headerFilled) Color.WHITE else Color.BLACK; textSize = 10f; isFakeBoldText = true
+        }
+        val headerBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor }
+        val headerRulePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor; strokeWidth = 1.5f }
+        val cellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (bodyFilled) Color.WHITE else Color.BLACK; textSize = 10f
+        }
+        val bodyFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor }
+        // Faint accent tint (Modern) vs. a slight darkening over the solid fill (Bold) — Paint.alpha
+        // applied after color so both composite consistently regardless of which accent is picked.
+        val altRowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor; alpha = 18 }
+        val boldAltRowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; alpha = 25 }
         val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E5E7EB"); strokeWidth = 1f }
+        // On a solid-fill (Bold) row, the usual light-gray grid line would nearly vanish — a
+        // translucent white line stays visible against any accent color instead.
+        val boldLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; alpha = 70; strokeWidth = 1f }
 
         var pageNumber = 1
         var page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
@@ -40,7 +60,11 @@ object LeaderboardPdfExporter {
 
         fun drawHeaderRow() {
             var x = MARGIN
-            canvas.drawRect(x, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, headerBgPaint)
+            when {
+                headerFilled -> canvas.drawRect(x, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, headerBgPaint)
+                template == ReportTemplate.CLASSIC -> canvas.drawLine(x, y + ROW_HEIGHT, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, headerRulePaint)
+                else -> canvas.drawLine(x, y + ROW_HEIGHT, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, linePaint) // MINIMAL: neutral hairline only
+            }
             columns.forEach { (label, width) ->
                 canvas.drawText(label, x + 4f, y + ROW_HEIGHT - 7f, headerTextPaint)
                 x += width
@@ -69,7 +93,10 @@ object LeaderboardPdfExporter {
             if (y + ROW_HEIGHT > PAGE_HEIGHT - MARGIN) {
                 newPage()
             }
-            if (index % 2 == 1) {
+            if (bodyFilled) {
+                canvas.drawRect(MARGIN, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, bodyFillPaint)
+                if (index % 2 == 1) canvas.drawRect(MARGIN, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, boldAltRowPaint)
+            } else if (template == ReportTemplate.MODERN && index % 2 == 1) {
                 canvas.drawRect(MARGIN, y, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, altRowPaint)
             }
             var x = MARGIN
@@ -85,7 +112,7 @@ object LeaderboardPdfExporter {
                 canvas.drawText(truncated, x + 4f, y + ROW_HEIGHT - 7f, cellPaint)
                 x += columns[i].second
             }
-            canvas.drawLine(MARGIN, y + ROW_HEIGHT, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, linePaint)
+            canvas.drawLine(MARGIN, y + ROW_HEIGHT, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, if (bodyFilled) boldLinePaint else linePaint)
             y += ROW_HEIGHT
         }
 

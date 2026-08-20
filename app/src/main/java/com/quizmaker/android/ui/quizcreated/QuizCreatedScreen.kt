@@ -171,8 +171,11 @@ private fun QuizCreatedContent(
                 OutlinedButton(
                     onClick = {
                         onShared("pdf_flyer")
-                        val intent = QrFlyerPdfExporter.export(context, quiz.title, quiz.shareUrl, qrBitmap)
-                        context.startActivity(Intent.createChooser(intent, "Download Flyer"))
+                        scope.launch {
+                            val branding = getPdfBranding()
+                            val intent = QrFlyerPdfExporter.export(context, quiz.title, quiz.shareUrl, qrBitmap, branding)
+                            context.startActivity(Intent.createChooser(intent, "Download Flyer"))
+                        }
                     },
                     modifier = Modifier.weight(1f).height(46.dp)
                 ) {

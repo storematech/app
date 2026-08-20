@@ -12,6 +12,11 @@ sealed class TrialStatus {
     /** Paid plan — no trial concept applies. */
     data object Premium : TrialStatus()
     data class Active(val daysLeft: Int) : TrialStatus()
+    /** Trial window manually granted by an admin (`profiles.user_type = 'trial_extend'`, reusing
+     *  `license_expired_date` as the extension's end date) — full feature access continues, same
+     *  as [Active], right up to that date. Kept as its own case (rather than folded into [Active])
+     *  so the UI can show a distinct "extended" message instead of the normal trial banner. */
+    data class Extended(val daysLeft: Int) : TrialStatus()
     data object Expired : TrialStatus()
 }
 
@@ -23,6 +28,15 @@ sealed class TrialStatus {
  */
 fun Profile.trialStatus(now: Instant = Clock.System.now()): TrialStatus {
     if (isPremium) return TrialStatus.Premium
+
+    extendedTrialEndAt()?.let { end ->
+        return if (now < end) {
+            TrialStatus.Extended(daysLeft = (end - now).inWholeDays.toInt().coerceAtLeast(0))
+        } else {
+            TrialStatus.Expired
+        }
+    }
+
     val start = createdAt ?: return TrialStatus.Expired
     val elapsedDays = (now - start).inWholeDays
     return if (elapsedDays < TRIAL_DAYS) {
@@ -30,4 +44,16 @@ fun Profile.trialStatus(now: Instant = Clock.System.now()): TrialStatus {
     } else {
         TrialStatus.Expired
     }
+}
+
+/** Parses `license_expired_date` as the extension's end-of-day cutoff, but only when an admin has
+ *  actually opted this account into an extended trial (`user_type = 'trial_extend'`) — for every
+ *  other user_type this column means something else (paid-license expiry) or is unset, so it must
+ *  never be read as a trial extension by accident. Defaults an unadorned `date` column (no `T`) to
+ *  end-of-day UTC so the granted date itself still counts as a full day of access. */
+private fun Profile.extendedTrialEndAt(): Instant? {
+    if (userType?.lowercase() != "trial_extend") return null
+    val raw = licenseExpiredDate?.takeIf { it.isNotBlank() } ?: return null
+    val normalized = if (raw.contains("T")) raw else "${raw}T23:59:59Z"
+    return runCatching { Instant.parse(normalized) }.getOrNull()
 }

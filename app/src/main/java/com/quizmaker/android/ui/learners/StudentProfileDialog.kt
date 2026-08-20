@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -27,24 +28,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BrandIndigo
+import com.quizmaker.android.core.theme.PdfRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.Learner
 import com.quizmaker.android.data.model.LearnerQuizAttempt
+import com.quizmaker.android.ui.common.CsvFileIcon
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.ScorePill
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.formatShortDate
+import kotlin.math.roundToInt
 
-/** Read-only learner detail view — name/roster info plus their recent quiz attempts. */
+/** Read-only learner detail view — name/roster info plus summary stats and their recent quiz attempts. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentProfileDialog(
     learner: Learner,
     attempts: List<LearnerQuizAttempt>,
     isLoadingAttempts: Boolean,
+    onExportRequest: (ExportFormat) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -60,6 +65,12 @@ fun StudentProfileDialog(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(learner.name, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextPrimary)
                     Text("ID: ${learner.studentId}", color = TextSecondary, fontSize = 13.sp)
+                }
+                IconButton(onClick = { onExportRequest(ExportFormat.PDF) }) {
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
+                }
+                IconButton(onClick = { onExportRequest(ExportFormat.CSV) }) {
+                    CsvFileIcon(contentDescription = "Export CSV")
                 }
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
@@ -99,6 +110,23 @@ fun StudentProfileDialog(
                 Text(learner.notes, color = TextPrimary, fontSize = 14.sp)
             }
 
+            if (attempts.isNotEmpty()) {
+                Spacer(Modifier.height(20.dp))
+                Text("SUMMARY", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+                Spacer(Modifier.height(10.dp))
+                val avgScore = attempts.mapNotNull { it.score }.average().takeIf { !it.isNaN() }?.roundToInt() ?: 0
+                val avgTimeSeconds = attempts.mapNotNull { it.timeTaken }.average().takeIf { !it.isNaN() }?.roundToInt()
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    StatChip(label = "Quizzes", value = attempts.size.toString(), modifier = Modifier.weight(1f))
+                    StatChip(label = "Avg Score", value = "$avgScore%", modifier = Modifier.weight(1f))
+                    StatChip(
+                        label = "Avg Time",
+                        value = avgTimeSeconds?.let { "${it / 60}m ${it % 60}s" } ?: "-",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
             Spacer(Modifier.height(20.dp))
             Text("RECENT QUIZ ATTEMPTS", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
             Spacer(Modifier.height(10.dp))
@@ -120,6 +148,20 @@ fun StudentProfileDialog(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StatChip(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .elevatedSurface(shape = RoundedCornerShape(14.dp), color = AppBackground, elevation = 0.dp)
+            .padding(vertical = 12.dp, horizontal = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(value, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+        Spacer(Modifier.height(2.dp))
+        Text(label, color = TextSecondary, fontSize = 11.sp)
     }
 }
 

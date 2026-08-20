@@ -28,7 +28,7 @@ data class Quiz(
     val collectAddress: Boolean,
     val collectPhone: Boolean,
     val quizColor: String,
-    val maxPoints: Int,
+    val maxPoints: Double,
     val createdAt: Instant?
 ) {
     val shareUrl: String get() = "${BuildConfig.SHARE_BASE_URL}/take-quiz/$shareId"
@@ -79,6 +79,6 @@ fun QuizDto.toDomain(): Quiz = Quiz(
     collectAddress = collectAddress ?: false,
     collectPhone = collectPhone ?: false,
     quizColor = quizColor ?: "#8b5cf6",
-    maxPoints = maxPoints ?: 0,
+    maxPoints = maxPoints ?: 0.0,
     createdAt = createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
 )

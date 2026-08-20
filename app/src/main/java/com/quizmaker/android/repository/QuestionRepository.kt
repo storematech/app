@@ -13,7 +13,6 @@ import com.quizmaker.android.data.remote.dto.QuestionInsertDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.query.Count
 import io.github.jan.supabase.postgrest.query.Order
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -40,7 +39,8 @@ class QuestionRepository @Inject constructor(
         userId: String,
         text: String,
         type: QuestionType,
-        points: Int,
+        points: Double,
+        negativePoints: Double = 0.0,
         difficulty: QuestionDifficulty?,
         explanation: String?,
         tags: List<String>,
@@ -55,6 +55,7 @@ class QuestionRepository @Inject constructor(
                     text = text,
                     type = type.value,
                     points = points,
+                    negativePoints = negativePoints,
                     difficulty = difficulty?.value,
                     explanation = explanation,
                     level = null,
@@ -83,7 +84,8 @@ class QuestionRepository @Inject constructor(
         userId: String,
         text: String,
         type: QuestionType,
-        points: Int,
+        points: Double,
+        negativePoints: Double = 0.0,
         difficulty: QuestionDifficulty?,
         explanation: String?,
         tags: List<String>,
@@ -98,6 +100,7 @@ class QuestionRepository @Inject constructor(
                     text = text,
                     type = type.value,
                     points = points,
+                    negativePoints = negativePoints,
                     difficulty = difficulty?.value,
                     explanation = explanation,
                     level = null,
@@ -128,17 +131,5 @@ class QuestionRepository @Inject constructor(
         supabase.from("options").delete { filter { eq("question_id", questionId) } }
         supabase.from("questions").delete { filter { eq("id", questionId) } }
         Unit
-    }
-
-    /** Count of `reported_questions` rows against this creator's own question bank (Dashboard's "Reported" tile). */
-    suspend fun getReportedCount(questionIds: List<String>): AppResult<Int> = safeCall {
-        if (questionIds.isEmpty()) return@safeCall 0
-        supabase.from("reported_questions")
-            .select {
-                filter { isIn("question_id", questionIds) }
-                count(Count.EXACT)
-                head = true
-            }
-            .countOrNull()?.toInt() ?: 0
     }
 }

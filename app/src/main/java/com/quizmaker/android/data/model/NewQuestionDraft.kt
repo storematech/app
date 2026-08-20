@@ -8,7 +8,10 @@ data class NewQuestionDraft(
     val correctOptionIndex: Int = 0,
     val correctOptionIndices: Set<Int> = setOf(0),
     val freeTextAnswer: String = "",
-    val points: Int = 1,
+    val points: Double = 1.0,
+    /** Points deducted for an attempted-but-wrong answer. 0 means negative marking is off — see
+     *  QuestionEditSheet's "Enable Negative Marking" switch, which is what actually toggles this. */
+    val negativePoints: Double = 0.0,
     val difficulty: QuestionDifficulty = QuestionDifficulty.MEDIUM,
     // Carried through from the source question when editing (no UI for these yet), so saving
     // an edit doesn't silently wipe them. Null id means "creating a new question".
@@ -40,6 +43,7 @@ fun Question.toDraft(): NewQuestionDraft {
         correctOptionIndices = correctIndices,
         freeTextAnswer = correctAnswer.orEmpty(),
         points = points,
+        negativePoints = negativePoints,
         difficulty = difficulty ?: QuestionDifficulty.MEDIUM,
         editingQuestionId = id,
         tags = tags,

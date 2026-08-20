@@ -22,14 +22,20 @@ import javax.inject.Inject
 
 const val NOTIFICATION_CHANNEL_ID = "quiz_submissions"
 
+/** Lifecycle/engagement pushes from scheduled-push (signup nudges, trial reminders) — kept
+ *  separate from [NOTIFICATION_CHANNEL_ID] so they don't show up mislabeled under a channel
+ *  named/described as being about quiz submissions in the user's Android notification settings. */
+const val LIFECYCLE_NOTIFICATION_CHANNEL_ID = "lifecycle_tips"
+
 /** Read by NavGraph on cold start / onNewIntent to deep-link straight to the response that was submitted. */
 const val EXTRA_RESPONSE_ID = "response_id"
 
 /**
- * Messages are sent data-only (no "notification" payload key) by the notify-quiz-submission Edge
- * Function specifically so onMessageReceived always fires here — foreground, background, or app
- * killed — and we build the notification ourselves with a tap target, rather than relying on the
- * OS's default handling (which skips onMessageReceived for background/killed "notification" messages).
+ * Messages are sent data-only (no "notification" payload key) by both notify-quiz-submission and
+ * scheduled-push specifically so onMessageReceived always fires here — foreground, background, or
+ * app killed — and we build the notification ourselves with a tap target, rather than relying on
+ * the OS's default handling (which skips onMessageReceived for background/killed "notification"
+ * messages).
  */
 @AndroidEntryPoint
 class QuizFcmService : FirebaseMessagingService() {
@@ -54,7 +60,11 @@ class QuizFcmService : FirebaseMessagingService() {
         }
 
         val data = message.data
-        val title = data["title"]?.ifBlank { null } ?: "New quiz submission"
+        // scheduled-push sets type="lifecycle"; notify-quiz-submission sends no type at all, which
+        // is what routes its messages to the original channel/default title unchanged.
+        val isLifecycle = data["type"] == "lifecycle"
+        val channelId = if (isLifecycle) LIFECYCLE_NOTIFICATION_CHANNEL_ID else NOTIFICATION_CHANNEL_ID
+        val title = data["title"]?.ifBlank { null } ?: if (isLifecycle) "YUNO LMS" else "New quiz submission"
         val body = data["body"].orEmpty()
         val responseId = data["response_id"]
 
@@ -69,7 +79,7 @@ class QuizFcmService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_splash_icon)
             .setContentTitle(title)
             .setContentText(body)

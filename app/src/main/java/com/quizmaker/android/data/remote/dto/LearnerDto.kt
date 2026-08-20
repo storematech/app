@@ -66,15 +66,20 @@ data class LearnerUpdateDto(
     val notes: String?
 )
 
-/** Row shape of `quiz_attempts`, narrowed the same way, with the quiz title joined in. */
+/**
+ * Row shape of `quiz_attempts` for the Student Profile's recent-attempts list, narrowed the same
+ * way as [LearnerDto], with the quiz title joined in. Named distinctly from [QuizAttemptDto] (the
+ * Leaderboard's own, differently-narrowed row shape for this same table).
+ */
 @Serializable
-data class QuizAttemptDto(
+data class LearnerQuizAttemptDto(
     val id: String,
     val score: Int? = null,
     @SerialName("total_questions") val totalQuestions: Int? = null,
     @SerialName("completed_at") val completedAt: String? = null,
-    val quizzes: QuizAttemptQuizTitleDto? = null
+    @SerialName("time_taken") val timeTaken: Int? = null,
+    val quizzes: LearnerQuizAttemptQuizTitleDto? = null
 )
 
 @Serializable
-data class QuizAttemptQuizTitleDto(val title: String? = null)
+data class LearnerQuizAttemptQuizTitleDto(val title: String? = null)

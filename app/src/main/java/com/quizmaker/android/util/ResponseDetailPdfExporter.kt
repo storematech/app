@@ -22,10 +22,21 @@ object ResponseDetailPdfExporter {
 
     fun export(context: Context, data: ResponseDetailData, branding: PdfBranding = PdfBranding.NONE): File {
         val document = PdfDocument()
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6D28D9"); textSize = 16f; isFakeBoldText = true }
+        val template = branding.template
+        val titleAccented = template == ReportTemplate.MODERN || template == ReportTemplate.BOLD
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (titleAccented) branding.accentColor else Color.BLACK; textSize = 16f; isFakeBoldText = true
+        }
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6B7280"); textSize = 8f }
         val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111827"); textSize = 9.5f; isFakeBoldText = true }
-        val summaryBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F5F3FF") }
+        // Faint accent tint (Modern), a much stronger one (Bold), or a plain neutral box (Classic/Minimal).
+        val summaryBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            when (template) {
+                ReportTemplate.MODERN -> { color = branding.accentColor; alpha = 20 }
+                ReportTemplate.BOLD -> { color = branding.accentColor; alpha = 60 }
+                else -> color = Color.parseColor("#F9FAFB")
+            }
+        }
         val questionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111827"); textSize = 10f; isFakeBoldText = true }
         val labelBoldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#4B5563"); textSize = 9f; isFakeBoldText = true }
         val answerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111827"); textSize = 9f }

@@ -7,8 +7,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -21,6 +23,8 @@ import com.quizmaker.android.core.messaging.EXTRA_RESPONSE_ID
 import com.quizmaker.android.core.navigation.QuizMakerNavGraph
 import com.quizmaker.android.core.payment.RazorpayResult
 import com.quizmaker.android.core.payment.RazorpayResultBus
+import com.quizmaker.android.core.prefs.AppThemeMode
+import com.quizmaker.android.core.prefs.ThemePrefs
 import com.quizmaker.android.core.theme.QuizMakerTheme
 import com.razorpay.PaymentData
 import com.razorpay.PaymentResultWithDataListener
@@ -46,6 +50,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     @Inject
     lateinit var razorpayResultBus: RazorpayResultBus
 
+    @Inject
+    lateinit var themePrefs: ThemePrefs
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate() — applies Theme.QuizMaker.Splash's branded splash
         // (blue background + the "Y" mark) and then switches to Theme.QuizMaker once ready.
@@ -68,7 +75,13 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         }
         pendingResponseId = intent?.getStringExtra(EXTRA_RESPONSE_ID)
         setContent {
-            QuizMakerTheme {
+            val themeMode by themePrefs.themeMode.collectAsState(initial = AppThemeMode.SYSTEM)
+            val darkTheme = when (themeMode) {
+                AppThemeMode.LIGHT -> false
+                AppThemeMode.DARK -> true
+                AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+            }
+            QuizMakerTheme(darkTheme = darkTheme) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val controller = rememberNavController()
                     navController = controller

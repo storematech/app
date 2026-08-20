@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
@@ -65,8 +67,14 @@ import com.quizmaker.android.ui.auth.ForgotPasswordScreen
 import com.quizmaker.android.ui.auth.LoginScreen
 import com.quizmaker.android.ui.classdashboard.ClassDashboardScreen
 import com.quizmaker.android.ui.classlist.ClassListScreen
+import com.quizmaker.android.ui.classlist.ClassesIntroScreen
+import com.quizmaker.android.ui.classlist.ClassesIntroViewModel
 import com.quizmaker.android.ui.classweaklearners.ClassWeakLearnersScreen
+import com.quizmaker.android.ui.learners.LearnersIntroScreen
+import com.quizmaker.android.ui.learners.LearnersIntroViewModel
 import com.quizmaker.android.ui.learners.LearnersScreen
+import com.quizmaker.android.ui.tools.ToolsIntroScreen
+import com.quizmaker.android.ui.tools.ToolsIntroViewModel
 import com.quizmaker.android.ui.tools.ToolsScreen
 import com.quizmaker.android.ui.tools.feedback.FeedbackFormListScreen
 import com.quizmaker.android.ui.tools.feedback.FeedbackSubmissionsScreen
@@ -99,7 +107,10 @@ import com.quizmaker.android.ui.quizdetailview.QuizDetailViewScreen
 import com.quizmaker.android.ui.quizlist.QuizListScreen
 import com.quizmaker.android.ui.revision.RevisionScreen
 import com.quizmaker.android.ui.responsedetail.ResponseDetailScreen
+import com.quizmaker.android.ui.reportedquestions.ReportedQuestionsScreen
 import com.quizmaker.android.ui.responses.ResponsesScreen
+import com.quizmaker.android.ui.settings.ReportDesignScreen
+import com.quizmaker.android.ui.settings.SettingsScreen
 import com.quizmaker.android.ui.takequiz.TakeQuizScreen
 import com.quizmaker.android.ui.trial.TrialEndedScreen
 import com.quizmaker.android.ui.trial.TrialStartedScreen
@@ -179,6 +190,16 @@ fun QuizMakerNavGraph(
                 navController.navigate(Screen.Login.route) {
                     popUpTo(0) { inclusive = true }
                 }
+                // popUpTo(0) only clears the *live* back stack — bottom-tab destinations parked via
+                // saveState=true (see YunoBottomBar below) keep their saved NavBackStackEntry, and
+                // with it the Hilt ViewModelStore for e.g. DashboardViewModel/MoreViewModel, alive in
+                // NavController's internal saved-state map. Without this, signing in as a different
+                // account and tapping back to that tab reattaches the *previous* account's ViewModel
+                // instance verbatim (still showing data from its one-time init-block fetch) until the
+                // process is killed and restarted. clearBackStack discards that saved state so every
+                // tab starts fresh — this is the documented fix for multi-account sign-out with saved
+                // bottom-nav state.
+                bottomTabs.forEach { navController.clearBackStack(it.route) }
             }
             else -> Unit
         }
@@ -304,6 +325,8 @@ fun QuizMakerNavGraph(
                 )
             }
             composable(Screen.Dashboard.route) {
+                val learnersIntroViewModel: LearnersIntroViewModel = hiltViewModel()
+                val scope = rememberCoroutineScope()
                 DashboardScreen(
                     onOpenResponse = { responseId -> navController.navigate(Screen.ResponseDetail.createRoute(responseId)) },
                     onOpenQuizzes = {
@@ -321,6 +344,13 @@ fun QuizMakerNavGraph(
                         }
                     },
                     onOpenResponses = { navController.navigate(Screen.Responses.route) },
+                    onOpenReportedQuestions = { navController.navigate(Screen.ReportedQuestions.route) },
+                    onOpenLearners = {
+                        scope.launch {
+                            val destination = if (learnersIntroViewModel.shouldShowIntro()) Screen.LearnersIntro.route else Screen.Learners.route
+                            navController.navigate(destination)
+                        }
+                    },
                     onOpenPricing = { navController.navigate(Screen.Pricing.route) }
                 )
             }
@@ -329,6 +359,9 @@ fun QuizMakerNavGraph(
                     onNavigateBack = { navController.popBackStack() },
                     onOpenResponse = { responseId -> navController.navigate(Screen.ResponseDetail.createRoute(responseId)) }
                 )
+            }
+            composable(Screen.ReportedQuestions.route) {
+                ReportedQuestionsScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(Screen.QuizList.route) {
                 QuizListScreen(
@@ -351,16 +384,37 @@ fun QuizMakerNavGraph(
                 )
             }
             composable(Screen.More.route) {
+                val toolsIntroViewModel: ToolsIntroViewModel = hiltViewModel()
+                val learnersIntroViewModel: LearnersIntroViewModel = hiltViewModel()
+                val classesIntroViewModel: ClassesIntroViewModel = hiltViewModel()
+                val scope = rememberCoroutineScope()
                 MoreScreen(
                     onOpenProfile = { navController.navigate(Screen.Profile.route) },
                     onOpenResponses = { navController.navigate(Screen.Responses.route) },
+                    onOpenReportedQuestions = { navController.navigate(Screen.ReportedQuestions.route) },
                     onOpenPricing = { navController.navigate(Screen.Pricing.route) },
                     onOpenFaq = { navController.navigate(Screen.Faq.route) },
                     onOpenImportQuestions = { navController.navigate(Screen.ImportQuestions.route) },
                     onOpenRevision = { navController.navigate(Screen.Revision.route) },
-                    onOpenClasses = { navController.navigate(Screen.Classes.route) },
-                    onOpenLearners = { navController.navigate(Screen.Learners.route) },
-                    onOpenTools = { navController.navigate(Screen.Tools.route) }
+                    onOpenClasses = {
+                        scope.launch {
+                            val destination = if (classesIntroViewModel.shouldShowIntro()) Screen.ClassesIntro.route else Screen.Classes.route
+                            navController.navigate(destination)
+                        }
+                    },
+                    onOpenLearners = {
+                        scope.launch {
+                            val destination = if (learnersIntroViewModel.shouldShowIntro()) Screen.LearnersIntro.route else Screen.Learners.route
+                            navController.navigate(destination)
+                        }
+                    },
+                    onOpenTools = {
+                        scope.launch {
+                            val destination = if (toolsIntroViewModel.shouldShowIntro()) Screen.ToolsIntro.route else Screen.Tools.route
+                            navController.navigate(destination)
+                        }
+                    },
+                    onOpenSettings = { navController.navigate(Screen.Settings.route) }
                 )
             }
             composable(Screen.Revision.route) {
@@ -369,10 +423,28 @@ fun QuizMakerNavGraph(
                     onCreateRetest = { ids -> navController.navigate(Screen.CreateQuiz.createRoute(ids)) }
                 )
             }
+            composable(Screen.ClassesIntro.route) {
+                ClassesIntroScreen(
+                    onAddClasses = {
+                        navController.navigate(Screen.Classes.route) {
+                            popUpTo(Screen.ClassesIntro.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
             composable(Screen.Classes.route) {
                 ClassListScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onOpenClass = { classId -> navController.navigate(Screen.ClassDashboard.createRoute(classId)) }
+                )
+            }
+            composable(Screen.LearnersIntro.route) {
+                LearnersIntroScreen(
+                    onAddLearners = {
+                        navController.navigate(Screen.Learners.route) {
+                            popUpTo(Screen.LearnersIntro.route) { inclusive = true }
+                        }
+                    }
                 )
             }
             composable(Screen.Learners.route) {
@@ -386,6 +458,15 @@ fun QuizMakerNavGraph(
             }
             composable(Screen.ClassWeakLearners.route) {
                 ClassWeakLearnersScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.ToolsIntro.route) {
+                ToolsIntroScreen(
+                    onUseTools = {
+                        navController.navigate(Screen.Tools.route) {
+                            popUpTo(Screen.ToolsIntro.route) { inclusive = true }
+                        }
+                    }
+                )
             }
             composable(Screen.Tools.route) {
                 ToolsScreen(
@@ -499,6 +580,15 @@ fun QuizMakerNavGraph(
             composable(Screen.Profile.route) {
                 ProfileScreen(onNavigateBack = { navController.popBackStack() })
             }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenReportDesign = { navController.navigate(Screen.ReportDesign.route) }
+                )
+            }
+            composable(Screen.ReportDesign.route) {
+                ReportDesignScreen(onNavigateBack = { navController.popBackStack() })
+            }
             composable(
                 route = Screen.QuizDetail.route,
                 arguments = listOf(navArgument("quizId") { type = NavType.StringType })
@@ -506,7 +596,8 @@ fun QuizMakerNavGraph(
                 QuizDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onViewLeaderboard = { quizId -> navController.navigate(Screen.Leaderboard.createRoute(quizId)) },
-                    onEditQuiz = { quizId -> navController.navigate(Screen.EditQuiz.createRoute(quizId)) }
+                    onEditQuiz = { quizId -> navController.navigate(Screen.EditQuiz.createRoute(quizId)) },
+                    onOpenMasterPaper = { quizId -> navController.navigate(Screen.MasterPaper.createRoute(quizId)) }
                 )
             }
             composable(
@@ -580,7 +671,14 @@ fun QuizMakerNavGraph(
             )
         }
 
-        AlertHost(modifier = Modifier.align(Alignment.TopCenter))
+        // Only needs its own bottom-inset padding when there's no YunoBottomBar below to already
+        // clear the system nav bar / gesture area — on tab screens the content Box already sits
+        // above that bar, so adding this too would push the alert needlessly high.
+        AlertHost(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .let { if (!showBottomBar) it.windowInsetsPadding(WindowInsets.navigationBars) else it }
+        )
         }
     }
 }

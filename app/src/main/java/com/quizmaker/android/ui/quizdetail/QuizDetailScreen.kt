@@ -58,6 +58,7 @@ fun QuizDetailScreen(
     onNavigateBack: () -> Unit,
     onViewLeaderboard: (String) -> Unit,
     onEditQuiz: (String) -> Unit,
+    onOpenMasterPaper: (String) -> Unit,
     viewModel: QuizDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -112,7 +113,15 @@ fun QuizDetailScreen(
     }
 
     if (showShareSheet && uiState.quiz != null) {
-        ShareQuizSheet(quizTitle = uiState.quiz!!.title, shareUrl = uiState.quiz!!.shareUrl, onDismiss = { showShareSheet = false })
+        ShareQuizSheet(
+            quizTitle = uiState.quiz!!.title,
+            shareUrl = uiState.quiz!!.shareUrl,
+            onDismiss = { showShareSheet = false },
+            onOpenMasterPaper = {
+                showShareSheet = false
+                onOpenMasterPaper(uiState.quiz!!.id)
+            }
+        )
     }
 
     if (showDeleteConfirm) {

@@ -224,6 +224,7 @@ class RevisionViewModel @Inject constructor(
                 text = draft.text.trim(),
                 type = draft.type,
                 points = draft.points,
+                negativePoints = draft.negativePoints,
                 difficulty = draft.difficulty,
                 explanation = draft.explanation,
                 tags = draft.tags,

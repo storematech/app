@@ -32,7 +32,7 @@ data class QuizDto(
     @SerialName("require_otp_verification") val requireOtpVerification: Boolean? = null,
     @SerialName("allow_multiple_attempts") val allowMultipleAttempts: Boolean? = null,
     @SerialName("trainer_id") val trainerId: String? = null,
-    @SerialName("max_points") val maxPoints: Int? = null,
+    @SerialName("max_points") val maxPoints: Double? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )

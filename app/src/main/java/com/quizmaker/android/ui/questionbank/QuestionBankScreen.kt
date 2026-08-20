@@ -46,6 +46,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -229,6 +230,19 @@ fun QuestionBankScreen(
                                 title = if (uiState.questions.isEmpty()) "No questions yet" else "No matches",
                                 subtitle = if (uiState.questions.isEmpty()) "Tap New to add your first question." else "Try a different search term."
                             )
+                        }
+                        if (uiState.questions.isEmpty()) {
+                            item {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                    Spacer(Modifier.height(8.dp))
+                                    OutlinedButton(onClick = { viewModel.onOpenAiClick(onOpenAi) }) {
+                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Explore Templates")
+                                    }
+                                    Spacer(Modifier.height(24.dp))
+                                }
+                            }
                         }
                     } else {
                         items(uiState.filtered, key = { it.id }) { question ->

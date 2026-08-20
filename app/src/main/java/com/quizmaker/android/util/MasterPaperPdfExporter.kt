@@ -54,11 +54,23 @@ object MasterPaperPdfExporter {
         branding: PdfBranding = PdfBranding.NONE
     ): Intent {
         val document = PdfDocument()
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6D28D9"); textSize = 16f; isFakeBoldText = true }
+        val template = branding.template
+        val badgeFilled = template == ReportTemplate.MODERN || template == ReportTemplate.BOLD
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (badgeFilled) branding.accentColor else Color.BLACK; textSize = 16f; isFakeBoldText = true
+        }
         val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 11f }
-        val numberBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#8B5CF6") }
-        val numberTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 9f; isFakeBoldText = true }
-        val typeBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#4338CA"); textSize = 8f }
+        val numberBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor }
+        val numberRulePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor; strokeWidth = 1.5f }
+        // MINIMAL never uses the accent color for a badge — a plain neutral outline keeps the
+        // question-number box's structure without any brand color leaking in.
+        val numberOutlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#D1D5DB"); style = Paint.Style.STROKE; strokeWidth = 0.75f
+        }
+        val numberTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (badgeFilled) Color.WHITE else Color.BLACK; textSize = 9f; isFakeBoldText = true
+        }
+        val typeBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = branding.accentColor; textSize = 8f }
         val pointsPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#92400E"); textSize = 8f }
         val questionTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111827"); textSize = 10.5f }
         val optionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#374151"); textSize = 10f }
@@ -125,7 +137,11 @@ object MasterPaperPdfExporter {
             checkPage(estimatedHeight)
 
             val badgeTop = y
-            canvas.drawRect(MARGIN, badgeTop, MARGIN + 22f, badgeTop + 14f, numberBgPaint)
+            when {
+                badgeFilled -> canvas.drawRect(MARGIN, badgeTop, MARGIN + 22f, badgeTop + 14f, numberBgPaint)
+                template == ReportTemplate.CLASSIC -> canvas.drawLine(MARGIN, badgeTop + 14f, MARGIN + 22f, badgeTop + 14f, numberRulePaint)
+                else -> canvas.drawRect(MARGIN, badgeTop, MARGIN + 22f, badgeTop + 14f, numberOutlinePaint) // MINIMAL
+            }
             canvas.drawText("Q${index + 1}", MARGIN + 3f, badgeTop + 10.5f, numberTextPaint)
             val typeLabel = when (q.type) {
                 QuestionType.MULTI_CHOICE -> "Multiple Select"
@@ -134,7 +150,7 @@ object MasterPaperPdfExporter {
                 QuestionType.SINGLE_CHOICE -> "Single Choice"
             }
             canvas.drawText(typeLabel, MARGIN + 28f, badgeTop + 10f, typeBadgePaint)
-            canvas.drawText("${q.points} pt${if (q.points > 1) "s" else ""}", MARGIN + 130f, badgeTop + 10f, pointsPaint)
+            canvas.drawText("${q.points.formatPoints()} pt${if (q.points > 1) "s" else ""}", MARGIN + 130f, badgeTop + 10f, pointsPaint)
             y += 22f
 
             qTextLines.forEach { line ->

@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.core.content.getSystemService
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
+import com.quizmaker.android.core.messaging.LIFECYCLE_NOTIFICATION_CHANNEL_ID
 import com.quizmaker.android.core.messaging.NOTIFICATION_CHANNEL_ID
 import dagger.hilt.android.HiltAndroidApp
 
@@ -15,21 +16,33 @@ class QuizMakerApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
+        createNotificationChannels()
         setupPostHog()
     }
 
-    // Required on API 26+ before any notification can be posted; QuizFcmService posts to this channel.
-    private fun createNotificationChannel() {
+    // Required on API 26+ before any notification can be posted; QuizFcmService posts to these.
+    private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val channel = NotificationChannel(
-            NOTIFICATION_CHANNEL_ID,
-            "Quiz submissions",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Notified when someone submits one of your quizzes"
-        }
-        getSystemService<NotificationManager>()?.createNotificationChannel(channel)
+        val manager = getSystemService<NotificationManager>() ?: return
+
+        manager.createNotificationChannel(
+            NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                "Quiz submissions",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notified when someone submits one of your quizzes"
+            }
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                LIFECYCLE_NOTIFICATION_CHANNEL_ID,
+                "Tips & updates",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Helpful tips, feature highlights, and account/trial updates"
+            }
+        )
     }
 
     /**

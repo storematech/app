@@ -2,7 +2,7 @@ package com.quizmaker.android.data.model
 
 import com.quizmaker.android.data.remote.dto.GroupDto
 import com.quizmaker.android.data.remote.dto.LearnerDto
-import com.quizmaker.android.data.remote.dto.QuizAttemptDto
+import com.quizmaker.android.data.remote.dto.LearnerQuizAttemptDto
 
 /** A student/participant a teacher manages outside of any single quiz — see LearnersRepository. */
 data class Learner(
@@ -32,7 +32,8 @@ data class LearnerQuizAttempt(
     val quizTitle: String,
     val score: Int?,
     val totalQuestions: Int?,
-    val completedAt: String?
+    val completedAt: String?,
+    val timeTaken: Int?
 )
 
 fun LearnerDto.toDomain(): Learner = Learner(
@@ -55,10 +56,11 @@ fun GroupDto.toDomain(): Group = Group(
     createdAt = createdAt
 )
 
-fun QuizAttemptDto.toDomain(): LearnerQuizAttempt = LearnerQuizAttempt(
+fun LearnerQuizAttemptDto.toDomain(): LearnerQuizAttempt = LearnerQuizAttempt(
     id = id,
     quizTitle = quizzes?.title ?: "Unknown Quiz",
     score = score,
     totalQuestions = totalQuestions,
-    completedAt = completedAt
+    completedAt = completedAt,
+    timeTaken = timeTaken
 )

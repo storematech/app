@@ -19,6 +19,8 @@ sealed class Screen(val route: String) {
     data object Questions : Screen("questions")
     data object More : Screen("more")
     data object Profile : Screen("profile")
+    data object Settings : Screen("settings")
+    data object ReportDesign : Screen("report_design")
 
     data object QuizDetail : Screen("quiz_detail/{quizId}") {
         fun createRoute(quizId: String) = "quiz_detail/$quizId"
@@ -64,10 +66,13 @@ sealed class Screen(val route: String) {
     }
 
     data object Responses : Screen("responses")
+    data object ReportedQuestions : Screen("reported_questions")
     data object Revision : Screen("revision")
 
     data object Classes : Screen("classes")
+    data object ClassesIntro : Screen("classes_intro")
     data object Learners : Screen("learners")
+    data object LearnersIntro : Screen("learners_intro")
 
     data object ClassDashboard : Screen("class_dashboard/{classId}") {
         fun createRoute(classId: String) = "class_dashboard/$classId"
@@ -78,6 +83,7 @@ sealed class Screen(val route: String) {
     }
 
     data object Tools : Screen("tools")
+    data object ToolsIntro : Screen("tools_intro")
     data object OnboardingForms : Screen("onboarding_forms")
 
     data object OnboardingSubmissions : Screen("onboarding_submissions/{formId}") {

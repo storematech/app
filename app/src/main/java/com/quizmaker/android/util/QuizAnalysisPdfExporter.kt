@@ -24,7 +24,10 @@ object QuizAnalysisPdfExporter {
 
     fun export(context: Context, data: QuizAnalysisData, branding: PdfBranding = PdfBranding.NONE): Intent {
         val document = PdfDocument()
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6D28D9"); textSize = 16f; isFakeBoldText = true }
+        val titleAccented = branding.template == ReportTemplate.MODERN || branding.template == ReportTemplate.BOLD
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (titleAccented) branding.accentColor else Color.BLACK; textSize = 16f; isFakeBoldText = true
+        }
         val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY; textSize = 10f }
         val sectionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111827"); textSize = 13f; isFakeBoldText = true }
         val questionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#111827"); textSize = 10.5f; isFakeBoldText = true }
