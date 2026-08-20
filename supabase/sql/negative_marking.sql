@@ -9,18 +9,39 @@
 -- quiz_answer_details.points_earned is ALREADY numeric in this DB (confirmed via the app's own
 -- QuizAnswerDetailDto.kt) — not touched here.
 --
--- IMPORTANT: the `update_quiz_max_points()` trigger function (fired by
--- trigger_update_quiz_max_points_question_update) is not defined anywhere in this repo, so it
--- could not be inspected as part of this change. After running this migration, open that function
--- in the Supabase SQL Editor and confirm it doesn't hard-cast points/max_points to integer
--- internally (e.g. `sum(points)::integer`) — if it does, decimal points will get silently
--- truncated server-side even though the app now sends decimals correctly.
+-- update_quiz_max_points() (fired by trigger_update_quiz_max_points_question_update on
+-- public.questions) was inspected via pg_get_functiondef — it sums points with no integer cast
+-- (`COALESCE(SUM(q.points), 0)`), so numeric points flow through it untruncated. No changes
+-- needed to the function itself.
+--
+-- Postgres refuses to ALTER COLUMN TYPE on questions.points while that trigger depends on it
+-- ("cannot alter type of a column used in a trigger definition"), so this drops the trigger,
+-- alters the column, then recreates the trigger from its own captured definition — this doesn't
+-- require knowing the trigger's exact text in advance, and guarantees it comes back identical.
 --
 -- Run this once in the Supabase SQL Editor.
 
-alter table public.questions
-  alter column points type numeric(6,2) using points::numeric(6,2),
-  alter column points set default 1;
+do $$
+declare
+  trigger_def text;
+begin
+  select pg_get_triggerdef(oid) into trigger_def
+  from pg_trigger
+  where tgname = 'trigger_update_quiz_max_points_question_update'
+    and not tgisinternal;
+
+  if trigger_def is null then
+    raise exception 'trigger_update_quiz_max_points_question_update not found — aborting before altering points';
+  end if;
+
+  execute 'drop trigger trigger_update_quiz_max_points_question_update on public.questions';
+
+  alter table public.questions
+    alter column points type numeric(6,2) using points::numeric(6,2),
+    alter column points set default 1;
+
+  execute trigger_def;
+end $$;
 
 alter table public.questions
   add column if not exists negative_points numeric(6,2) not null default 0;

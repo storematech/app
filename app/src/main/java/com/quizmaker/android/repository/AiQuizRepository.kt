@@ -10,6 +10,7 @@ import com.quizmaker.android.data.remote.dto.GenerateQuizAiRequest
 import com.quizmaker.android.data.remote.dto.GenerateQuizAiResponse
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -65,6 +66,10 @@ class AiQuizRepository @Inject constructor(
     ): AppResult<List<Question>> = safeCall {
         val response = supabase.functions.invoke("generate-quiz-ai") {
             contentType(ContentType.Application.Json)
+            // The client-wide 30s requestTimeout (see SupabaseModule.kt) is fine for normal
+            // queries, but this call now falls back through up to four AI providers server-side
+            // before giving up — override just this request so it isn't cut off mid-chain.
+            timeout { requestTimeoutMillis = 100_000 }
             setBody(
                 json.encodeToString(
                     GenerateQuizAiRequest(prompt = prompt, questionCount = questionCount, pdfBase64 = pdfBase64, images = images)
