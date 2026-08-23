@@ -1,7 +1,6 @@
 package com.quizmaker.android.ui.tools
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChecklistRtl
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,7 +44,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.quizmaker.android.core.theme.AppBackground
-import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.BrandIndigoLight
 import com.quizmaker.android.core.theme.PoppinsFamily
@@ -54,7 +51,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.common.elevatedSurface
 
-/** More → Tools. Onboarding Form is the first of six web "Tools" migrated to mobile; the rest route to the existing Coming Soon screen until built. */
+/** More → Tools — the five web "Tools" migrated to mobile. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolsScreen(
@@ -63,8 +60,7 @@ fun ToolsScreen(
     onOpenFeedbackForms: () -> Unit,
     onOpenPolls: () -> Unit,
     onOpenVoting: () -> Unit,
-    onOpenRsvpEvents: () -> Unit,
-    onOpenComingSoon: (String) -> Unit
+    onOpenRsvpEvents: () -> Unit
 ) {
     Scaffold(
         containerColor = AppBackground,
@@ -90,7 +86,6 @@ fun ToolsScreen(
                     icon = Icons.Default.Assignment,
                     title = "Onboarding Form",
                     subtitle = "Collect new-learner details with a shareable form",
-                    comingSoon = false,
                     onClick = onOpenOnboardingForms
                 )
             }
@@ -99,7 +94,6 @@ fun ToolsScreen(
                     icon = Icons.Default.ChatBubbleOutline,
                     title = "Feedback Form",
                     subtitle = "Gather feedback after a session or course",
-                    comingSoon = false,
                     onClick = onOpenFeedbackForms
                 )
             }
@@ -108,7 +102,6 @@ fun ToolsScreen(
                     icon = Icons.Default.BarChart,
                     title = "Poll",
                     subtitle = "Quick single-question polls",
-                    comingSoon = false,
                     onClick = onOpenPolls
                 )
             }
@@ -117,7 +110,6 @@ fun ToolsScreen(
                     icon = Icons.Default.CheckCircle,
                     title = "Voting",
                     subtitle = "Vote on options, like where to go for lunch",
-                    comingSoon = false,
                     onClick = onOpenVoting
                 )
             }
@@ -126,17 +118,7 @@ fun ToolsScreen(
                     icon = Icons.Default.CalendarToday,
                     title = "RSVP and Events",
                     subtitle = "Collect RSVPs for an event",
-                    comingSoon = false,
                     onClick = onOpenRsvpEvents
-                )
-            }
-            item {
-                ToolMenuRow(
-                    icon = Icons.Default.ChecklistRtl,
-                    title = "Survey",
-                    subtitle = "Multi-question surveys",
-                    comingSoon = true,
-                    onClick = { onOpenComingSoon("Survey") }
                 )
             }
         }
@@ -144,7 +126,7 @@ fun ToolsScreen(
 }
 
 @Composable
-private fun ToolMenuRow(icon: ImageVector, title: String, subtitle: String, comingSoon: Boolean, onClick: () -> Unit) {
+private fun ToolMenuRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -161,20 +143,7 @@ private fun ToolMenuRow(icon: ImageVector, title: String, subtitle: String, comi
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
-                if (comingSoon) {
-                    Spacer(Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .border(1.dp, BorderGray, RoundedCornerShape(50))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text("Coming soon", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
             Spacer(Modifier.height(2.dp))
             Text(subtitle, color = TextSecondary, fontSize = 12.5.sp)
         }

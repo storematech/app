@@ -60,6 +60,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -73,9 +74,24 @@ import com.quizmaker.android.core.prefs.AppThemeMode
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
+import com.quizmaker.android.core.theme.BrandIndigoLight
 import com.quizmaker.android.core.theme.ErrorRed
 import com.quizmaker.android.core.theme.PoppinsFamily
+import com.quizmaker.android.core.theme.PremiumGoldEnd
+import com.quizmaker.android.core.theme.PremiumGoldStart
 import com.quizmaker.android.core.theme.SaleRedStart
+import com.quizmaker.android.core.theme.StatAmberBg
+import com.quizmaker.android.core.theme.StatAmberIcon
+import com.quizmaker.android.core.theme.StatBlueBg
+import com.quizmaker.android.core.theme.StatBlueIcon
+import com.quizmaker.android.core.theme.StatGreenBg
+import com.quizmaker.android.core.theme.StatGreenIcon
+import com.quizmaker.android.core.theme.StatPurpleBg
+import com.quizmaker.android.core.theme.StatPurpleIcon
+import com.quizmaker.android.core.theme.StatRedBg
+import com.quizmaker.android.core.theme.StatRedIcon
+import com.quizmaker.android.core.theme.StatTealBg
+import com.quizmaker.android.core.theme.StatTealIcon
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
@@ -159,19 +175,19 @@ fun MoreScreen(
                     .fillMaxWidth()
                     .elevatedSurface(shape = RoundedCornerShape(20.dp))
             ) {
-                MoreRow(icon = Icons.Default.Person, label = "My Profile", onClick = onOpenProfile)
+                MoreRow(icon = Icons.Default.Person, label = "My Profile", onClick = onOpenProfile, iconBg = BrandIndigoLight, iconTint = BrandIndigo)
                 RowDivider()
-                MoreRow(icon = Icons.Default.ChatBubbleOutline, label = "Responses", onClick = onOpenResponses)
+                MoreRow(icon = Icons.Default.ChatBubbleOutline, label = "Responses", onClick = onOpenResponses, iconBg = StatBlueBg, iconTint = StatBlueIcon)
                 RowDivider()
-                MoreRow(icon = Icons.Default.Flag, label = "Reported Questions", onClick = onOpenReportedQuestions)
+                MoreRow(icon = Icons.Default.Flag, label = "Reported Questions", onClick = onOpenReportedQuestions, iconBg = StatRedBg, iconTint = StatRedIcon)
                 RowDivider()
-                MoreRow(icon = Icons.AutoMirrored.Filled.MenuBook, label = "Revision", onClick = onOpenRevision)
+                MoreRow(icon = Icons.AutoMirrored.Filled.MenuBook, label = "Revision", onClick = onOpenRevision, iconBg = StatPurpleBg, iconTint = StatPurpleIcon)
                 RowDivider()
-                MoreRow(icon = Icons.Default.School, label = "Classes", onClick = onOpenClasses)
+                MoreRow(icon = Icons.Default.School, label = "Classes", onClick = onOpenClasses, iconBg = StatTealBg, iconTint = StatTealIcon)
                 RowDivider()
-                MoreRow(icon = Icons.Default.Group, label = "Learners", onClick = onOpenLearners)
+                MoreRow(icon = Icons.Default.Group, label = "Learners", onClick = onOpenLearners, iconBg = StatGreenBg, iconTint = StatGreenIcon)
                 RowDivider()
-                MoreRow(icon = Icons.Default.Construction, label = "Tools", onClick = onOpenTools)
+                MoreRow(icon = Icons.Default.Construction, label = "Tools", onClick = onOpenTools, iconBg = StatAmberBg, iconTint = StatAmberIcon)
                 RowDivider()
                 MoreRow(
                     icon = Icons.Default.DarkMode,
@@ -182,13 +198,15 @@ fun MoreScreen(
                 RowDivider()
                 MoreRow(icon = Icons.Default.Settings, label = "Settings", onClick = onOpenSettings)
                 RowDivider()
-                MoreRow(icon = Icons.Default.FileDownload, label = "Import Questions", onClick = onOpenImportQuestions)
+                MoreRow(icon = Icons.Default.FileDownload, label = "Import Questions", onClick = onOpenImportQuestions, iconBg = StatBlueBg, iconTint = StatBlueIcon)
                 RowDivider()
                 MoreRow(
                     icon = Icons.Default.CreditCard,
                     label = "Plans",
                     badge = uiState.activeSale?.let { "SALE DAY" },
-                    onClick = onOpenPricing
+                    onClick = onOpenPricing,
+                    iconTint = Color.White,
+                    iconBrush = Brush.horizontalGradient(listOf(PremiumGoldStart, PremiumGoldEnd))
                 )
             }
 
@@ -204,10 +222,18 @@ fun MoreScreen(
                     label = "Get Help & Support",
                     onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/916364893005")))
-                    }
+                    },
+                    iconBg = StatGreenBg,
+                    iconTint = StatGreenIcon
                 )
                 RowDivider()
-                MoreRow(icon = Icons.AutoMirrored.Filled.HelpOutline, label = "FAQ And Documentation", onClick = onOpenFaq)
+                MoreRow(
+                    icon = Icons.AutoMirrored.Filled.HelpOutline,
+                    label = "FAQ And Documentation",
+                    onClick = onOpenFaq,
+                    iconBg = BrandIndigoLight,
+                    iconTint = BrandIndigo
+                )
                 RowDivider()
                 MoreRow(
                     icon = Icons.Default.PrivacyTip,
@@ -351,17 +377,40 @@ private fun RowDivider() {
     HorizontalDivider(color = BorderGray, thickness = 1.dp)
 }
 
+/**
+ * [iconBg]/[iconTint] default to the same neutral pairing every row used before this became
+ * colorful — pass one of the Stat*Bg/Stat*Icon pairs (or [iconBrush] for a gradient chip, e.g.
+ * Plans' gold) to give a row its own accent, same "colored icon chip" language as Dashboard's
+ * StatTile.
+ */
 @Composable
-private fun MoreRow(icon: ImageVector, label: String, onClick: () -> Unit, badge: String? = null, value: String? = null) {
+private fun MoreRow(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    badge: String? = null,
+    value: String? = null,
+    iconBg: Color = BorderGray,
+    iconTint: Color = TextSecondary,
+    iconBrush: Brush? = null
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(16.dp))
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .then(if (iconBrush != null) Modifier.background(iconBrush) else Modifier.background(iconBg)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(14.dp))
         Text(label, color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 16.sp, modifier = Modifier.weight(1f))
         if (value != null) {
             Text(value, color = TextSecondary, fontSize = 14.sp)

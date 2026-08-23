@@ -6,6 +6,7 @@ import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.FeedbackForm
+import com.quizmaker.android.data.model.FeedbackFormTemplate
 import com.quizmaker.android.data.model.ToolField
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.FeedbackFormRepository
@@ -23,7 +24,9 @@ data class FeedbackFormListUiState(
     val submissionCounts: Map<String, Int> = emptyMap(),
     val isEditSheetOpen: Boolean = false,
     val editingForm: FeedbackForm? = null,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    /** Set only when the create sheet was opened from a template — [editingForm] stays null since this is still a create, not an edit. */
+    val pendingTemplate: FeedbackFormTemplate? = null
 )
 
 /** Powers Tools → Feedback Form — the management list, same shape as OnboardingFormListViewModel. */
@@ -57,15 +60,19 @@ class FeedbackFormListViewModel @Inject constructor(
     }
 
     fun openCreateSheet() {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingForm = null)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingForm = null, pendingTemplate = null)
+    }
+
+    fun openCreateSheetFromTemplate(template: FeedbackFormTemplate) {
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingForm = null, pendingTemplate = template)
     }
 
     fun openEditSheet(form: FeedbackForm) {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingForm = form)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingForm = form, pendingTemplate = null)
     }
 
     fun dismissEditSheet() {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = false, editingForm = null)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = false, editingForm = null, pendingTemplate = null)
     }
 
     fun saveForm(title: String, description: String, questions: List<ToolField>, collectIdentity: Boolean, isActive: Boolean) {

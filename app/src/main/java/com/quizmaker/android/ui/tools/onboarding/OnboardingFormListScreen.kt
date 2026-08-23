@@ -84,6 +84,7 @@ import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.data.model.ONBOARDING_FORM_TEMPLATES
 import com.quizmaker.android.data.model.OnboardingForm
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
@@ -91,6 +92,7 @@ import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.OutlinedPill
+import com.quizmaker.android.ui.common.ToolTemplatesCarousel
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.QrCodeGenerator
 
@@ -129,6 +131,17 @@ fun OnboardingFormListScreen(
                     leadingIcon = Icons.Default.NoteAdd,
                     modifier = Modifier.fillMaxWidth()
                 )
+                // Hides itself once someone has actually created a couple of forms — by then
+                // they've seen how it works and the templates are just taking up space.
+                if (uiState.forms.size < 2) {
+                    Spacer(Modifier.height(20.dp))
+                    ToolTemplatesCarousel(
+                        templates = ONBOARDING_FORM_TEMPLATES,
+                        icon = { it.icon },
+                        label = { it.label },
+                        onSelect = viewModel::openCreateSheetFromTemplate
+                    )
+                }
                 Spacer(Modifier.height(16.dp))
                 uiState.errorMessage?.let {
                     ErrorBanner(message = it, onRetry = viewModel::refresh)
@@ -173,6 +186,7 @@ fun OnboardingFormListScreen(
     if (uiState.isEditSheetOpen) {
         OnboardingFormEditSheet(
             initialForm = uiState.editingForm,
+            initialTemplate = uiState.pendingTemplate,
             isSaving = uiState.isSaving,
             onDismiss = viewModel::dismissEditSheet,
             onSave = viewModel::saveForm

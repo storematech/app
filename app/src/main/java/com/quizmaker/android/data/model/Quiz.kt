@@ -29,6 +29,10 @@ data class Quiz(
     val collectPhone: Boolean,
     val quizColor: String,
     val maxPoints: Double,
+    /** 'none' | 'uniform' | 'per_question' — see quiz_negative_marking_mode.sql. Authoring-time
+     *  metadata only; grading always reads each question's own negative_points. */
+    val negativeMarkingMode: String,
+    val negativeMarkingValue: Double,
     val createdAt: Instant?
 ) {
     val shareUrl: String get() = "${BuildConfig.SHARE_BASE_URL}/take-quiz/$shareId"
@@ -53,7 +57,9 @@ data class NewQuizSpec(
     val collectAddress: Boolean,
     val collectPhone: Boolean,
     val requireOtpVerification: Boolean,
-    val allowMultipleAttempts: Boolean
+    val allowMultipleAttempts: Boolean,
+    val negativeMarkingMode: String,
+    val negativeMarkingValue: Double
 )
 
 fun QuizDto.toDomain(): Quiz = Quiz(
@@ -80,5 +86,7 @@ fun QuizDto.toDomain(): Quiz = Quiz(
     collectPhone = collectPhone ?: false,
     quizColor = quizColor ?: "#8b5cf6",
     maxPoints = maxPoints ?: 0.0,
+    negativeMarkingMode = negativeMarkingMode ?: "none",
+    negativeMarkingValue = negativeMarkingValue ?: 1.0,
     createdAt = createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
 )

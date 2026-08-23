@@ -198,6 +198,8 @@ class QuizRepository @Inject constructor(
                     collectPhone = spec.collectPhone,
                     requireOtpVerification = spec.requireOtpVerification,
                     allowMultipleAttempts = spec.allowMultipleAttempts,
+                    negativeMarkingMode = spec.negativeMarkingMode,
+                    negativeMarkingValue = spec.negativeMarkingValue,
                     shareId = generateShareId()
                 )
             ) { select() }
@@ -256,6 +258,8 @@ class QuizRepository @Inject constructor(
                     collectPhone = spec.collectPhone,
                     requireOtpVerification = spec.requireOtpVerification,
                     allowMultipleAttempts = spec.allowMultipleAttempts,
+                    negativeMarkingMode = spec.negativeMarkingMode,
+                    negativeMarkingValue = spec.negativeMarkingValue,
                     shareId = existing.shareId ?: generateShareId()
                 )
             ) { filter { eq("id", quizId) } }
@@ -318,6 +322,8 @@ class QuizRepository @Inject constructor(
                     collectPhone = original.collectPhone ?: false,
                     requireOtpVerification = original.requireOtpVerification ?: false,
                     allowMultipleAttempts = original.allowMultipleAttempts ?: true,
+                    negativeMarkingMode = original.negativeMarkingMode ?: "none",
+                    negativeMarkingValue = original.negativeMarkingValue ?: 1.0,
                     shareId = generateShareId()
                 )
             ) { select() }

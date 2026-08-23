@@ -49,6 +49,7 @@ import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.OnboardingForm
+import com.quizmaker.android.data.model.OnboardingFormTemplate
 import com.quizmaker.android.data.model.ToolField
 import com.quizmaker.android.data.model.ToolFieldType
 import com.quizmaker.android.ui.common.GradientButton
@@ -63,21 +64,27 @@ private fun defaultFields(): List<ToolField> = listOf(
     ToolField(id = UUID.randomUUID().toString(), label = "Phone number", type = ToolFieldType.PHONE, required = false)
 )
 
-/** "New/Edit Onboarding Form" bottom sheet — [initialForm] null means creating; non-null pre-fills for editing. Owns all its own state and hands the finished values back via [onSave]. */
+/**
+ * "New/Edit Onboarding Form" bottom sheet — [initialForm] null means creating; non-null pre-fills
+ * for editing. [initialTemplate] additionally pre-fills a fresh create (only read when
+ * [initialForm] is null — editing an existing form always takes priority). Owns all its own state
+ * and hands the finished values back via [onSave].
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingFormEditSheet(
     initialForm: OnboardingForm?,
+    initialTemplate: OnboardingFormTemplate? = null,
     isSaving: Boolean,
     onDismiss: () -> Unit,
     onSave: (title: String, description: String, welcomeMessage: String, fields: List<ToolField>, isActive: Boolean) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var title by remember(initialForm) { mutableStateOf(initialForm?.title.orEmpty()) }
-    var description by remember(initialForm) { mutableStateOf(initialForm?.description.orEmpty()) }
-    var welcomeMessage by remember(initialForm) { mutableStateOf(initialForm?.welcomeMessage.orEmpty()) }
-    var fields by remember(initialForm) { mutableStateOf(initialForm?.fields ?: defaultFields()) }
-    var isActive by remember(initialForm) { mutableStateOf(initialForm?.isActive ?: true) }
+    var title by remember(initialForm, initialTemplate) { mutableStateOf(initialForm?.title ?: initialTemplate?.title.orEmpty()) }
+    var description by remember(initialForm, initialTemplate) { mutableStateOf(initialForm?.description ?: initialTemplate?.description.orEmpty()) }
+    var welcomeMessage by remember(initialForm, initialTemplate) { mutableStateOf(initialForm?.welcomeMessage ?: initialTemplate?.welcomeMessage.orEmpty()) }
+    var fields by remember(initialForm, initialTemplate) { mutableStateOf(initialForm?.fields ?: initialTemplate?.fields ?: defaultFields()) }
+    var isActive by remember(initialForm, initialTemplate) { mutableStateOf(initialForm?.isActive ?: true) }
     val isEditing = initialForm != null
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {

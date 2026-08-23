@@ -55,6 +55,7 @@ import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.RsvpEvent
+import com.quizmaker.android.data.model.RsvpEventTemplate
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.util.formatDateTime
 import com.quizmaker.android.util.formatShortDate
@@ -66,24 +67,30 @@ import kotlinx.datetime.atTime
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
-/** "New/Edit Event" bottom sheet — [initialEvent] null means creating; non-null pre-fills for editing. Same shape as PollEditSheet/VotingEditSheet, but flatter — no dynamic field/candidate array for this tool. */
+/**
+ * "New/Edit Event" bottom sheet — [initialEvent] null means creating; non-null pre-fills for editing.
+ * [initialTemplate] additionally pre-fills a fresh create (not `eventDate` — see RsvpEventTemplate's
+ * own doc for why). Same shape as PollEditSheet/VotingEditSheet, but flatter — no dynamic
+ * field/candidate array for this tool.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RsvpEventEditSheet(
     initialEvent: RsvpEvent?,
+    initialTemplate: RsvpEventTemplate? = null,
     isSaving: Boolean,
     onDismiss: () -> Unit,
     onSave: (title: String, description: String, location: String, eventDate: String?, capacity: Int?, rsvpDeadline: String?, allowGuests: Boolean, isActive: Boolean) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var title by remember(initialEvent) { mutableStateOf(initialEvent?.title.orEmpty()) }
-    var description by remember(initialEvent) { mutableStateOf(initialEvent?.description.orEmpty()) }
-    var location by remember(initialEvent) { mutableStateOf(initialEvent?.location.orEmpty()) }
+    var title by remember(initialEvent, initialTemplate) { mutableStateOf(initialEvent?.title ?: initialTemplate?.title.orEmpty()) }
+    var description by remember(initialEvent, initialTemplate) { mutableStateOf(initialEvent?.description ?: initialTemplate?.description.orEmpty()) }
+    var location by remember(initialEvent, initialTemplate) { mutableStateOf(initialEvent?.location ?: initialTemplate?.location.orEmpty()) }
     var eventDate by remember(initialEvent) { mutableStateOf(initialEvent?.eventDate) }
     var capacityText by remember(initialEvent) { mutableStateOf(initialEvent?.capacity?.toString().orEmpty()) }
     var hasDeadline by remember(initialEvent) { mutableStateOf(initialEvent?.rsvpDeadline != null) }
     var rsvpDeadline by remember(initialEvent) { mutableStateOf(initialEvent?.rsvpDeadline) }
-    var allowGuests by remember(initialEvent) { mutableStateOf(initialEvent?.allowGuests ?: false) }
+    var allowGuests by remember(initialEvent, initialTemplate) { mutableStateOf(initialEvent?.allowGuests ?: initialTemplate?.allowGuests ?: false) }
     var isActive by remember(initialEvent) { mutableStateOf(initialEvent?.isActive ?: true) }
     val isEditing = initialEvent != null
 

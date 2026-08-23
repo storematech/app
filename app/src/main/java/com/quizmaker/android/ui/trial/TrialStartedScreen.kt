@@ -41,7 +41,7 @@ import com.quizmaker.android.ui.common.SuccessCheckmark
 import com.quizmaker.android.ui.common.elevatedSurface
 
 /**
- * One-time congrats interstitial the moment a free account's 7-day trial begins. "Start Journey"
+ * One-time congrats interstitial the moment a free account's 3-day trial begins. "Start Journey"
  * plays a brief transition (reusing [AppLoadingScreen]'s branding) before handing off to
  * [onStartJourney], which the nav graph points at the AI tab rather than Dashboard.
  */
@@ -118,7 +118,7 @@ private fun FounderMessageCard() {
         Spacer(Modifier.height(4.dp))
         Text(
             "We built Yuno LMS because great assessment tools shouldn't be locked behind an " +
-                "unaffordable price tag. Try everything free for 7 days — if you love it and can " +
+                "unaffordable price tag. Try everything free for 3 days — if you love it and can " +
                 "support us, we'd be grateful. If not, you can keep creating quizzes on our free plan, always.",
             color = TextPrimary,
             fontSize = 13.sp,

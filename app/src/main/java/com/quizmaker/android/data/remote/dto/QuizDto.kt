@@ -33,6 +33,8 @@ data class QuizDto(
     @SerialName("allow_multiple_attempts") val allowMultipleAttempts: Boolean? = null,
     @SerialName("trainer_id") val trainerId: String? = null,
     @SerialName("max_points") val maxPoints: Double? = null,
+    @SerialName("negative_marking_mode") val negativeMarkingMode: String? = null,
+    @SerialName("negative_marking_value") val negativeMarkingValue: Double? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )
@@ -70,5 +72,7 @@ data class QuizInsertDto(
     @SerialName("collect_phone") val collectPhone: Boolean,
     @SerialName("require_otp_verification") val requireOtpVerification: Boolean,
     @SerialName("allow_multiple_attempts") val allowMultipleAttempts: Boolean,
+    @SerialName("negative_marking_mode") val negativeMarkingMode: String,
+    @SerialName("negative_marking_value") val negativeMarkingValue: Double,
     @SerialName("share_id") val shareId: String
 )

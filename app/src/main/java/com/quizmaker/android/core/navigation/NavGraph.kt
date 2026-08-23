@@ -88,7 +88,6 @@ import com.quizmaker.android.ui.tools.voting.VotingListScreen
 import com.quizmaker.android.ui.tools.voting.VotingResultsScreen
 import com.quizmaker.android.ui.common.AlertHost
 import com.quizmaker.android.ui.common.AppLoadingScreen
-import com.quizmaker.android.ui.common.ComingSoonScreen
 import com.quizmaker.android.ui.dashboard.DashboardScreen
 import com.quizmaker.android.ui.faq.FaqScreen
 import com.quizmaker.android.ui.importquestions.ImportQuestionsScreen
@@ -475,8 +474,7 @@ fun QuizMakerNavGraph(
                     onOpenFeedbackForms = { navController.navigate(Screen.FeedbackForms.route) },
                     onOpenPolls = { navController.navigate(Screen.Polls.route) },
                     onOpenVoting = { navController.navigate(Screen.Voting.route) },
-                    onOpenRsvpEvents = { navController.navigate(Screen.RsvpEvents.route) },
-                    onOpenComingSoon = { title -> navController.navigate(Screen.ComingSoon.createRoute(title)) }
+                    onOpenRsvpEvents = { navController.navigate(Screen.RsvpEvents.route) }
                 )
             }
             composable(Screen.OnboardingForms.route) {
@@ -532,13 +530,6 @@ fun QuizMakerNavGraph(
             }
             composable(Screen.Pricing.route) {
                 PricingScreen(onNavigateBack = { navController.popBackStack() })
-            }
-            composable(
-                route = Screen.ComingSoon.route,
-                arguments = listOf(navArgument("title") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val title = backStackEntry.arguments?.getString("title") ?: "Coming soon"
-                ComingSoonScreen(title = title, onNavigateBack = { navController.popBackStack() })
             }
             composable(
                 route = Screen.CreateQuiz.route,

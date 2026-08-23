@@ -54,6 +54,11 @@ data class CreateQuizUiState(
     val timeLimitMinutes: Int = 5,
     val timePerQuestionSeconds: Int = 30,
     val shuffleQuestions: Boolean = false,
+    /** 'none' | 'uniform' | 'per_question' — see quiz_negative_marking_mode.sql. */
+    val negativeMarkingMode: String = "none",
+    /** Only meaningful in 'uniform' mode — the deduction pre-filled into every question added
+     *  to this quiz while it's selected. */
+    val negativeMarkingValue: Double = 1.0,
 
     // Step 2: questions
     val questionBank: List<Question> = emptyList(),
@@ -155,6 +160,8 @@ class CreateQuizViewModel @Inject constructor(
                         timeLimitMinutes = quiz.timeLimit ?: _uiState.value.timeLimitMinutes,
                         timePerQuestionSeconds = quiz.timePerQuestion ?: _uiState.value.timePerQuestionSeconds,
                         shuffleQuestions = quiz.shuffleQuestions,
+                        negativeMarkingMode = quiz.negativeMarkingMode,
+                        negativeMarkingValue = quiz.negativeMarkingValue,
                         selectedQuestionIds = questionsResult.data.map { it.id },
                         showResults = quiz.showResults,
                         sendResultEmail = quiz.sendResultEmail,
@@ -220,6 +227,20 @@ class CreateQuizViewModel @Inject constructor(
     fun onTimePerQuestionChange(value: Int) { _uiState.value = _uiState.value.copy(timePerQuestionSeconds = value) }
     fun onShuffleChange(value: Boolean) { _uiState.value = _uiState.value.copy(shuffleQuestions = value) }
 
+    /** Toggling this off always clears back to 'none'; toggling on defaults to 'uniform' (the
+     *  simpler of the two systems) rather than leaving the mode ambiguous. */
+    fun onNegativeMarkingEnabledChange(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(negativeMarkingMode = if (enabled) "uniform" else "none")
+    }
+
+    fun onNegativeMarkingModeChange(mode: String) {
+        _uiState.value = _uiState.value.copy(negativeMarkingMode = mode)
+    }
+
+    fun onNegativeMarkingValueChange(value: Double) {
+        _uiState.value = _uiState.value.copy(negativeMarkingValue = value)
+    }
+
     // ---- Step 2 ----
     fun onQuestionSearchChange(query: String) {
         _uiState.value = _uiState.value.copy(questionSearchQuery = query)
@@ -240,7 +261,12 @@ class CreateQuizViewModel @Inject constructor(
     }
 
     fun startNewQuestionDraft() {
-        _uiState.value = _uiState.value.copy(questionDraft = NewQuestionDraft())
+        val state = _uiState.value
+        // Uniform mode: every question added to this quiz starts pre-marked with the quiz's
+        // chosen deduction (still editable per question). Per-question/none mode: same blank
+        // starting point as today — see NewQuestionSheet's reminder banner for per_question.
+        val negativePoints = if (state.negativeMarkingMode == "uniform") state.negativeMarkingValue else 0.0
+        _uiState.value = state.copy(questionDraft = NewQuestionDraft(negativePoints = negativePoints))
     }
 
     fun cancelNewQuestionDraft() {
@@ -339,7 +365,9 @@ class CreateQuizViewModel @Inject constructor(
                 collectAddress = state.collectAddress,
                 collectPhone = state.collectPhone,
                 requireOtpVerification = state.requireOtpVerification,
-                allowMultipleAttempts = state.allowMultipleAttempts
+                allowMultipleAttempts = state.allowMultipleAttempts,
+                negativeMarkingMode = state.negativeMarkingMode,
+                negativeMarkingValue = state.negativeMarkingValue
             )
 
             val result = if (editQuizId != null) {

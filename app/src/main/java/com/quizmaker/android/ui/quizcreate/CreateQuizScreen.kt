@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Checkbox
@@ -344,6 +345,55 @@ private fun DetailsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewMod
             )
         }
     }
+
+    SectionCard(title = "Negative Marking") {
+        SettingsRow(label = "Enable negative marking") {
+            Switch(
+                checked = uiState.negativeMarkingMode != "none",
+                onCheckedChange = viewModel::onNegativeMarkingEnabledChange,
+                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = BrandIndigo)
+            )
+        }
+        if (uiState.negativeMarkingMode != "none") {
+            Spacer(Modifier.height(14.dp))
+            SegmentedToggle(
+                options = listOf("Same for all questions" to "uniform", "Set per question" to "per_question"),
+                selected = uiState.negativeMarkingMode,
+                onSelect = viewModel::onNegativeMarkingModeChange
+            )
+            Spacer(Modifier.height(14.dp))
+            if (uiState.negativeMarkingMode == "uniform") {
+                Text("Deduct on every wrong answer", color = TextSecondary, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+                PointsStepper(
+                    label = "Negative points",
+                    value = uiState.negativeMarkingValue,
+                    onValueChange = viewModel::onNegativeMarkingValueChange,
+                    minValue = 0.25
+                )
+            } else {
+                InfoAlert("You'll set how many points to deduct for each question individually when adding it.")
+            }
+        }
+    }
+}
+
+/** Light-indigo info banner — same "you need to do something" nudge used for the per-question
+ *  negative marking reminder, kept generic enough to reuse elsewhere in this screen if needed. */
+@Composable
+private fun InfoAlert(message: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(BrandIndigoLight)
+            .padding(14.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(Icons.Default.Info, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(message, color = TextPrimary, fontSize = 13.sp, lineHeight = 18.sp)
+    }
 }
 
 @Composable
@@ -450,6 +500,7 @@ private fun QuestionsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewM
     uiState.questionDraft?.let {
         NewQuestionSheet(
             draft = it,
+            negativeMarkingMode = uiState.negativeMarkingMode,
             isSaving = uiState.isSavingQuestion,
             onUpdate = viewModel::updateDraft,
             onDismiss = viewModel::cancelNewQuestionDraft,
@@ -515,6 +566,7 @@ private fun SelectionTick(isSelected: Boolean) {
 @Composable
 private fun NewQuestionSheet(
     draft: NewQuestionDraft,
+    negativeMarkingMode: String,
     isSaving: Boolean,
     onUpdate: ((NewQuestionDraft) -> NewQuestionDraft) -> Unit,
     onDismiss: () -> Unit,
@@ -673,10 +725,16 @@ private fun NewQuestionSheet(
                 Switch(
                     checked = draft.negativePoints > 0,
                     onCheckedChange = { enabled ->
-                        onUpdate { d -> d.copy(negativePoints = if (enabled) 0.25 else 0.0) }
+                        onUpdate { d -> d.copy(negativePoints = if (enabled) d.points else 0.0) }
                     },
                     colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = BrandIndigo)
                 )
+            }
+            // The quiz is set to "Set per question" — nudge that this specific question still
+            // needs its own value, since there's no quiz-wide default to fall back on here.
+            if (negativeMarkingMode == "per_question" && draft.negativePoints <= 0) {
+                Spacer(Modifier.height(10.dp))
+                InfoAlert("This quiz uses per-question negative marking — set how many points to deduct for this question.")
             }
             if (draft.negativePoints > 0) {
                 Spacer(Modifier.height(8.dp))

@@ -6,6 +6,7 @@ import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.RsvpEvent
+import com.quizmaker.android.data.model.RsvpEventTemplate
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.RsvpRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,7 +23,9 @@ data class RsvpEventListUiState(
     val registrationCounts: Map<String, Int> = emptyMap(),
     val isEditSheetOpen: Boolean = false,
     val editingEvent: RsvpEvent? = null,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    /** Set only when the create sheet was opened from a template — [editingEvent] stays null since this is still a create, not an edit. */
+    val pendingTemplate: RsvpEventTemplate? = null
 )
 
 /** Powers Tools → RSVP and Events — the management list, same shape as PollListViewModel/VotingListViewModel. */
@@ -56,15 +59,19 @@ class RsvpEventListViewModel @Inject constructor(
     }
 
     fun openCreateSheet() {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingEvent = null)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingEvent = null, pendingTemplate = null)
+    }
+
+    fun openCreateSheetFromTemplate(template: RsvpEventTemplate) {
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingEvent = null, pendingTemplate = template)
     }
 
     fun openEditSheet(event: RsvpEvent) {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingEvent = event)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingEvent = event, pendingTemplate = null)
     }
 
     fun dismissEditSheet() {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = false, editingEvent = null)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = false, editingEvent = null, pendingTemplate = null)
     }
 
     fun saveEvent(

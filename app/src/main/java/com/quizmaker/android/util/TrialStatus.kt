@@ -4,9 +4,9 @@ import com.quizmaker.android.data.model.Profile
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-private const val TRIAL_DAYS = 7
+private const val TRIAL_DAYS = 3
 
-/** Where a non-premium account stands in its 7-day trial — the single source of truth used by
+/** Where a non-premium account stands in its 3-day trial — the single source of truth used by
  *  every screen that shows trial messaging or gates an action. */
 sealed class TrialStatus {
     /** Paid plan — no trial concept applies. */
@@ -21,9 +21,9 @@ sealed class TrialStatus {
 }
 
 /**
- * 7 days from account creation (`profiles.created_at`). No separate trial-start column exists —
+ * 3 days from account creation (`profiles.created_at`). No separate trial-start column exists —
  * see the trial plan doc for why (avoids a Supabase migration; means pre-existing free accounts
- * older than 7 days land straight on Expired the moment this ships, only fresh signups get Active).
+ * older than 3 days land straight on Expired the moment this ships, only fresh signups get Active).
  * A missing/unparseable createdAt fails closed to Expired rather than granting an indefinite trial.
  */
 fun Profile.trialStatus(now: Instant = Clock.System.now()): TrialStatus {

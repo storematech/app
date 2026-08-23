@@ -7,6 +7,7 @@ import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Candidate
 import com.quizmaker.android.data.model.VotingCampaign
+import com.quizmaker.android.data.model.VotingTemplate
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.VotingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +24,9 @@ data class VotingListUiState(
     val voteCounts: Map<String, Int> = emptyMap(),
     val isEditSheetOpen: Boolean = false,
     val editingCampaign: VotingCampaign? = null,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    /** Set only when the create sheet was opened from a template — [editingCampaign] stays null since this is still a create, not an edit. */
+    val pendingTemplate: VotingTemplate? = null
 )
 
 /** Powers Tools → Voting — the management list, same shape as PollListViewModel. */
@@ -57,15 +60,19 @@ class VotingListViewModel @Inject constructor(
     }
 
     fun openCreateSheet() {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingCampaign = null)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingCampaign = null, pendingTemplate = null)
+    }
+
+    fun openCreateSheetFromTemplate(template: VotingTemplate) {
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingCampaign = null, pendingTemplate = template)
     }
 
     fun openEditSheet(campaign: VotingCampaign) {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingCampaign = campaign)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingCampaign = campaign, pendingTemplate = null)
     }
 
     fun dismissEditSheet() {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = false, editingCampaign = null)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = false, editingCampaign = null, pendingTemplate = null)
     }
 
     fun saveCampaign(

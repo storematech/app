@@ -33,9 +33,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,7 +42,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,12 +53,18 @@ import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.QrCodeGenerator
+import com.quizmaker.android.util.QrFlyerPdfExporter
+import kotlinx.coroutines.launch
 
 /**
- * "Share Quiz" bottom sheet: a prominent share-code card plus the full link, QR, native share,
- * and a link out to Master Paper (the PDF export screen — answer key / without answers / offline
- * exam paper). [onOpenMasterPaper] is null to hide that row entirely for callers that don't have
- * a Master Paper destination wired up.
+ * "Share Quiz" bottom sheet: the full link plus its QR code, native share, a printable QR flyer
+ * (PDF) export, and a link out to Master Paper (the PDF export screen — answer key / without
+ * answers / offline exam paper). [onOpenMasterPaper] is null to hide that row entirely for callers
+ * that don't have a Master Paper destination wired up. [getPdfBranding] supplies the account's
+ * letterhead/report design for the printable QR PDF — defaults to no branding for callers that
+ * haven't wired one up.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,12 +72,13 @@ fun ShareQuizSheet(
     quizTitle: String,
     shareUrl: String,
     onDismiss: () -> Unit,
-    onOpenMasterPaper: (() -> Unit)? = null
+    onOpenMasterPaper: (() -> Unit)? = null,
+    getPdfBranding: suspend () -> PdfBranding = { PdfBranding.NONE }
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    var showQr by remember { mutableStateOf(false) }
-    val shareCode = shareUrl.substringAfterLast("/").uppercase()
+    val scope = rememberCoroutineScope()
+    val qrBitmap = remember(shareUrl) { QrCodeGenerator.generate(shareUrl) }
 
     // skipPartiallyExpanded: opens at full content height right away instead of a half-height
     // sheet the user has to drag up first just to reach the Share Link/Done buttons below the
@@ -106,31 +111,20 @@ fun ShareQuizSheet(
             }
             Spacer(Modifier.height(20.dp))
 
-            // Share code card — the short, easy-to-read-aloud code, front and center.
-            Column(
+            // QR code — front and center, front-facing so it can be scanned straight off the sheet.
+            Image(
+                bitmap = qrBitmap.asImageBitmap(),
+                contentDescription = "QR code linking to this quiz",
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .elevatedSurface(shape = RoundedCornerShape(18.dp), elevation = 0.dp, color = BrandIndigoLight)
-                    .padding(18.dp)
-            ) {
-                Text("SHARE CODE", color = BrandIndigo, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        shareCode,
-                        color = TextPrimary,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp,
-                        modifier = Modifier.weight(1f)
-                    )
-                    CopyIconButton { clipboardManager.setText(AnnotatedString(shareCode)) }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
+                    .size(180.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, BorderGray, RoundedCornerShape(16.dp))
+                    .padding(12.dp)
+            )
+            Spacer(Modifier.height(16.dp))
 
-            // Full link row — same code, expressed as the URL learners actually open.
+            // Full link row — the URL learners actually open, and the same link the QR points to.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -149,39 +143,39 @@ fun ShareQuizSheet(
                 )
                 Spacer(Modifier.width(8.dp))
                 CopyIconButton { clipboardManager.setText(AnnotatedString(shareUrl)) }
-                Spacer(Modifier.width(4.dp))
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable { showQr = !showQr },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.QrCode2, contentDescription = "Show QR code", tint = BrandIndigo, modifier = Modifier.size(18.dp))
-                }
-            }
-
-            if (showQr) {
-                Spacer(Modifier.height(16.dp))
-                val qrBitmap = remember(shareUrl) { com.quizmaker.android.util.QrCodeGenerator.generate(shareUrl) }
-                Image(
-                    bitmap = qrBitmap.asImageBitmap(),
-                    contentDescription = "QR code linking to this quiz",
-                    modifier = Modifier
-                        .size(180.dp)
-                        .align(Alignment.CenterHorizontally)
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(1.dp, BorderGray, RoundedCornerShape(16.dp))
-                        .padding(12.dp)
-                )
             }
 
             Spacer(Modifier.height(16.dp))
             Text(
-                "Anyone with this code or link can take the quiz without needing to log in",
+                "Anyone with this link or QR code can take the quiz without needing to log in",
                 color = TextSecondary,
                 fontSize = 13.sp
             )
+
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .border(1.dp, BorderGray, RoundedCornerShape(14.dp))
+                    .clickable {
+                        scope.launch {
+                            val branding = getPdfBranding()
+                            val intent = QrFlyerPdfExporter.export(context, quizTitle, shareUrl, qrBitmap, branding)
+                            context.startActivity(Intent.createChooser(intent, "Export"))
+                        }
+                    }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.QrCode2, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Printable Quiz QR (PDF)", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("A print-ready flyer with the QR code and link", color = TextSecondary, fontSize = 11.5.sp)
+                }
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextSecondary)
+            }
 
             if (onOpenMasterPaper != null) {
                 Spacer(Modifier.height(16.dp))

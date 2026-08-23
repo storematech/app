@@ -9,6 +9,8 @@ import com.quizmaker.android.data.model.QuizAiSummary
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuizAiSummaryRepository
 import com.quizmaker.android.repository.QuizRepository
+import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfBrandingProvider
 import com.quizmaker.android.util.TrialStatus
 import com.quizmaker.android.util.trialStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -54,7 +56,8 @@ class QuizListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val quizRepository: QuizRepository,
     private val quizAiSummaryRepository: QuizAiSummaryRepository,
-    private val analyticsLogger: AnalyticsLogger
+    private val analyticsLogger: AnalyticsLogger,
+    private val pdfBrandingProvider: PdfBrandingProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(QuizListUiState())
@@ -240,4 +243,6 @@ class QuizListViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 }

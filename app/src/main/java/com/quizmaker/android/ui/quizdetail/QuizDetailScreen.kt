@@ -120,7 +120,8 @@ fun QuizDetailScreen(
             onOpenMasterPaper = {
                 showShareSheet = false
                 onOpenMasterPaper(uiState.quiz!!.id)
-            }
+            },
+            getPdfBranding = viewModel::getPdfBranding
         )
     }
 

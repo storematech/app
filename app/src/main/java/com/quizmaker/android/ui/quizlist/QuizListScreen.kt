@@ -299,7 +299,8 @@ fun QuizListScreen(
             onOpenMasterPaper = {
                 quizPendingShare = null
                 onOpenMasterPaper(quiz.id)
-            }
+            },
+            getPdfBranding = viewModel::getPdfBranding
         )
     }
 

@@ -41,10 +41,6 @@ sealed class Screen(val route: String) {
         fun createRoute(quizId: String) = "edit_quiz/$quizId"
     }
 
-    data object ComingSoon : Screen("coming_soon/{title}") {
-        fun createRoute(title: String) = "coming_soon/$title"
-    }
-
     data object Leaderboard : Screen("leaderboard/{quizId}") {
         fun createRoute(quizId: String) = "leaderboard/$quizId"
     }

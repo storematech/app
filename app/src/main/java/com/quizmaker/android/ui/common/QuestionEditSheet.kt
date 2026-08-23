@@ -265,8 +265,11 @@ fun QuestionEditSheet(
                     onCheckedChange = { enabled ->
                         // Turning it off clears the value (rather than hiding a stale nonzero
                         // amount) so the DB row always reflects reality: negative_points > 0 IS
-                        // the "enabled" flag, there's no separate boolean column.
-                        onUpdateDraft { d -> d.copy(negativePoints = if (enabled) 0.25 else 0.0) }
+                        // the "enabled" flag, there's no separate boolean column. Defaults the
+                        // penalty to the question's own points (full deduction on a wrong answer)
+                        // rather than an arbitrary fixed amount — points is always >= 0.25 via its
+                        // own PointsStepper, so this never lands below the negative stepper's floor.
+                        onUpdateDraft { d -> d.copy(negativePoints = if (enabled) d.points else 0.0) }
                     },
                     colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = BrandIndigo)
                 )

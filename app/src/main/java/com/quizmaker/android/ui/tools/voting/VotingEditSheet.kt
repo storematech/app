@@ -47,6 +47,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.Candidate
 import com.quizmaker.android.data.model.VotingCampaign
+import com.quizmaker.android.data.model.VotingTemplate
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.formatShortDate
@@ -63,21 +64,23 @@ private fun defaultCandidates(): List<Candidate> = listOf(
 
 /**
  * "New/Edit Voting Campaign" bottom sheet — [initialCampaign] null means creating; non-null pre-fills
- * for editing. Same shape as PollEditSheet. Candidate `bio` isn't exposed here (kept null on create,
- * preserved as-is on edit) — a rarely-needed field for a mobile management screen; add a UI for it
- * later if teachers ask.
+ * for editing. [initialTemplate] additionally pre-fills title/description on a fresh create — see
+ * VotingTemplate's own doc for why candidates aren't templated. Same shape as PollEditSheet.
+ * Candidate `bio` isn't exposed here (kept null on create, preserved as-is on edit) — a rarely-needed
+ * field for a mobile management screen; add a UI for it later if teachers ask.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VotingEditSheet(
     initialCampaign: VotingCampaign?,
+    initialTemplate: VotingTemplate? = null,
     isSaving: Boolean,
     onDismiss: () -> Unit,
     onSave: (title: String, description: String, candidates: List<Candidate>, requireEmail: Boolean, opensAt: String?, closesAt: String?, showResults: Boolean, isActive: Boolean) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var title by remember(initialCampaign) { mutableStateOf(initialCampaign?.title.orEmpty()) }
-    var description by remember(initialCampaign) { mutableStateOf(initialCampaign?.description.orEmpty()) }
+    var title by remember(initialCampaign, initialTemplate) { mutableStateOf(initialCampaign?.title ?: initialTemplate?.title.orEmpty()) }
+    var description by remember(initialCampaign, initialTemplate) { mutableStateOf(initialCampaign?.description ?: initialTemplate?.description.orEmpty()) }
     var candidates by remember(initialCampaign) { mutableStateOf(initialCampaign?.candidates ?: defaultCandidates()) }
     var requireEmail by remember(initialCampaign) { mutableStateOf(initialCampaign?.requireEmail ?: true) }
     var showResults by remember(initialCampaign) { mutableStateOf(initialCampaign?.showResults ?: false) }

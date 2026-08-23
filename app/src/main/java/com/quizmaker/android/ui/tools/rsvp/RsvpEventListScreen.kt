@@ -84,12 +84,14 @@ import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.data.model.RSVP_EVENT_TEMPLATES
 import com.quizmaker.android.data.model.RsvpEvent
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
+import com.quizmaker.android.ui.common.ToolTemplatesCarousel
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.QrCodeGenerator
@@ -130,6 +132,15 @@ fun RsvpEventListScreen(
                     leadingIcon = Icons.Default.NoteAdd,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (uiState.events.size < 2) {
+                    Spacer(Modifier.height(20.dp))
+                    ToolTemplatesCarousel(
+                        templates = RSVP_EVENT_TEMPLATES,
+                        icon = { it.icon },
+                        label = { it.label },
+                        onSelect = viewModel::openCreateSheetFromTemplate
+                    )
+                }
                 Spacer(Modifier.height(16.dp))
                 uiState.errorMessage?.let {
                     ErrorBanner(message = it, onRetry = viewModel::refresh)
@@ -174,6 +185,7 @@ fun RsvpEventListScreen(
     if (uiState.isEditSheetOpen) {
         RsvpEventEditSheet(
             initialEvent = uiState.editingEvent,
+            initialTemplate = uiState.pendingTemplate,
             isSaving = uiState.isSaving,
             onDismiss = viewModel::dismissEditSheet,
             onSave = viewModel::saveEvent

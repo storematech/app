@@ -7,6 +7,7 @@ import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Poll
 import com.quizmaker.android.data.model.PollOption
+import com.quizmaker.android.data.model.PollTemplate
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.PollRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +24,9 @@ data class PollListUiState(
     val voteCounts: Map<String, Int> = emptyMap(),
     val isEditSheetOpen: Boolean = false,
     val editingPoll: Poll? = null,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    /** Set only when the create sheet was opened from a template — [editingPoll] stays null since this is still a create, not an edit. */
+    val pendingTemplate: PollTemplate? = null
 )
 
 /** Powers Tools → Poll — the management list, same shape as OnboardingFormListViewModel/FeedbackFormListViewModel. */
@@ -57,15 +60,19 @@ class PollListViewModel @Inject constructor(
     }
 
     fun openCreateSheet() {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingPoll = null)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingPoll = null, pendingTemplate = null)
+    }
+
+    fun openCreateSheetFromTemplate(template: PollTemplate) {
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingPoll = null, pendingTemplate = template)
     }
 
     fun openEditSheet(poll: Poll) {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingPoll = poll)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingPoll = poll, pendingTemplate = null)
     }
 
     fun dismissEditSheet() {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = false, editingPoll = null)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = false, editingPoll = null, pendingTemplate = null)
     }
 
     fun savePoll(

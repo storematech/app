@@ -6,6 +6,7 @@ import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.OnboardingForm
+import com.quizmaker.android.data.model.OnboardingFormTemplate
 import com.quizmaker.android.data.model.ToolField
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.OnboardingFormRepository
@@ -23,7 +24,9 @@ data class OnboardingFormListUiState(
     val submissionCounts: Map<String, Int> = emptyMap(),
     val isEditSheetOpen: Boolean = false,
     val editingForm: OnboardingForm? = null,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    /** Set only when the create sheet was opened from a template — [editingForm] stays null since this is still a create, not an edit. */
+    val pendingTemplate: OnboardingFormTemplate? = null
 )
 
 /** Powers Tools → Onboarding Form — the management list, same shape as ClassListViewModel/QuizListViewModel. */
@@ -57,15 +60,19 @@ class OnboardingFormListViewModel @Inject constructor(
     }
 
     fun openCreateSheet() {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingForm = null)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingForm = null, pendingTemplate = null)
+    }
+
+    fun openCreateSheetFromTemplate(template: OnboardingFormTemplate) {
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingForm = null, pendingTemplate = template)
     }
 
     fun openEditSheet(form: OnboardingForm) {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingForm = form)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = true, editingForm = form, pendingTemplate = null)
     }
 
     fun dismissEditSheet() {
-        _uiState.value = _uiState.value.copy(isEditSheetOpen = false, editingForm = null)
+        _uiState.value = _uiState.value.copy(isEditSheetOpen = false, editingForm = null, pendingTemplate = null)
     }
 
     fun saveForm(title: String, description: String, welcomeMessage: String, fields: List<ToolField>, isActive: Boolean) {

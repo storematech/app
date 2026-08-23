@@ -47,6 +47,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.Poll
 import com.quizmaker.android.data.model.PollOption
+import com.quizmaker.android.data.model.PollTemplate
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.util.formatShortDate
 import java.util.UUID
@@ -60,20 +61,31 @@ private fun defaultOptions(): List<PollOption> = listOf(
     PollOption(id = UUID.randomUUID().toString(), label = "")
 )
 
-/** "New/Edit Poll" bottom sheet — [initialPoll] null means creating; non-null pre-fills for editing. Same shape as OnboardingFormEditSheet/FeedbackFormEditSheet. */
+/**
+ * "New/Edit Poll" bottom sheet — [initialPoll] null means creating; non-null pre-fills for editing.
+ * [initialTemplate] additionally pre-fills a fresh create. Same shape as
+ * OnboardingFormEditSheet/FeedbackFormEditSheet.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PollEditSheet(
     initialPoll: Poll?,
+    initialTemplate: PollTemplate? = null,
     isSaving: Boolean,
     onDismiss: () -> Unit,
     onSave: (question: String, description: String, options: List<PollOption>, allowMultiple: Boolean, showResults: Boolean, closesAt: String?, isActive: Boolean) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var question by remember(initialPoll) { mutableStateOf(initialPoll?.question.orEmpty()) }
-    var description by remember(initialPoll) { mutableStateOf(initialPoll?.description.orEmpty()) }
-    var options by remember(initialPoll) { mutableStateOf(initialPoll?.options ?: defaultOptions()) }
-    var allowMultiple by remember(initialPoll) { mutableStateOf(initialPoll?.allowMultiple ?: false) }
+    var question by remember(initialPoll, initialTemplate) { mutableStateOf(initialPoll?.question ?: initialTemplate?.question.orEmpty()) }
+    var description by remember(initialPoll, initialTemplate) { mutableStateOf(initialPoll?.description ?: initialTemplate?.description.orEmpty()) }
+    var options by remember(initialPoll, initialTemplate) {
+        mutableStateOf(
+            initialPoll?.options
+                ?: initialTemplate?.options?.map { PollOption(id = UUID.randomUUID().toString(), label = it) }
+                ?: defaultOptions()
+        )
+    }
+    var allowMultiple by remember(initialPoll, initialTemplate) { mutableStateOf(initialPoll?.allowMultiple ?: initialTemplate?.allowMultiple ?: false) }
     var showResults by remember(initialPoll) { mutableStateOf(initialPoll?.showResults ?: true) }
     var hasDeadline by remember(initialPoll) { mutableStateOf(initialPoll?.closesAt != null) }
     var closesAt by remember(initialPoll) { mutableStateOf(initialPoll?.closesAt) }

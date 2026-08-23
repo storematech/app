@@ -49,6 +49,7 @@ import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.FeedbackForm
+import com.quizmaker.android.data.model.FeedbackFormTemplate
 import com.quizmaker.android.data.model.ToolField
 import com.quizmaker.android.data.model.ToolFieldType
 import com.quizmaker.android.ui.common.GradientButton
@@ -62,19 +63,23 @@ private fun defaultQuestions(): List<ToolField> = listOf(
     ToolField(id = UUID.randomUUID().toString(), label = "What could we improve?", type = ToolFieldType.LONG_TEXT, required = false)
 )
 
-/** "New/Edit Feedback Form" bottom sheet — [initialForm] null means creating; non-null pre-fills for editing. Same shape as OnboardingFormEditSheet. */
+/**
+ * "New/Edit Feedback Form" bottom sheet — [initialForm] null means creating; non-null pre-fills for
+ * editing. [initialTemplate] additionally pre-fills a fresh create. Same shape as OnboardingFormEditSheet.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedbackFormEditSheet(
     initialForm: FeedbackForm?,
+    initialTemplate: FeedbackFormTemplate? = null,
     isSaving: Boolean,
     onDismiss: () -> Unit,
     onSave: (title: String, description: String, questions: List<ToolField>, collectIdentity: Boolean, isActive: Boolean) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var title by remember(initialForm) { mutableStateOf(initialForm?.title.orEmpty()) }
-    var description by remember(initialForm) { mutableStateOf(initialForm?.description.orEmpty()) }
-    var questions by remember(initialForm) { mutableStateOf(initialForm?.questions ?: defaultQuestions()) }
+    var title by remember(initialForm, initialTemplate) { mutableStateOf(initialForm?.title ?: initialTemplate?.title.orEmpty()) }
+    var description by remember(initialForm, initialTemplate) { mutableStateOf(initialForm?.description ?: initialTemplate?.description.orEmpty()) }
+    var questions by remember(initialForm, initialTemplate) { mutableStateOf(initialForm?.questions ?: initialTemplate?.questions ?: defaultQuestions()) }
     var collectIdentity by remember(initialForm) { mutableStateOf(initialForm?.collectIdentity ?: true) }
     var isActive by remember(initialForm) { mutableStateOf(initialForm?.isActive ?: true) }
     val isEditing = initialForm != null
