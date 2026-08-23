@@ -89,6 +89,7 @@ import com.quizmaker.android.ui.tools.voting.VotingResultsScreen
 import com.quizmaker.android.ui.common.AlertHost
 import com.quizmaker.android.ui.common.AppLoadingScreen
 import com.quizmaker.android.ui.dashboard.DashboardScreen
+import com.quizmaker.android.ui.featuretour.FeatureTourScreen
 import com.quizmaker.android.ui.faq.FaqScreen
 import com.quizmaker.android.ui.importquestions.ImportQuestionsScreen
 import com.quizmaker.android.ui.leaderboard.LeaderboardScreen
@@ -325,6 +326,8 @@ fun QuizMakerNavGraph(
             }
             composable(Screen.Dashboard.route) {
                 val learnersIntroViewModel: LearnersIntroViewModel = hiltViewModel()
+                val classesIntroViewModel: ClassesIntroViewModel = hiltViewModel()
+                val toolsIntroViewModel: ToolsIntroViewModel = hiltViewModel()
                 val scope = rememberCoroutineScope()
                 DashboardScreen(
                     onOpenResponse = { responseId -> navController.navigate(Screen.ResponseDetail.createRoute(responseId)) },
@@ -333,6 +336,21 @@ fun QuizMakerNavGraph(
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
+                        }
+                    },
+                    onOpenQuiz = { quizId -> navController.navigate(Screen.QuizDetailView.createRoute(quizId)) },
+                    onCreateQuiz = { navController.navigate(Screen.CreateQuiz.createRoute()) },
+                    onOpenAi = { navController.navigate(Screen.AiQuiz.createRoute(source = "dashboard")) },
+                    onOpenTools = {
+                        scope.launch {
+                            val destination = if (toolsIntroViewModel.shouldShowIntro()) Screen.ToolsIntro.route else Screen.Tools.route
+                            navController.navigate(destination)
+                        }
+                    },
+                    onOpenClasses = {
+                        scope.launch {
+                            val destination = if (classesIntroViewModel.shouldShowIntro()) Screen.ClassesIntro.route else Screen.Classes.route
+                            navController.navigate(destination)
                         }
                     },
                     onOpenQuestions = {
@@ -350,7 +368,8 @@ fun QuizMakerNavGraph(
                             navController.navigate(destination)
                         }
                     },
-                    onOpenPricing = { navController.navigate(Screen.Pricing.route) }
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) },
+                    onOpenFeatureTour = { navController.navigate(Screen.FeatureTour.route) }
                 )
             }
             composable(Screen.Responses.route) {
@@ -530,6 +549,38 @@ fun QuizMakerNavGraph(
             }
             composable(Screen.Pricing.route) {
                 PricingScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.FeatureTour.route) {
+                val classesIntroViewModel: ClassesIntroViewModel = hiltViewModel()
+                val toolsIntroViewModel: ToolsIntroViewModel = hiltViewModel()
+                val learnersIntroViewModel: LearnersIntroViewModel = hiltViewModel()
+                val scope = rememberCoroutineScope()
+                FeatureTourScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) },
+                    onOpenAi = { navController.navigate(Screen.AiQuiz.createRoute(source = "feature_tour")) },
+                    onCreateQuiz = { navController.navigate(Screen.CreateQuiz.createRoute()) },
+                    onOpenRevision = { navController.navigate(Screen.Revision.route) },
+                    onOpenClasses = {
+                        scope.launch {
+                            val destination = if (classesIntroViewModel.shouldShowIntro()) Screen.ClassesIntro.route else Screen.Classes.route
+                            navController.navigate(destination)
+                        }
+                    },
+                    onOpenTools = {
+                        scope.launch {
+                            val destination = if (toolsIntroViewModel.shouldShowIntro()) Screen.ToolsIntro.route else Screen.Tools.route
+                            navController.navigate(destination)
+                        }
+                    },
+                    onOpenLearners = {
+                        scope.launch {
+                            val destination = if (learnersIntroViewModel.shouldShowIntro()) Screen.LearnersIntro.route else Screen.Learners.route
+                            navController.navigate(destination)
+                        }
+                    },
+                    onOpenReportedQuestions = { navController.navigate(Screen.ReportedQuestions.route) }
+                )
             }
             composable(
                 route = Screen.CreateQuiz.route,

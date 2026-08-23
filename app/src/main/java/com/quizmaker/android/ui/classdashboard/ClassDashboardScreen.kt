@@ -81,6 +81,7 @@ import com.quizmaker.android.data.model.ClassQuizPerformance
 import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.data.model.QuizAiSummary
 import com.quizmaker.android.ui.common.AiSummaryCard
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.ClassAiSummaryCard
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
@@ -370,6 +371,7 @@ private fun LinkQuizzesSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())

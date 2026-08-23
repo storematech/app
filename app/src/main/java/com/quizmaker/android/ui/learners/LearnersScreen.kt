@@ -72,6 +72,7 @@ import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.Learner
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
@@ -151,7 +152,7 @@ fun LearnersScreen(
                 if (showAutoCreateInfo) {
                     AlertDialog(
                         onDismissRequest = { showAutoCreateInfo = false },
-                        title = { Text("Auto Create Learners") },
+                        title = { BlurBehindDialog(); Text("Auto Create Learners") },
                         text = { Text("When learners submit a quiz, we'll automatically create a learner profile for them using their name and email.") },
                         confirmButton = {
                             TextButton(onClick = { showAutoCreateInfo = false }) { Text("Got it") }
@@ -267,7 +268,7 @@ fun LearnersScreen(
     uiState.learnerToDelete?.let { learner ->
         AlertDialog(
             onDismissRequest = viewModel::cancelDeleteLearner,
-            title = { Text("Delete Learner") },
+            title = { BlurBehindDialog(); Text("Delete Learner") },
             text = { Text("Are you sure you want to delete ${learner.name}? This action cannot be undone.") },
             confirmButton = {
                 TextButton(onClick = viewModel::confirmDeleteLearner, enabled = !uiState.isDeletingLearner) {

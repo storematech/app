@@ -17,16 +17,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.LockClock
+import androidx.compose.material.icons.filled.PlayCircleFilled
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -39,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -452,6 +456,106 @@ fun TrialEndedBanner(onClick: () -> Unit) {
                 Icon(Icons.Default.ChevronRight, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(16.dp))
             }
         }
+    }
+}
+
+/**
+ * Dashboard CTA into the "View Feature" playground (see FeatureTourScreen) — an animated,
+ * no-login walkthrough of what the app can do. Shown only to non-premium accounts, right after the
+ * Dashboard's quick-action row — this is an onboarding/upsell nudge, not something a paying
+ * customer who already knows the app needs to see. Same gradient-hero recipe as
+ * [SaleDayBanner]/[TrialActiveBanner] (faint rotated watermark icon, white pill CTA) rather than
+ * the flat light-indigo card the other promo banners use here — this one needs to read as "tap me,
+ * there's a lot to see," not as a quiet informational strip.
+ */
+fun FeatureTourBanner(onClick: () -> Unit, onDismiss: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(Brush.horizontalGradient(listOf(BrandIndigoDark, BrandIndigo)))
+            .clickable(onClick = onClick)
+    ) {
+        Icon(
+            Icons.Default.PlayCircleFilled,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.12f),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .offset(x = 20.dp, y = 2.dp)
+                .size(104.dp)
+                .rotate(-14f)
+        )
+        // Its own clickable, nested inside the banner's — Compose hit-tests the innermost target
+        // first, so this consumes the tap here rather than also triggering onClick underneath.
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(10.dp)
+                .size(22.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.18f))
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.White, modifier = Modifier.size(13.dp))
+        }
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White.copy(alpha = 0.2f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text("NEW", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 9.sp, letterSpacing = 0.5.sp)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "See Every Feature in Action",
+                    color = Color.White,
+                    fontFamily = PoppinsFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Quick animated walkthroughs — AI quizzes, classes, reports & more",
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                FeaturePreviewChip(Icons.Default.AutoAwesome)
+                Spacer(Modifier.width(8.dp))
+                FeaturePreviewChip(Icons.Default.EmojiEvents)
+                Spacer(Modifier.width(8.dp))
+                FeaturePreviewChip(Icons.Default.BarChart)
+                Spacer(Modifier.weight(1f))
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Explore", color = BrandIndigo, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(14.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeaturePreviewChip(icon: ImageVector) {
+    Box(
+        modifier = Modifier.size(30.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.18f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
     }
 }
 

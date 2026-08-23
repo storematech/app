@@ -27,6 +27,11 @@ const val NOTIFICATION_CHANNEL_ID = "quiz_submissions"
  *  named/described as being about quiz submissions in the user's Android notification settings. */
 const val LIFECYCLE_NOTIFICATION_CHANNEL_ID = "lifecycle_tips"
 
+/** New response pushes from notify-tool-submission (poll votes, voting ballots, RSVPs, feedback
+ *  and onboarding submissions) — same reasoning as [LIFECYCLE_NOTIFICATION_CHANNEL_ID]: these
+ *  aren't quiz submissions, so they get their own channel rather than [NOTIFICATION_CHANNEL_ID]. */
+const val TOOL_SUBMISSION_NOTIFICATION_CHANNEL_ID = "tool_submissions"
+
 /** Read by NavGraph on cold start / onNewIntent to deep-link straight to the response that was submitted. */
 const val EXTRA_RESPONSE_ID = "response_id"
 
@@ -60,11 +65,22 @@ class QuizFcmService : FirebaseMessagingService() {
         }
 
         val data = message.data
-        // scheduled-push sets type="lifecycle"; notify-quiz-submission sends no type at all, which
-        // is what routes its messages to the original channel/default title unchanged.
+        // scheduled-push sets type="lifecycle", notify-tool-submission sets type="tool_submission";
+        // notify-quiz-submission sends no type at all, which is what routes its messages to the
+        // original channel/default title unchanged.
         val isLifecycle = data["type"] == "lifecycle"
-        val channelId = if (isLifecycle) LIFECYCLE_NOTIFICATION_CHANNEL_ID else NOTIFICATION_CHANNEL_ID
-        val title = data["title"]?.ifBlank { null } ?: if (isLifecycle) "YUNO LMS" else "New quiz submission"
+        val isToolSubmission = data["type"] == "tool_submission"
+        val channelId = when {
+            isLifecycle -> LIFECYCLE_NOTIFICATION_CHANNEL_ID
+            isToolSubmission -> TOOL_SUBMISSION_NOTIFICATION_CHANNEL_ID
+            else -> NOTIFICATION_CHANNEL_ID
+        }
+        val title = data["title"]?.ifBlank { null }
+            ?: when {
+                isLifecycle -> "YUNO LMS"
+                isToolSubmission -> "New submission"
+                else -> "New quiz submission"
+            }
         val body = data["body"].orEmpty()
         val responseId = data["response_id"]
 

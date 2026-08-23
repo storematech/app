@@ -36,6 +36,10 @@ data class PricingUiState(
     val features: List<String> = emptyList(),
     val isProcessingPayment: Boolean = false,
     val paymentError: String? = null,
+    /** Non-null only for a genuine payment failure (not a user-cancelled checkout) — shown as a
+     *  dialog with a "Contact Support" action rather than [paymentError]'s plain snackbar, since
+     *  money may have actually been charged and this is worth a real resolution path. */
+    val paymentFailurePopup: String? = null,
     val paymentSuccess: Boolean = false,
     val trialStatus: TrialStatus = TrialStatus.Premium,
     /** Same screen doubles as "license details" for an already-paid account — see PricingScreen. */
@@ -170,6 +174,10 @@ class PricingViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(paymentError = null)
     }
 
+    fun dismissPaymentFailurePopup() {
+        _uiState.value = _uiState.value.copy(paymentFailurePopup = null)
+    }
+
     fun dismissPaymentSuccess() {
         _uiState.value = _uiState.value.copy(paymentSuccess = false)
     }
@@ -249,7 +257,10 @@ class PricingViewModel @Inject constructor(
                         }
                         is AppResult.Error -> {
                             paymentRepository.recordAttempt(userId, chargedAmountMinor, plan.currency, "failed", verify.message)
-                            _uiState.value = _uiState.value.copy(isProcessingPayment = false, paymentError = verify.message)
+                            // Razorpay itself reported success here — verification is what failed
+                            // server-side, so money may well have been charged. Worth a real
+                            // "contact support" path, not just a snackbar that vanishes.
+                            _uiState.value = _uiState.value.copy(isProcessingPayment = false, paymentFailurePopup = verify.message)
                         }
                     }
                 }
@@ -260,14 +271,14 @@ class PricingViewModel @Inject constructor(
                 pendingChargeAmountMajor = null
                 val cancelled = result.code == Checkout.PAYMENT_CANCELED
                 val message = result.description?.ifBlank { null }
-                    ?: if (cancelled) "User closed Razorpay popup" else "Payment failed"
+                    ?: if (cancelled) "Payment was not completed." else "Payment failed"
                 viewModelScope.launch {
                     paymentRepository.recordAttempt(userId, chargedAmountMinor, plan.currency, if (cancelled) "cancelled" else "failed", message)
                 }
-                _uiState.value = _uiState.value.copy(
-                    isProcessingPayment = false,
-                    paymentError = if (cancelled) "Payment cancelled." else message
-                )
+                // Also shown when the user backs out of the Razorpay sheet without paying — not
+                // just a genuine decline/error — so the support path is always one tap away
+                // regardless of why checkout didn't finish.
+                _uiState.value = _uiState.value.copy(isProcessingPayment = false, paymentFailurePopup = message)
             }
         }
     }

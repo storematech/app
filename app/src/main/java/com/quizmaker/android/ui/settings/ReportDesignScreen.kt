@@ -78,6 +78,7 @@ import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.util.ReportDesign
 import com.quizmaker.android.util.ReportTemplate
@@ -560,6 +561,7 @@ private fun ColorPickerDialog(initialHex: String, onConfirm: (String) -> Unit, o
     fun currentHex(): String = String.format("#%06X", 0xFFFFFF and currentColorInt())
 
     Dialog(onDismissRequest = onDismiss) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))

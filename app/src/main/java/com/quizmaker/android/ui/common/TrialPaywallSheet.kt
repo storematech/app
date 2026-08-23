@@ -55,6 +55,7 @@ fun TrialPaywallSheet(
     onViewPlans: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BlurBehindDialog()
         var visible by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { visible = true }
         val noRipple = remember { MutableInteractionSource() }

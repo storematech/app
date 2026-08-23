@@ -25,10 +25,20 @@ class AnalyticsLogger @Inject constructor(
      * Ties all subsequent events to this account across sessions/devices. Call with null on sign-out.
      * [email] is attached as a PostHog person property only — Firebase Analytics' terms disallow
      * logging PII (like email) as a user ID/property, so it's deliberately left out of that call.
+     *
+     * Resets PostHog's local identity first whenever its cached distinctId doesn't match [userId] —
+     * covers not just an in-app account switch, but also an uninstall/reinstall: Android's default
+     * app backup (see AndroidManifest's allowBackup) restores PostHog's SharedPreferences before
+     * this ever runs, so a fresh login can otherwise identify() straight over a stale distinctId
+     * still carrying the *previous* account's email. Cheap on the common case (same user, every
+     * cold start) since distinctId already matches and reset() is skipped.
      */
     fun setUserId(userId: String?, email: String? = null) {
         firebaseAnalytics.setUserId(userId)
         if (userId != null) {
+            if (PostHog.distinctId() != userId) {
+                PostHog.reset()
+            }
             PostHog.identify(
                 distinctId = userId,
                 userProperties = email?.let { mapOf("email" to it) }

@@ -56,6 +56,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.RsvpEvent
 import com.quizmaker.android.data.model.RsvpEventTemplate
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.util.formatDateTime
 import com.quizmaker.android.util.formatShortDate
@@ -95,6 +96,7 @@ fun RsvpEventEditSheet(
     val isEditing = initialEvent != null
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
@@ -361,6 +363,7 @@ private fun EventDateTimePicker(isoValue: String?, onChange: (String?) -> Unit) 
 @Composable
 private fun TimePickerDialog(onDismiss: () -> Unit, onConfirm: () -> Unit, content: @Composable () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
+        BlurBehindDialog()
         Surface(shape = RoundedCornerShape(24.dp), color = SurfaceWhite) {
             Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 content()

@@ -103,6 +103,7 @@ import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.data.model.QuizAiSummary
 import com.quizmaker.android.ui.common.AiSummaryCard
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
@@ -307,7 +308,7 @@ fun QuizListScreen(
     quizPendingDelete?.let { quiz ->
         AlertDialog(
             onDismissRequest = { quizPendingDelete = null },
-            title = { Text("Delete \"${quiz.title}\"?") },
+            title = { BlurBehindDialog(); Text("Delete \"${quiz.title}\"?") },
             text = { Text("This permanently deletes the quiz and all of its responses.") },
             confirmButton = {
                 TextButton(onClick = {
@@ -454,6 +455,7 @@ private fun QuizActionsSheet(
     onRequestDelete: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BlurBehindDialog()
         var visible by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { visible = true }
         val noRipple = remember { MutableInteractionSource() }
@@ -523,6 +525,7 @@ private fun LinkToClassSheet(quiz: Quiz, onDismiss: () -> Unit, viewModel: LinkT
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
@@ -588,7 +591,7 @@ private fun CreateAndLinkClassDialog(isCreating: Boolean, onDismiss: () -> Unit,
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Class") },
+        title = { BlurBehindDialog(); Text("New Class") },
         text = {
             OutlinedTextField(
                 value = name,

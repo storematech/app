@@ -49,6 +49,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.Group
 import com.quizmaker.android.data.model.Learner
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.GradientButton
 import kotlinx.coroutines.launch
 
@@ -90,6 +91,7 @@ fun LearnerFormDialog(
     var creatingGroup by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())

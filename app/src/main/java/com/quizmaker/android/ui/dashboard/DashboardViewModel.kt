@@ -3,6 +3,7 @@ package com.quizmaker.android.ui.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.network.AppResult
+import com.quizmaker.android.core.prefs.FeatureTourBannerPrefs
 import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.data.model.QuizResponse
 import com.quizmaker.android.data.model.SaleDay
@@ -32,7 +33,9 @@ enum class DashboardDateRange(val label: String, val days: Int?) {
     LAST_7_DAYS("Last 7 Days", 7),
     LAST_30_DAYS("Last 30 Days", 30),
     LAST_90_DAYS("Last 90 Days", 90),
-    ALL_TIME("All Time", null)
+    ALL_TIME("All Time", null),
+    /** [days] unused — filtering instead reads [DashboardUiState.customRangeStart]/[DashboardUiState.customRangeEnd]. */
+    CUSTOM("Custom Range", null)
 }
 
 data class DashboardUiState(
@@ -50,8 +53,19 @@ data class DashboardUiState(
     val recentSubmissions: List<QuizResponse> = emptyList(),
     val quizzes: List<Quiz> = emptyList(),
     val quizTitleById: Map<String, String> = emptyMap(),
+    val recentQuizzes: List<Quiz> = emptyList(),
+    val recentQuizQuestionCounts: Map<String, Int> = emptyMap(),
+    /** Only meaningful when [selectedRange] is [DashboardDateRange.CUSTOM]. [customRangeEnd] is
+     *  stored exclusive (start of the day *after* the picked "To" date) — see
+     *  DashboardDateRangeSheet's KDoc for why. */
+    val customRangeStart: Instant? = null,
+    val customRangeEnd: Instant? = null,
     val activeSale: SaleDay? = null,
-    val trialStatus: TrialStatus = TrialStatus.Premium
+    val trialStatus: TrialStatus = TrialStatus.Premium,
+    val showTrialPaywall: Boolean = false,
+    /** Session-or-permanently dismissed via the "View Feature" banner's X — see
+     *  DashboardViewModel.onDismissFeatureTourBanner's KDoc for the two-strike rule. */
+    val featureTourBannerDismissed: Boolean = false
 )
 
 /**
@@ -65,6 +79,12 @@ data class DashboardUiState(
 @Singleton
 class DashboardStateCache @Inject constructor() {
     var lastState: DashboardUiState? = null
+
+    /** True once the "View Feature" banner's X has been tapped this app session — reset only by a
+     *  fresh process start (this is a process-lifetime singleton, same as [lastState]), unlike the
+     *  permanent dismiss which is tracked in [FeatureTourBannerPrefs]. Living here rather than in
+     *  DashboardViewModel itself so it survives the ViewModel recreations described above. */
+    var featureTourBannerDismissedThisSession: Boolean = false
 }
 
 @HiltViewModel
@@ -76,6 +96,7 @@ class DashboardViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val reportedQuestionsRepository: ReportedQuestionsRepository,
     private val learnersRepository: LearnersRepository,
+    private val featureTourBannerPrefs: FeatureTourBannerPrefs,
     private val stateCache: DashboardStateCache
 ) : ViewModel() {
 
@@ -83,6 +104,7 @@ class DashboardViewModel @Inject constructor(
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     private var allQuizzes: List<Quiz> = emptyList()
+    private var recentQuizQuestionCounts: Map<String, Int> = emptyMap()
     private var allCompletedResponses: List<QuizResponse> = emptyList()
     private var creatorName: String = ""
     private var totalQuestions: Int = 0
@@ -90,6 +112,7 @@ class DashboardViewModel @Inject constructor(
     private var learnersCount: Int = 0
     private var activeSale: SaleDay? = null
     private var trialStatus: TrialStatus = TrialStatus.Premium
+    private var featureTourBannerDismissCount: Int = 0
 
     init {
         refresh()
@@ -135,6 +158,8 @@ class DashboardViewModel @Inject constructor(
             val questions = (questionsResult as? AppResult.Success)?.data.orEmpty()
 
             allQuizzes = (quizzesResult as AppResult.Success).data
+            val recentQuizIds = allQuizzes.sortedByDescending { it.createdAt }.take(RECENT_QUIZZES_LIMIT).map { it.id }
+            recentQuizQuestionCounts = (quizRepository.getQuestionCountsForQuizzes(recentQuizIds) as? AppResult.Success)?.data.orEmpty()
             // A responses-fetch failure (e.g. a slow "all my quiz ids, then all their responses"
             // query timing out) shouldn't blank out quizzes/questions data that already loaded fine —
             // fall back to no responses and surface the error inline instead of hard-failing the page.
@@ -149,6 +174,7 @@ class DashboardViewModel @Inject constructor(
                 is AppResult.Error -> ""
             }
             trialStatus = (profileResult as? AppResult.Success)?.data?.trialStatus() ?: TrialStatus.Premium
+            featureTourBannerDismissCount = featureTourBannerPrefs.getDismissCount(userId)
 
             val now = Clock.System.now()
             activeSale = (saleDaysResult as? AppResult.Success)?.data?.firstOrNull { sale ->
@@ -166,17 +192,34 @@ class DashboardViewModel @Inject constructor(
         applyRange(range)
     }
 
+    /** [end] is exclusive (start of the day *after* the picked "To" date) — see
+     *  DashboardDateRangeSheet's KDoc for why. */
+    fun onCustomRangeSelected(start: Instant, end: Instant) {
+        _uiState.value = _uiState.value.copy(customRangeStart = start, customRangeEnd = end)
+        applyRange(DashboardDateRange.CUSTOM)
+    }
+
     fun onSearchQueryChange(query: String) {
         _uiState.value = _uiState.value.copy(searchQuery = query)
         applyRange(_uiState.value.selectedRange)
     }
 
     private fun applyRange(range: DashboardDateRange, partialErrorMessage: String? = null) {
-        val cutoff: Instant? = range.days?.let { Clock.System.now() - it.days }
-        val completed = if (cutoff == null) {
-            allCompletedResponses
+        val completed = if (range == DashboardDateRange.CUSTOM) {
+            val start = _uiState.value.customRangeStart
+            val end = _uiState.value.customRangeEnd
+            if (start != null && end != null) {
+                allCompletedResponses.filter { r -> r.completedAt != null && r.completedAt >= start && r.completedAt < end }
+            } else {
+                allCompletedResponses
+            }
         } else {
-            allCompletedResponses.filter { r -> r.completedAt != null && r.completedAt >= cutoff }
+            val cutoff: Instant? = range.days?.let { Clock.System.now() - it.days }
+            if (cutoff == null) {
+                allCompletedResponses
+            } else {
+                allCompletedResponses.filter { r -> r.completedAt != null && r.completedAt >= cutoff }
+            }
         }
 
         // quiz_responses.score is already a 0-100 percentage (matching the web app's convention),
@@ -209,10 +252,51 @@ class DashboardViewModel @Inject constructor(
             recentSubmissions = submissions,
             quizzes = allQuizzes,
             quizTitleById = allQuizzes.associate { it.id to it.title },
+            recentQuizzes = allQuizzes.sortedByDescending { it.createdAt }.take(RECENT_QUIZZES_LIMIT),
+            recentQuizQuestionCounts = recentQuizQuestionCounts,
             activeSale = activeSale,
-            trialStatus = trialStatus
+            trialStatus = trialStatus,
+            featureTourBannerDismissed = stateCache.featureTourBannerDismissedThisSession ||
+                featureTourBannerDismissCount >= FeatureTourBannerPrefs.PERMANENT_DISMISS_THRESHOLD
         )
         _uiState.value = newState
         if (partialErrorMessage == null) stateCache.lastState = newState
+    }
+
+    /**
+     * The banner's X: hides it for the rest of this app session every time (see
+     * DashboardStateCache.featureTourBannerDismissedThisSession — reset only by a fresh process
+     * start), while the persisted count in [featureTourBannerPrefs] only crosses
+     * [FeatureTourBannerPrefs.PERMANENT_DISMISS_THRESHOLD] — and so only hides it for good — on the
+     * *second* time this is ever called for the account, which naturally happens in some later
+     * session since the first close already hid it for the rest of this one.
+     */
+    fun onDismissFeatureTourBanner() {
+        stateCache.featureTourBannerDismissedThisSession = true
+        _uiState.value = _uiState.value.copy(featureTourBannerDismissed = true)
+        val userId = authRepository.currentUserId() ?: return
+        viewModelScope.launch { featureTourBannerPrefs.incrementDismissCount(userId) }
+    }
+
+    /** Gate for the quick-action "Create Quiz"/"AI" buttons — shows the paywall sheet instead of
+     *  navigating when the trial's expired, same rule QuizList/QuestionBank already enforce. */
+    fun onCreateQuizClick(onAllowed: () -> Unit) = gateOnTrial(onAllowed)
+
+    fun onOpenAiClick(onAllowed: () -> Unit) = gateOnTrial(onAllowed)
+
+    private fun gateOnTrial(onAllowed: () -> Unit) {
+        if (_uiState.value.trialStatus is TrialStatus.Expired) {
+            _uiState.value = _uiState.value.copy(showTrialPaywall = true)
+        } else {
+            onAllowed()
+        }
+    }
+
+    fun dismissTrialPaywall() {
+        _uiState.value = _uiState.value.copy(showTrialPaywall = false)
+    }
+
+    private companion object {
+        const val RECENT_QUIZZES_LIMIT = 3
     }
 }

@@ -85,6 +85,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.POLL_TEMPLATES
 import com.quizmaker.android.data.model.Poll
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
@@ -207,7 +208,7 @@ fun PollListScreen(
     pollPendingDelete?.let { poll ->
         AlertDialog(
             onDismissRequest = { pollPendingDelete = null },
-            title = { Text("Delete this poll?") },
+            title = { BlurBehindDialog(); Text("Delete this poll?") },
             text = { Text("This permanently deletes the poll and all of its votes.") },
             confirmButton = {
                 TextButton(onClick = {
@@ -315,6 +316,7 @@ private fun PollActionsSheet(
     onRequestDelete: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BlurBehindDialog()
         var visible by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { visible = true }
         val noRipple = remember { MutableInteractionSource() }
@@ -396,6 +398,7 @@ private fun PollShareSheet(title: String, shareUrl: String, onDismiss: () -> Uni
     var showQr by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(

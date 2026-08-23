@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LockClock
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,6 +50,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,9 +79,11 @@ import com.quizmaker.android.core.theme.SaleRedEnd
 import com.quizmaker.android.core.theme.SaleRedLight
 import com.quizmaker.android.core.theme.SaleRedStart
 import com.quizmaker.android.core.theme.SuccessGreen
+import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.core.theme.WarningAmber
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.elevatedSurface
@@ -155,6 +159,51 @@ fun PricingScreen(
             }
         }
     }
+
+    uiState.paymentFailurePopup?.let { message ->
+        PaymentFailedDialog(
+            message = message,
+            onContactSupport = {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SUPPORT_WHATSAPP_URL)))
+                viewModel.dismissPaymentFailurePopup()
+            },
+            onDismiss = viewModel::dismissPaymentFailurePopup
+        )
+    }
+}
+
+/** Shown for any checkout that didn't end in success — a genuine decline/error, a server-side
+ *  verification failure, or the user backing out of the Razorpay sheet without paying (see
+ *  PricingViewModel.handleRazorpayResult) — since money may have actually been charged even when
+ *  the app itself never saw a success, this keeps a real resolution path one tap away instead of a
+ *  snackbar that just disappears. */
+@Composable
+private fun PaymentFailedDialog(message: String, onContactSupport: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = SurfaceWhite,
+        title = {
+            BlurBehindDialog()
+            Text("Payment Failed", color = TextPrimary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Text(
+                "$message\n\nIf any amount was deducted from your account, please contact our support team and we'll sort it out.",
+                color = TextSecondary,
+                fontSize = 14.sp
+            )
+        },
+        confirmButton = {
+            Button(onClick = onContactSupport, colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)) {
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Contact Support", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Not Now", color = TextSecondary) }
+        }
+    )
 }
 
 @Composable

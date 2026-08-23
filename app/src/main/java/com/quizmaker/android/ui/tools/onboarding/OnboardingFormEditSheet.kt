@@ -52,6 +52,7 @@ import com.quizmaker.android.data.model.OnboardingForm
 import com.quizmaker.android.data.model.OnboardingFormTemplate
 import com.quizmaker.android.data.model.ToolField
 import com.quizmaker.android.data.model.ToolFieldType
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.elevatedSurface
 import java.util.UUID
@@ -88,6 +89,7 @@ fun OnboardingFormEditSheet(
     val isEditing = initialForm != null
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())

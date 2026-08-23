@@ -86,6 +86,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.VOTING_TEMPLATES
 import com.quizmaker.android.data.model.VotingCampaign
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
@@ -208,7 +209,7 @@ fun VotingListScreen(
     campaignPendingDelete?.let { campaign ->
         AlertDialog(
             onDismissRequest = { campaignPendingDelete = null },
-            title = { Text("Delete \"${campaign.title}\"?") },
+            title = { BlurBehindDialog(); Text("Delete \"${campaign.title}\"?") },
             text = { Text("This permanently deletes the campaign and all of its ballots.") },
             confirmButton = {
                 TextButton(onClick = {
@@ -322,6 +323,7 @@ private fun VotingActionsSheet(
     onRequestDelete: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BlurBehindDialog()
         var visible by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { visible = true }
         val noRipple = remember { MutableInteractionSource() }
@@ -403,6 +405,7 @@ private fun VotingShareSheet(title: String, shareUrl: String, onDismiss: () -> U
     var showQr by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(

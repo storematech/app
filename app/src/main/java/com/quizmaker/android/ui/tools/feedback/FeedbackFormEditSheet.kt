@@ -52,6 +52,7 @@ import com.quizmaker.android.data.model.FeedbackForm
 import com.quizmaker.android.data.model.FeedbackFormTemplate
 import com.quizmaker.android.data.model.ToolField
 import com.quizmaker.android.data.model.ToolFieldType
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.elevatedSurface
 import java.util.UUID
@@ -85,6 +86,7 @@ fun FeedbackFormEditSheet(
     val isEditing = initialForm != null
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())

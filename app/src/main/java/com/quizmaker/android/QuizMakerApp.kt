@@ -9,6 +9,7 @@ import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
 import com.quizmaker.android.core.messaging.LIFECYCLE_NOTIFICATION_CHANNEL_ID
 import com.quizmaker.android.core.messaging.NOTIFICATION_CHANNEL_ID
+import com.quizmaker.android.core.messaging.TOOL_SUBMISSION_NOTIFICATION_CHANNEL_ID
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -41,6 +42,15 @@ class QuizMakerApp : Application() {
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Helpful tips, feature highlights, and account/trial updates"
+            }
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                TOOL_SUBMISSION_NOTIFICATION_CHANNEL_ID,
+                "Tool submissions",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notified when someone responds to one of your Tools (polls, RSVPs, feedback and onboarding forms)"
             }
         )
     }

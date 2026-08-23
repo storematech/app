@@ -53,6 +53,7 @@ import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.QuizClass
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
@@ -187,7 +188,7 @@ private fun CreateClassDialog(isCreating: Boolean, onDismiss: () -> Unit, onCrea
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = SurfaceWhite,
-        title = { Text("Create Class", color = TextPrimary) },
+        title = { BlurBehindDialog(); Text("Create Class", color = TextPrimary) },
         text = {
             Column {
                 OutlinedTextField(

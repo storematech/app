@@ -69,6 +69,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.RevisionItem
 import com.quizmaker.android.data.model.RevisionStatus
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.FilledPill
@@ -350,6 +351,7 @@ private fun RevisionFilterSheet(uiState: RevisionUiState, viewModel: RevisionVie
     var selectedQuiz by remember { mutableStateOf(uiState.quizFilter) }
 
     ModalBottomSheet(onDismissRequest = viewModel::closeFilterSheet, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())

@@ -62,6 +62,7 @@ import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.util.Country
@@ -204,6 +205,7 @@ private fun CountryPickerDialog(onDismiss: () -> Unit, onSelect: (Country) -> Un
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .fillMaxSize()

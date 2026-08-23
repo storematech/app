@@ -111,6 +111,7 @@ sealed class Screen(val route: String) {
     }
 
     data object Pricing : Screen("pricing")
+    data object FeatureTour : Screen("feature_tour")
     data object Faq : Screen("faq")
     data object ImportQuestions : Screen("import_questions")
 

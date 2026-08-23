@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.quizmaker.android.core.theme.BrandIndigo
+import com.quizmaker.android.ui.common.BlurBehindDialog
 
 /** Standalone "Create Group/Batch" dialog, off the Learners screen's own button — same shape as ClassListScreen's CreateClassDialog. */
 @Composable
@@ -26,7 +27,7 @@ fun CreateGroupDialog(isSaving: Boolean, onDismiss: () -> Unit, onCreate: (name:
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create Group/Batch") },
+        title = { BlurBehindDialog(); Text("Create Group/Batch") },
         text = {
             Column {
                 OutlinedTextField(

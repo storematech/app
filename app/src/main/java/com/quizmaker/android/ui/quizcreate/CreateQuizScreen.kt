@@ -77,6 +77,7 @@ import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.util.formatPoints
 import com.quizmaker.android.data.model.QuestionDifficulty
 import com.quizmaker.android.data.model.QuestionType
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.FilledPill
@@ -575,6 +576,7 @@ private fun NewQuestionSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())

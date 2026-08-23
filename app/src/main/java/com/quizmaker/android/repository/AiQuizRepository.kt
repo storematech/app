@@ -4,6 +4,7 @@ import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.core.network.safeCall
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionDifficulty
+import com.quizmaker.android.data.model.QuestionOption
 import com.quizmaker.android.data.model.QuestionType
 import com.quizmaker.android.data.remote.dto.GenerateQuizAiImageInput
 import com.quizmaker.android.data.remote.dto.GenerateQuizAiRequest
@@ -23,11 +24,14 @@ import javax.inject.Singleton
 
 /**
  * Generates quiz questions from a prompt/PDF/photos via the `generate-quiz-ai` Edge Function
- * (which holds the Gemini key server-side — see that function's source for why). This repository
- * never touches the AI key itself; it just proxies the request and, on success, writes the
- * returned questions into the user's own question bank. Turning those questions into an actual
- * quiz is a separate, explicit step the user takes in the normal Create Quiz flow (with the AI
- * questions pre-selected), so they always review/title/configure before anything is created.
+ * (which holds the Gemini key server-side — see that function's source for why). [generate] only
+ * ever proposes questions for review — it writes nothing to the user's question bank. Each
+ * returned [Question] carries a synthetic, client-only id (not a real row id), just stable enough
+ * for the review step's checkbox selection to track. [saveQuestions] is the separate, explicit
+ * step that actually persists the ones the user kept, called once they confirm — either into an
+ * actual quiz (normal Create Quiz flow, pre-selected) or straight into the question bank (Add
+ * Questions mode). Regenerating or backing out before that point leaves the question bank
+ * untouched, same as any other user input they discarded without submitting.
  */
 @Singleton
 class AiQuizRepository @Inject constructor(
@@ -36,21 +40,19 @@ class AiQuizRepository @Inject constructor(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun generateQuestionsFromPrompt(userId: String, prompt: String, questionCount: Int): AppResult<List<Question>> =
-        generate(userId, prompt, questionCount, pdfBase64 = null, images = null)
+    suspend fun generateQuestionsFromPrompt(prompt: String, questionCount: Int): AppResult<List<Question>> =
+        generate(prompt, questionCount, pdfBase64 = null, images = null)
 
     /** [pdfBase64] is the raw file's base64 — never persisted, only relayed through the edge function to Gemini. */
-    suspend fun generateQuestionsFromPdf(userId: String, extraPrompt: String, pdfBase64: String, questionCount: Int): AppResult<List<Question>> =
-        generate(userId, extraPrompt, questionCount, pdfBase64 = pdfBase64, images = null)
+    suspend fun generateQuestionsFromPdf(extraPrompt: String, pdfBase64: String, questionCount: Int): AppResult<List<Question>> =
+        generate(extraPrompt, questionCount, pdfBase64 = pdfBase64, images = null)
 
     /** [images] are (base64, mimeType) pairs for up to a few photos — never persisted, only relayed to Gemini. */
     suspend fun generateQuestionsFromImages(
-        userId: String,
         extraPrompt: String,
         images: List<Pair<String, String>>,
         questionCount: Int
     ): AppResult<List<Question>> = generate(
-        userId,
         extraPrompt,
         questionCount,
         pdfBase64 = null,
@@ -58,7 +60,6 @@ class AiQuizRepository @Inject constructor(
     )
 
     private suspend fun generate(
-        userId: String,
         prompt: String,
         questionCount: Int,
         pdfBase64: String?,
@@ -82,30 +83,63 @@ class AiQuizRepository @Inject constructor(
             error(result.error ?: "Couldn't generate questions for that prompt. Try rephrasing it.")
         }
 
-        val createdQuestions = questions.mapNotNull { aiQuestion ->
-            val optionPairs = aiQuestion.options.map { it.text to it.isCorrect }
-            if (optionPairs.size < 2 || optionPairs.none { it.second }) return@mapNotNull null
+        val reviewQuestions = questions.mapIndexedNotNull { index, aiQuestion ->
+            val options = aiQuestion.options.mapIndexed { optionIndex, option ->
+                QuestionOption(id = "ai-review-$index-opt-$optionIndex", text = option.text, isCorrect = option.isCorrect)
+            }
+            if (options.size < 2 || options.none { it.isCorrect }) return@mapIndexedNotNull null
 
-            val created = questionRepository.createQuestion(
-                userId = userId,
+            Question(
+                id = "ai-review-$index",
                 text = aiQuestion.text,
                 type = QuestionType.SINGLE_CHOICE,
-                points = 1.0,
-                difficulty = QuestionDifficulty.MEDIUM,
+                options = options,
+                correctAnswer = null,
                 explanation = null,
+                difficulty = QuestionDifficulty.MEDIUM,
                 tags = listOf("AI Generated"),
-                options = optionPairs,
-                freeTextAnswer = null,
+                points = 1.0,
+                negativePoints = 0.0,
                 imageUrl = null,
-                isUngraded = false
+                isUngraded = false,
+                createdAt = null
             )
-            (created as? AppResult.Success)?.data
         }
 
-        if (createdQuestions.isEmpty()) {
-            error("AI generated questions, but none could be saved. Please try again.")
+        if (reviewQuestions.isEmpty()) {
+            error("AI generated questions, but none were usable. Please try again.")
         }
 
-        createdQuestions
+        reviewQuestions
+    }
+
+    /**
+     * Persists the given (unsaved, synthetic-id) reviewed questions into [userId]'s question
+     * bank, returning the real, saved rows. Fails the whole batch — rather than silently saving
+     * a partial set — if any single question can't be created, so the caller never ends up with
+     * an ambiguous "some of these are real, some aren't" result to reconcile.
+     */
+    suspend fun saveQuestions(userId: String, questions: List<Question>): AppResult<List<Question>> = safeCall {
+        questions.map { question ->
+            when (
+                val created = questionRepository.createQuestion(
+                    userId = userId,
+                    text = question.text,
+                    type = question.type,
+                    points = question.points,
+                    negativePoints = question.negativePoints,
+                    difficulty = question.difficulty,
+                    explanation = question.explanation,
+                    tags = question.tags,
+                    options = question.options.map { it.text to it.isCorrect },
+                    freeTextAnswer = null,
+                    imageUrl = question.imageUrl,
+                    isUngraded = question.isUngraded
+                )
+            ) {
+                is AppResult.Success -> created.data
+                is AppResult.Error -> error(created.message)
+            }
+        }
     }
 }

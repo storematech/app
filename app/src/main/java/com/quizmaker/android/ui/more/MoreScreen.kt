@@ -1,5 +1,6 @@
 package com.quizmaker.android.ui.more
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.Crossfade
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SupportAgent
@@ -64,12 +66,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.BuildConfig
+import com.quizmaker.android.R
 import com.quizmaker.android.core.prefs.AppThemeMode
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
@@ -95,6 +99,7 @@ import com.quizmaker.android.core.theme.StatTealIcon
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.DesktopBanner
 import com.quizmaker.android.ui.common.PremiumActiveBanner
 import com.quizmaker.android.ui.common.PremiumBanner
@@ -277,7 +282,7 @@ fun MoreScreen(
 
             Spacer(Modifier.height(36.dp))
             AppFooter()
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(40.dp))
         }
     }
 
@@ -301,7 +306,7 @@ private fun ThemePickerDialog(currentMode: AppThemeMode, onSelect: (AppThemeMode
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = SurfaceWhite,
-        title = { Text("Theme", color = TextPrimary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold) },
+        title = { BlurBehindDialog(); Text("Theme", color = TextPrimary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 AppThemeMode.entries.forEach { mode ->
@@ -334,9 +339,11 @@ private fun ThemeModeRow(label: String, selected: Boolean, onClick: () -> Unit) 
     }
 }
 
-/** Zomato/Blinkit-style sign-off at the very bottom of the scroll — brand mark + tagline. */
+/** Sign-off at the very bottom of the scroll — tagline + social links, kept plain/monochrome
+ *  (no brand mark or colored logo) the way larger apps' footers tend to. */
 @Composable
 private fun AppFooter() {
+    val context = LocalContext.current
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -348,17 +355,31 @@ private fun AppFooter() {
             fontSize = 12.sp,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
-        Box(
-            modifier = Modifier.size(36.dp).clip(CircleShape).background(BrandIndigo),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Y", color = Color.White, fontFamily = PoppinsFamily, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            SocialIconButton(
+                painter = painterResource(R.drawable.ic_instagram),
+                contentDescription = "Instagram",
+                onClick = { openUrl(context, "https://www.instagram.com/yunolms/") }
+            )
+            SocialIconButton(
+                painter = painterResource(R.drawable.ic_youtube),
+                contentDescription = "YouTube",
+                onClick = { openUrl(context, "https://www.youtube.com/@YunoLMS") }
+            )
+            SocialIconButton(
+                painter = painterResource(R.drawable.ic_whatsapp),
+                contentDescription = "WhatsApp",
+                onClick = { openUrl(context, "https://wa.me/916364893005") }
+            )
+            SocialIconButton(
+                icon = Icons.Default.Public,
+                contentDescription = "Website",
+                onClick = { openInChrome(context, "https://yunolms.com") }
+            )
         }
-        Spacer(Modifier.height(8.dp))
-        Text("Yuno LMS", color = TextPrimary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(18.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Made with", color = TextSecondary, fontSize = 12.sp)
@@ -369,6 +390,44 @@ private fun AppFooter() {
         }
         Spacer(Modifier.height(4.dp))
         Text("v${BuildConfig.VERSION_NAME}", color = TextSecondary.copy(alpha = 0.6f), fontSize = 10.sp)
+    }
+}
+
+@Composable
+private fun SocialIconButton(
+    contentDescription: String,
+    onClick: () -> Unit,
+    painter: androidx.compose.ui.graphics.painter.Painter? = null,
+    icon: ImageVector? = null
+) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(BorderGray)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (painter != null) {
+            Icon(painter = painter, contentDescription = contentDescription, tint = TextSecondary, modifier = Modifier.size(19.dp))
+        } else if (icon != null) {
+            Icon(icon, contentDescription = contentDescription, tint = TextSecondary, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+private fun openUrl(context: android.content.Context, url: String) {
+    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+}
+
+/** Forces Chrome specifically (per request) for the website link, falling back to whatever
+ *  handles it if Chrome isn't installed. */
+private fun openInChrome(context: android.content.Context, url: String) {
+    val chromeIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply { setPackage("com.android.chrome") }
+    try {
+        context.startActivity(chromeIntent)
+    } catch (e: ActivityNotFoundException) {
+        openUrl(context, url)
     }
 }
 

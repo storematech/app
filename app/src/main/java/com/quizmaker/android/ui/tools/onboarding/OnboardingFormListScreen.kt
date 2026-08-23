@@ -86,6 +86,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.ONBOARDING_FORM_TEMPLATES
 import com.quizmaker.android.data.model.OnboardingForm
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
@@ -209,7 +210,7 @@ fun OnboardingFormListScreen(
     formPendingDelete?.let { form ->
         AlertDialog(
             onDismissRequest = { formPendingDelete = null },
-            title = { Text("Delete \"${form.title}\"?") },
+            title = { BlurBehindDialog(); Text("Delete \"${form.title}\"?") },
             text = { Text("This permanently deletes the form and all of its submissions.") },
             confirmButton = {
                 TextButton(onClick = {
@@ -313,6 +314,7 @@ private fun OnboardingFormActionsSheet(
     onRequestDelete: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BlurBehindDialog()
         var visible by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { visible = true }
         val noRipple = remember { MutableInteractionSource() }
@@ -394,6 +396,7 @@ private fun OnboardingShareSheet(title: String, shareUrl: String, onDismiss: () 
     var showQr by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
@@ -69,6 +70,7 @@ fun ExportDateRangeDialog(
     var showToPicker by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))

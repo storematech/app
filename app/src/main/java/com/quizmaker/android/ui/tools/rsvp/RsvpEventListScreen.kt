@@ -86,6 +86,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.RSVP_EVENT_TEMPLATES
 import com.quizmaker.android.data.model.RsvpEvent
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
@@ -208,7 +209,7 @@ fun RsvpEventListScreen(
     eventPendingDelete?.let { event ->
         AlertDialog(
             onDismissRequest = { eventPendingDelete = null },
-            title = { Text("Delete \"${event.title}\"?") },
+            title = { BlurBehindDialog(); Text("Delete \"${event.title}\"?") },
             text = { Text("This permanently deletes the event and all of its registrations.") },
             confirmButton = {
                 TextButton(onClick = {
@@ -323,6 +324,7 @@ private fun RsvpEventActionsSheet(
     onRequestDelete: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BlurBehindDialog()
         var visible by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { visible = true }
         val noRipple = remember { MutableInteractionSource() }
@@ -404,6 +406,7 @@ private fun RsvpShareSheet(title: String, shareUrl: String, onDismiss: () -> Uni
     var showQr by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(

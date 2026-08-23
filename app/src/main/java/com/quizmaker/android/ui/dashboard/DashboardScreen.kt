@@ -31,15 +31,17 @@ import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Construction
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -64,6 +66,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -72,6 +75,7 @@ import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.BrandIndigoDark
+import com.quizmaker.android.core.theme.BrandIndigoLight
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.StatAmberBg
 import com.quizmaker.android.core.theme.StatAmberIcon
@@ -89,10 +93,12 @@ import com.quizmaker.android.core.theme.SuccessGreen
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.data.model.QuizResponse
 import com.quizmaker.android.ui.common.DesktopBanner
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
+import com.quizmaker.android.ui.common.FeatureTourBanner
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.SaleDayBanner
 import com.quizmaker.android.ui.common.SkeletonBox
@@ -103,19 +109,28 @@ import com.quizmaker.android.ui.common.StatTile
 import com.quizmaker.android.ui.common.TrialActiveBanner
 import com.quizmaker.android.ui.common.TrialEndedBanner
 import com.quizmaker.android.ui.common.TrialExtendedBanner
+import com.quizmaker.android.ui.common.TrialPaywallSheet
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.TrialStatus
+import com.quizmaker.android.util.formatShortDate
+import kotlin.time.Duration.Companion.days
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     onOpenResponse: (String) -> Unit,
     onOpenQuizzes: () -> Unit,
+    onOpenQuiz: (String) -> Unit,
+    onCreateQuiz: () -> Unit,
+    onOpenAi: () -> Unit,
+    onOpenTools: () -> Unit,
+    onOpenClasses: () -> Unit,
     onOpenQuestions: () -> Unit,
     onOpenResponses: () -> Unit,
     onOpenReportedQuestions: () -> Unit,
     onOpenLearners: () -> Unit,
     onOpenPricing: () -> Unit,
+    onOpenFeatureTour: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -165,7 +180,61 @@ fun DashboardScreen(
                         trialStatus is TrialStatus.Active -> TrialActiveBanner(daysLeft = trialStatus.daysLeft, onClick = onOpenPricing)
                         else -> WelcomeBanner()
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(20.dp))
+                }
+
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                        Text("Quick Actions", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                            QuickActionButton(
+                                icon = Icons.Default.NoteAdd,
+                                label = "Create Quiz",
+                                iconBg = BrandIndigoLight,
+                                iconTint = BrandIndigo,
+                                onClick = { viewModel.onCreateQuizClick(onCreateQuiz) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickActionButton(
+                                icon = Icons.Default.AutoAwesome,
+                                label = "AI",
+                                iconBg = StatPurpleBg,
+                                iconTint = StatPurpleIcon,
+                                onClick = { viewModel.onOpenAiClick(onOpenAi) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickActionButton(
+                                icon = Icons.Default.Construction,
+                                label = "Tools",
+                                iconBg = StatAmberBg,
+                                iconTint = StatAmberIcon,
+                                onClick = onOpenTools,
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickActionButton(
+                                icon = Icons.Default.School,
+                                label = "Classes",
+                                iconBg = StatTealBg,
+                                iconTint = StatTealIcon,
+                                onClick = onOpenClasses,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(Modifier.height(20.dp))
+                    }
+                }
+
+                // "View Feature" playground — an onboarding/upsell nudge, so it's only worth
+                // showing to accounts that haven't bought a license yet, and only until its X has
+                // been dismissed twice (see DashboardViewModel.onDismissFeatureTourBanner).
+                if (uiState.trialStatus !is TrialStatus.Premium && !uiState.featureTourBannerDismissed) {
+                    item {
+                        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                            FeatureTourBanner(onClick = onOpenFeatureTour, onDismiss = viewModel::onDismissFeatureTourBanner)
+                            Spacer(Modifier.height(20.dp))
+                        }
+                    }
                 }
 
                 uiState.errorMessage?.let { message ->
@@ -177,34 +246,84 @@ fun DashboardScreen(
                     }
                 }
 
+                if (uiState.recentQuizzes.isNotEmpty()) {
+                    item {
+                        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    "Recent Quiz",
+                                    fontFamily = PoppinsFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = TextPrimary,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    "View all",
+                                    color = BrandIndigo,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.clickable(onClick = onOpenQuizzes)
+                                )
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            uiState.recentQuizzes.forEach { quiz ->
+                                RecentQuizCard(
+                                    quiz = quiz,
+                                    questionCount = uiState.recentQuizQuestionCounts[quiz.id],
+                                    onClick = { onOpenQuiz(quiz.id) }
+                                )
+                                Spacer(Modifier.height(10.dp))
+                            }
+                            Spacer(Modifier.height(10.dp))
+                        }
+                    }
+                }
+
                 item {
-                    var menuExpanded by remember { mutableStateOf(false) }
+                    var showDateSheet by remember { mutableStateOf(false) }
+                    val customStart = uiState.customRangeStart
+                    val customEnd = uiState.customRangeEnd
+                    val rangeLabel = if (uiState.selectedRange == DashboardDateRange.CUSTOM && customStart != null && customEnd != null) {
+                        // customRangeEnd is stored exclusive (see DashboardDateRangeSheet's KDoc) —
+                        // step back a day so the label shows the inclusive "To" date the user picked.
+                        "${formatShortDate(customStart)} – ${formatShortDate(customEnd - 1.days)}"
+                    } else {
+                        uiState.selectedRange.label
+                    }
                     Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                        Box {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(SurfaceWhite, RoundedCornerShape(50))
-                                    .border(1.dp, BorderGray, RoundedCornerShape(50))
-                                    .clickable { menuExpanded = true }
-                                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(10.dp))
-                                Text(uiState.selectedRange.label, color = TextPrimary, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = TextSecondary)
-                            }
-                            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                                DashboardDateRange.entries.forEach { range ->
-                                    DropdownMenuItem(
-                                        text = { Text(range.label) },
-                                        onClick = { menuExpanded = false; viewModel.onRangeSelected(range) }
-                                    )
-                                }
-                            }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(SurfaceWhite, RoundedCornerShape(50))
+                                .border(1.dp, BorderGray, RoundedCornerShape(50))
+                                .clickable { showDateSheet = true }
+                                .padding(horizontal = 20.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CalendarToday, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                rangeLabel,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = TextSecondary)
                         }
                         Spacer(Modifier.height(20.dp))
+                    }
+                    if (showDateSheet) {
+                        DashboardDateRangeSheet(
+                            selectedRange = uiState.selectedRange,
+                            customStart = uiState.customRangeStart,
+                            customEnd = uiState.customRangeEnd,
+                            onSelectPreset = viewModel::onRangeSelected,
+                            onApplyCustomRange = viewModel::onCustomRangeSelected,
+                            onDismiss = { showDateSheet = false }
+                        )
                     }
                 }
 
@@ -312,6 +431,86 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    if (uiState.showTrialPaywall) {
+        TrialPaywallSheet(onDismiss = viewModel::dismissTrialPaywall, onViewPlans = onOpenPricing)
+    }
+}
+
+@Composable
+private fun QuickActionButton(
+    icon: ImageVector,
+    label: String,
+    iconBg: Color,
+    iconTint: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .elevatedSurface(shape = RoundedCornerShape(16.dp), elevation = 3.dp)
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp, horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier.size(40.dp).clip(CircleShape).background(iconBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            label,
+            color = TextPrimary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun RecentQuizCard(quiz: Quiz, questionCount: Int?, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .elevatedSurface(shape = RoundedCornerShape(16.dp), elevation = 3.dp)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(StatPurpleBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Description, contentDescription = null, tint = StatPurpleIcon, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                quiz.title.ifBlank { "Untitled quiz" },
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${questionCount ?: "-"} Questions", color = TextSecondary, fontSize = 12.sp)
+                Text("  •  ", color = TextSecondary, fontSize = 12.sp)
+                Text(
+                    if (quiz.isClosed) "Closed" else "Published",
+                    color = if (quiz.isClosed) TextSecondary else SuccessGreen,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.sp
+                )
+            }
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextSecondary)
     }
 }
 

@@ -31,9 +31,12 @@ data class AiQuizUiState(
     val errorMessage: String? = null,
     val attachmentKind: AiAttachmentKind? = null,
     val attachmentLabel: String? = null,
-    // Review step: AI questions generated so far, and which of them the user wants in the quiz.
+    // Review step: AI questions generated so far (not yet saved anywhere — see AiQuizRepository's
+    // KDoc), and which of them the user wants to keep.
     val reviewQuestions: List<Question> = emptyList(),
     val selectedReviewIds: Set<String> = emptySet(),
+    // True while confirmSelection() is writing the selected questions to the question bank.
+    val isSaving: Boolean = false,
     val navigateToCreateQuizWith: List<String>? = null,
     val addQuestionsCompleted: Boolean = false,
     // Random 10-of-50 "trending" prompt starters shown as a carousel — see reshuffleTemplates().
@@ -108,29 +111,33 @@ class AiQuizViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(selectedReviewIds = emptySet())
     }
 
+    /** Discards the current review batch without saving anything — none of it was ever written to
+     *  the question bank in the first place (see AiQuizRepository's KDoc), so this is just a
+     *  client-side reset. Leaves the prompt text as-is so the user can edit and re-send it. */
+    fun clearReview() {
+        _uiState.value = _uiState.value.copy(reviewQuestions = emptyList(), selectedReviewIds = emptySet(), errorMessage = null)
+    }
+
     fun generate() {
         val state = _uiState.value
         val prompt = state.prompt.trim()
         if (prompt.isBlank() || state.isGenerating) return
-        val userId = authRepository.currentUserId() ?: return
 
-        runGeneration(source = "prompt") { aiQuizRepository.generateQuestionsFromPrompt(userId, prompt, state.questionCount) }
+        runGeneration(source = "prompt") { aiQuizRepository.generateQuestionsFromPrompt(prompt, state.questionCount) }
     }
 
     fun generateFromPdf(pdfBase64: String) {
         val state = _uiState.value
         if (state.isGenerating) return
-        val userId = authRepository.currentUserId() ?: return
 
-        runGeneration(source = "pdf") { aiQuizRepository.generateQuestionsFromPdf(userId, state.prompt.trim(), pdfBase64, state.questionCount) }
+        runGeneration(source = "pdf") { aiQuizRepository.generateQuestionsFromPdf(state.prompt.trim(), pdfBase64, state.questionCount) }
     }
 
     fun generateFromImages(images: List<Pair<String, String>>) {
         val state = _uiState.value
         if (state.isGenerating) return
-        val userId = authRepository.currentUserId() ?: return
 
-        runGeneration(source = "images") { aiQuizRepository.generateQuestionsFromImages(userId, state.prompt.trim(), images, state.questionCount) }
+        runGeneration(source = "images") { aiQuizRepository.generateQuestionsFromImages(state.prompt.trim(), images, state.questionCount) }
     }
 
     private fun runGeneration(source: String, block: suspend () -> AppResult<List<Question>>) {
@@ -150,16 +157,35 @@ class AiQuizViewModel @Inject constructor(
         }
     }
 
+    /**
+     * The one point in this whole flow that actually writes to the question bank — everything
+     * before this (generating, reviewing, checking/unchecking) is purely local. Only the
+     * currently-selected questions are saved, using their real database ids from here on: for
+     * "Create Quiz" mode those ids are what preselects them on the normal Create Quiz screen; for
+     * "Add Questions" mode they're simply now sitting in the bank like any manually-added question.
+     */
     fun confirmSelection() {
         val state = _uiState.value
         if (state.selectedReviewIds.isEmpty()) {
             _uiState.value = state.copy(errorMessage = "Select at least one question.")
             return
         }
-        _uiState.value = if (isAddQuestionsMode) {
-            state.copy(addQuestionsCompleted = true)
-        } else {
-            state.copy(navigateToCreateQuizWith = state.selectedReviewIds.toList())
+        if (state.isSaving) return
+        val userId = authRepository.currentUserId() ?: return
+        val selected = state.reviewQuestions.filter { it.id in state.selectedReviewIds }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSaving = true, errorMessage = null)
+            when (val result = aiQuizRepository.saveQuestions(userId, selected)) {
+                is AppResult.Success -> {
+                    _uiState.value = if (isAddQuestionsMode) {
+                        _uiState.value.copy(isSaving = false, addQuestionsCompleted = true)
+                    } else {
+                        _uiState.value.copy(isSaving = false, navigateToCreateQuizWith = result.data.map { it.id })
+                    }
+                }
+                is AppResult.Error -> _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = result.message)
+            }
         }
     }
 

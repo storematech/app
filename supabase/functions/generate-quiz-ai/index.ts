@@ -5,6 +5,15 @@
 // as server-side secrets. Nothing uploaded here is stored anywhere: the PDF/image bytes pass
 // straight through to the provider as inline request data and are discarded once this request ends.
 //
+// Auth + rate limiting: the anon key alone (public, extractable from any client) is NOT enough to
+// call this — the Authorization bearer token must resolve to a real signed-in user via
+// auth.getUser(), independent of whatever the project's Edge Function verify_jwt setting is. Each
+// resolved user is then capped at AI_DAILY_LIMIT_FREE/AI_DAILY_LIMIT_PREMIUM generations per
+// rolling 24h (see ai_generation_log.sql) — this is enforced purely server-side and deliberately
+// invisible to the client: a rate-limited request gets back the exact same generic "high demand"
+// error an actual provider failure would, so there's no UI to add and nothing for a caller to probe
+// to discover the limit.
+//
 // Provider fallback chain (Gemini alone was hitting frequent per-minute/per-day rate limits and
 // "model overloaded" errors): each request tries providers in this priority order, moving to the
 // next only when one errors out, times out, or returns something unusable:
@@ -30,6 +39,8 @@
 // }
 // Response body: { "success": true, "quizTitle": string, "questions": [{ text, options: [{ text, isCorrect }] }] }
 //              | { "success": false, "error": string }
+
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const GEMINI_MODEL = "gemini-flash-latest";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -58,6 +69,13 @@ const MAX_QUESTIONS = 15; // hard cap so a single request can't run away in cost
 const MAX_PDF_BASE64_CHARS = 11_000_000; // ~8MB raw PDF
 const MAX_IMAGES = 5;
 const MAX_IMAGE_BASE64_CHARS = 2_800_000; // ~2MB raw per photo (client compresses well below this)
+
+// Per-user daily caps — deliberately not surfaced anywhere in the app; a capped request just gets
+// the same generic "high demand" message a real provider failure would. Mirrors the premium check
+// in scheduled-push/index.ts (PREMIUM_USER_TYPES) and Profile.kt's isPremium.
+const AI_DAILY_LIMIT_FREE = 10;
+const AI_DAILY_LIMIT_PREMIUM = 25;
+const PREMIUM_USER_TYPES = new Set(["starter", "school", "school pro"]);
 
 function buildPrompt(topic: string, questionCount: number, hasAttachment: boolean): string {
   const source = hasAttachment
@@ -112,6 +130,67 @@ function jsonResponse(body: unknown, status = 200): Response {
 interface QuizResult {
   quizTitle: string;
   questions: unknown[];
+}
+
+type AuthCheckResult =
+  | { ok: true; userId: string }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Resolves the caller to a real signed-in user (rejecting the public anon key on its own — see
+ * this file's header) and enforces their daily generation cap. Every rejection here — missing
+ * token, invalid token, or over-limit — returns the exact same shape/message the "sign in" and
+ * "high demand" paths already use elsewhere, so a rate-limited caller can't distinguish "you hit
+ * your limit" from any other ordinary failure.
+ */
+async function checkAuthAndRateLimit(
+  req: Request,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<AuthCheckResult> {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!jwt) {
+    return { ok: false, status: 401, error: "Please sign in and try again." };
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+
+  const { data: userData, error: userError } = await admin.auth.getUser(jwt);
+  if (userError || !userData?.user) {
+    return { ok: false, status: 401, error: "Please sign in and try again." };
+  }
+  const userId = userData.user.id;
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("user_type")
+    .eq("id", userId)
+    .maybeSingle();
+  const isPremium = PREMIUM_USER_TYPES.has((profile?.user_type ?? "").toLowerCase());
+  const dailyLimit = isPremium ? AI_DAILY_LIMIT_PREMIUM : AI_DAILY_LIMIT_FREE;
+
+  const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count, error: countError } = await admin
+    .from("ai_generation_log")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", windowStart);
+  if (countError) {
+    console.error("ai_generation_log count failed:", countError);
+    // Fails open — a logging/DB hiccup shouldn't block generation outright, same "best effort,
+    // never blocks the primary flow" reasoning used elsewhere in this codebase.
+  } else if ((count ?? 0) >= dailyLimit) {
+    return { ok: false, status: 429, error: "We're facing high demand. Please try again." };
+  }
+
+  // Logged now (not after the AI call below) — a failed provider attempt still spent real quota
+  // against Groq/OpenRouter/Cerebras/Gemini, so it counts against this user's cap either way.
+  // Best-effort: an insert failure here shouldn't block a generation that's otherwise allowed.
+  const { error: logError } = await admin.from("ai_generation_log").insert({ user_id: userId });
+  if (logError) console.error("ai_generation_log insert failed:", logError);
+
+  return { ok: true, userId };
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
@@ -305,6 +384,17 @@ Deno.serve(async (req) => {
 
     if (!groqKey && !openRouterKey && !cerebrasKey && !geminiKey) {
       return jsonResponse({ success: false, error: "AI is not configured on the server." }, 500);
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) {
+      return jsonResponse({ success: false, error: "Server not configured." }, 500);
+    }
+
+    const authCheck = await checkAuthAndRateLimit(req, supabaseUrl, serviceRoleKey);
+    if (!authCheck.ok) {
+      return jsonResponse({ success: false, error: authCheck.error }, authCheck.status);
     }
 
     const body = await req.json().catch(() => null);

@@ -95,6 +95,7 @@ import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.BrandIndigoLight
+import com.quizmaker.android.core.theme.ErrorRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SuccessGreen
 import com.quizmaker.android.core.theme.SurfaceWhite
@@ -419,10 +420,12 @@ fun AiQuizScreen(
                     questions = uiState.reviewQuestions,
                     selectedIds = uiState.selectedReviewIds,
                     isAddQuestionsMode = viewModel.isAddQuestionsMode,
+                    isSaving = uiState.isSaving,
                     onToggle = viewModel::toggleReviewQuestion,
                     onToggleAll = {
                         if (uiState.selectedReviewIds.size == uiState.reviewQuestions.size) viewModel.deselectAllReview() else viewModel.selectAllReview()
                     },
+                    onClear = viewModel::clearReview,
                     onConfirm = viewModel::confirmSelection
                 )
             }
@@ -438,8 +441,10 @@ private fun ReviewSection(
     questions: List<Question>,
     selectedIds: Set<String>,
     isAddQuestionsMode: Boolean,
+    isSaving: Boolean,
     onToggle: (String) -> Unit,
     onToggleAll: () -> Unit,
+    onClear: () -> Unit,
     onConfirm: () -> Unit
 ) {
     Column {
@@ -448,13 +453,26 @@ private fun ReviewSection(
                 Text("Generated Questions", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary)
                 Text("${selectedIds.size} of ${questions.size} selected", color = TextSecondary, fontSize = 12.sp)
             }
-            Text(
-                if (selectedIds.size == questions.size) "Deselect all" else "Select all",
-                color = BrandIndigo,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable(onClick = onToggleAll)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Don't want any of these? Discard the whole batch (nothing's saved yet — see
+                // AiQuizViewModel.clearReview) and go rewrite the prompt, instead of unchecking
+                // questions one by one just to end up regenerating anyway.
+                Text(
+                    "Clear",
+                    color = ErrorRed,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(enabled = !isSaving, onClick = onClear)
+                )
+                Spacer(Modifier.width(14.dp))
+                Text(
+                    if (selectedIds.size == questions.size) "Deselect all" else "Select all",
+                    color = BrandIndigo,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(enabled = !isSaving, onClick = onToggleAll)
+                )
+            }
         }
         Spacer(Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -472,8 +490,8 @@ private fun ReviewSection(
             text = if (isAddQuestionsMode) "Add Questions (${selectedIds.size})" else "Create Quiz (${selectedIds.size})",
             onClick = onConfirm,
             leadingIcon = if (isAddQuestionsMode) Icons.Default.Add else Icons.Default.AutoAwesome,
-            enabled = selectedIds.isNotEmpty(),
-            loading = false,
+            enabled = selectedIds.isNotEmpty() && !isSaving,
+            loading = isSaving,
             modifier = Modifier.fillMaxWidth()
         )
     }

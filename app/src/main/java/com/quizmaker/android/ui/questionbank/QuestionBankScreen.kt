@@ -86,6 +86,7 @@ import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionDifficulty
 import com.quizmaker.android.data.model.QuestionType
 import com.quizmaker.android.ui.common.AiQuestionsBanner
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.FilledPill
@@ -283,7 +284,7 @@ fun QuestionBankScreen(
     questionPendingDelete?.let { question ->
         AlertDialog(
             onDismissRequest = { questionPendingDelete = null },
-            title = { Text("Delete this question?") },
+            title = { BlurBehindDialog(); Text("Delete this question?") },
             text = { Text("This permanently removes it from your question bank and any quizzes using it.") },
             confirmButton = {
                 TextButton(onClick = {
@@ -434,6 +435,7 @@ private fun FilterSheet(uiState: QuestionBankUiState, viewModel: QuestionBankVie
     var selectedDifficulty by remember { mutableStateOf(uiState.difficultyFilter) }
 
     ModalBottomSheet(onDismissRequest = viewModel::closeFilterSheet, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())

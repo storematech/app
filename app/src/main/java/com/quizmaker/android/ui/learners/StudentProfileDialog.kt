@@ -35,6 +35,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.Learner
 import com.quizmaker.android.data.model.LearnerQuizAttempt
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.CsvFileIcon
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.ScorePill
@@ -55,6 +56,7 @@ fun StudentProfileDialog(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())

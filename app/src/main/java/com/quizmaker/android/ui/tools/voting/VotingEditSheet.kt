@@ -48,6 +48,7 @@ import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.Candidate
 import com.quizmaker.android.data.model.VotingCampaign
 import com.quizmaker.android.data.model.VotingTemplate
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.formatShortDate
@@ -91,6 +92,7 @@ fun VotingEditSheet(
     val isEditing = initialCampaign != null
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())

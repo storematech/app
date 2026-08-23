@@ -48,6 +48,7 @@ import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.data.model.Quiz
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.ShareQuizSheet
@@ -128,7 +129,7 @@ fun QuizDetailScreen(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete this quiz?") },
+            title = { BlurBehindDialog(); Text("Delete this quiz?") },
             text = { Text("This permanently deletes the quiz and all of its responses.") },
             confirmButton = {
                 TextButton(onClick = { showDeleteConfirm = false; viewModel.deleteQuiz() }) { Text("Delete") }
