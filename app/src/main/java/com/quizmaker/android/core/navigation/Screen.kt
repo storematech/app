@@ -53,6 +53,10 @@ sealed class Screen(val route: String) {
         fun createRoute(quizId: String) = "quiz_analysis/$quizId"
     }
 
+    data object ManualMarking : Screen("manual_marking/{quizId}") {
+        fun createRoute(quizId: String) = "manual_marking/$quizId"
+    }
+
     data object QuizDetailView : Screen("quiz_detail_view/{quizId}") {
         fun createRoute(quizId: String) = "quiz_detail_view/$quizId"
     }

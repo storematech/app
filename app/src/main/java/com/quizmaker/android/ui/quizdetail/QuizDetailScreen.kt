@@ -1,5 +1,7 @@
 package com.quizmaker.android.ui.quizdetail
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,11 +11,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Share
@@ -39,14 +44,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
+import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
+import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.core.theme.WarningAmber
 import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.ErrorBanner
@@ -60,6 +69,7 @@ fun QuizDetailScreen(
     onViewLeaderboard: (String) -> Unit,
     onEditQuiz: (String) -> Unit,
     onOpenMasterPaper: (String) -> Unit,
+    onOpenManualMarking: (String) -> Unit,
     viewModel: QuizDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -105,10 +115,13 @@ fun QuizDetailScreen(
                 questionCount = uiState.questionCount,
                 responseCount = uiState.responseCount,
                 actionInProgress = uiState.actionInProgress,
+                hasGradedFreeTextQuestions = uiState.hasGradedFreeTextQuestions,
+                pendingMarkingCount = uiState.pendingMarkingCount,
                 modifier = Modifier.padding(padding),
                 onViewLeaderboard = { onViewLeaderboard(uiState.quiz!!.id) },
                 onCloseQuiz = viewModel::closeQuiz,
-                onRequestDelete = { showDeleteConfirm = true }
+                onRequestDelete = { showDeleteConfirm = true },
+                onOpenManualMarking = { onOpenManualMarking(uiState.quiz!!.id) }
             )
         }
     }
@@ -145,10 +158,13 @@ private fun QuizDetailContent(
     questionCount: Int,
     responseCount: Int,
     actionInProgress: Boolean,
+    hasGradedFreeTextQuestions: Boolean,
+    pendingMarkingCount: Int,
     modifier: Modifier = Modifier,
     onViewLeaderboard: () -> Unit,
     onCloseQuiz: () -> Unit,
-    onRequestDelete: () -> Unit
+    onRequestDelete: () -> Unit,
+    onOpenManualMarking: () -> Unit
 ) {
     Column(
         modifier = modifier
@@ -185,6 +201,11 @@ private fun QuizDetailContent(
             }
         }
 
+        if (hasGradedFreeTextQuestions) {
+            Spacer(Modifier.height(24.dp))
+            ManualMarkingCard(pendingCount = pendingMarkingCount, onClick = onOpenManualMarking)
+        }
+
         Spacer(Modifier.height(24.dp))
         if (quiz.showLeaderboard) {
             GradientButton(
@@ -207,6 +228,42 @@ private fun QuizDetailContent(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Delete quiz", color = MaterialTheme.colorScheme.error)
+        }
+    }
+}
+
+/** Only ever shown when the quiz has a Free Text question that isn't marked "Ungraded" (see
+ *  QuizDetailViewModel.refresh) — free text can't be auto-graded, so those need a human to award
+ *  points after each submission. [pendingCount] is the number of answers still awaiting a mark. */
+@Composable
+private fun ManualMarkingCard(pendingCount: Int, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(WarningAmber.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Edit, contentDescription = null, tint = WarningAmber)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Manual Marking", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary)
+                Text(
+                    if (pendingCount > 0) "Marking pending — $pendingCount to review" else "All free-text answers marked",
+                    color = if (pendingCount > 0) WarningAmber else TextSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = if (pendingCount > 0) FontWeight.SemiBold else FontWeight.Normal
+                )
+            }
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = BrandIndigo)
         }
     }
 }

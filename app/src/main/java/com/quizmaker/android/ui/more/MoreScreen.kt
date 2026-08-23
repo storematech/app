@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Construction
 import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Flag
@@ -45,20 +44,13 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SupportAgent
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,7 +66,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.BuildConfig
 import com.quizmaker.android.R
-import com.quizmaker.android.core.prefs.AppThemeMode
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
@@ -121,12 +112,9 @@ fun MoreScreen(
     onOpenLearners: () -> Unit,
     onOpenTools: () -> Unit,
     onOpenSettings: () -> Unit,
-    viewModel: MoreViewModel = hiltViewModel(),
-    themeViewModel: ThemeViewModel = hiltViewModel()
+    viewModel: MoreViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val themeMode by themeViewModel.themeMode.collectAsState()
-    var showThemePicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     // The bottom nav bar's own Scaffold (NavGraph) already reserves the system nav-bar inset, so
@@ -193,13 +181,6 @@ fun MoreScreen(
                 MoreRow(icon = Icons.Default.Group, label = "Learners", onClick = onOpenLearners, iconBg = StatGreenBg, iconTint = StatGreenIcon)
                 RowDivider()
                 MoreRow(icon = Icons.Default.Construction, label = "Tools", onClick = onOpenTools, iconBg = StatAmberBg, iconTint = StatAmberIcon)
-                RowDivider()
-                MoreRow(
-                    icon = Icons.Default.DarkMode,
-                    label = "Theme",
-                    value = themeMode.label(),
-                    onClick = { showThemePicker = true }
-                )
                 RowDivider()
                 MoreRow(icon = Icons.Default.Settings, label = "Settings", onClick = onOpenSettings)
                 RowDivider()
@@ -286,57 +267,6 @@ fun MoreScreen(
         }
     }
 
-    if (showThemePicker) {
-        ThemePickerDialog(
-            currentMode = themeMode,
-            onSelect = { themeViewModel.setThemeMode(it) },
-            onDismiss = { showThemePicker = false }
-        )
-    }
-}
-
-private fun AppThemeMode.label(): String = when (this) {
-    AppThemeMode.LIGHT -> "Light"
-    AppThemeMode.DARK -> "Dark"
-    AppThemeMode.SYSTEM -> "System default"
-}
-
-@Composable
-private fun ThemePickerDialog(currentMode: AppThemeMode, onSelect: (AppThemeMode) -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = SurfaceWhite,
-        title = { BlurBehindDialog(); Text("Theme", color = TextPrimary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold) },
-        text = {
-            Column {
-                AppThemeMode.entries.forEach { mode ->
-                    ThemeModeRow(label = mode.label(), selected = currentMode == mode, onClick = { onSelect(mode) })
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Done", color = BrandIndigo, fontWeight = FontWeight.Bold) }
-        }
-    )
-}
-
-@Composable
-private fun ThemeModeRow(label: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = selected,
-            onClick = onClick,
-            colors = RadioButtonDefaults.colors(selectedColor = BrandIndigo, unselectedColor = TextSecondary)
-        )
-        Spacer(Modifier.width(4.dp))
-        Text(label, color = TextPrimary, fontSize = 15.sp)
-    }
 }
 
 /** Sign-off at the very bottom of the scroll — tagline + social links, kept plain/monochrome

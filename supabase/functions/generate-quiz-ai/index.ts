@@ -9,10 +9,10 @@
 // call this — the Authorization bearer token must resolve to a real signed-in user via
 // auth.getUser(), independent of whatever the project's Edge Function verify_jwt setting is. Each
 // resolved user is then capped at AI_DAILY_LIMIT_FREE/AI_DAILY_LIMIT_PREMIUM generations per
-// rolling 24h (see ai_generation_log.sql) — this is enforced purely server-side and deliberately
-// invisible to the client: a rate-limited request gets back the exact same generic "high demand"
-// error an actual provider failure would, so there's no UI to add and nothing for a caller to probe
-// to discover the limit.
+// rolling 24h (see ai_generation_log.sql) — enforced purely server-side. Going over the limit
+// returns a distinct, specific error (not the generic provider-failure message) stating the actual
+// daily cap, so the app can show the user why the request failed instead of a confusing "high
+// demand" message that isn't true.
 //
 // Provider fallback chain (Gemini alone was hitting frequent per-minute/per-day rate limits and
 // "model overloaded" errors): each request tries providers in this priority order, moving to the
@@ -138,10 +138,10 @@ type AuthCheckResult =
 
 /**
  * Resolves the caller to a real signed-in user (rejecting the public anon key on its own — see
- * this file's header) and enforces their daily generation cap. Every rejection here — missing
- * token, invalid token, or over-limit — returns the exact same shape/message the "sign in" and
- * "high demand" paths already use elsewhere, so a rate-limited caller can't distinguish "you hit
- * your limit" from any other ordinary failure.
+ * this file's header) and enforces their daily generation cap. Missing/invalid auth gets the
+ * generic "sign in" message; going over the daily cap gets its own specific message naming the
+ * actual limit, so the app can surface why the request failed rather than a misleading "high
+ * demand" error.
  */
 async function checkAuthAndRateLimit(
   req: Request,
@@ -181,7 +181,12 @@ async function checkAuthAndRateLimit(
     // Fails open — a logging/DB hiccup shouldn't block generation outright, same "best effort,
     // never blocks the primary flow" reasoning used elsewhere in this codebase.
   } else if ((count ?? 0) >= dailyLimit) {
-    return { ok: false, status: 429, error: "We're facing high demand. Please try again." };
+    const upsell = isPremium ? "" : " Upgrade to Premium for a higher daily limit.";
+    return {
+      ok: false,
+      status: 429,
+      error: `You've reached your daily AI generation limit (${dailyLimit}/day). Try again tomorrow.${upsell}`,
+    };
   }
 
   // Logged now (not after the AI call below) — a failed provider attempt still spent real quota

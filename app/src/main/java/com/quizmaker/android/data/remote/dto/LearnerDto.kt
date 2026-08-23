@@ -48,7 +48,8 @@ data class LearnerDto(
 data class LearnerInsertDto(
     @SerialName("student_id") val studentId: String,
     val name: String,
-    val email: String,
+    /** Null (not empty string) when a student has no email — see LearnersRepository.createLearner. */
+    val email: String?,
     @SerialName("group_id") val groupId: String?,
     @SerialName("parent_name") val parentName: String?,
     @SerialName("parent_contact") val parentContact: String?,
@@ -59,7 +60,7 @@ data class LearnerInsertDto(
 @Serializable
 data class LearnerUpdateDto(
     val name: String,
-    val email: String,
+    val email: String?,
     @SerialName("group_id") val groupId: String?,
     @SerialName("parent_name") val parentName: String?,
     @SerialName("parent_contact") val parentContact: String?,

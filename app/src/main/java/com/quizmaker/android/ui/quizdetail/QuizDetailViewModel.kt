@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
+import com.quizmaker.android.data.model.QuestionType
 import com.quizmaker.android.data.model.Quiz
+import com.quizmaker.android.repository.ManualMarkingRepository
 import com.quizmaker.android.repository.QuizRepository
 import com.quizmaker.android.util.PdfBranding
 import com.quizmaker.android.util.PdfBrandingProvider
@@ -23,12 +25,17 @@ data class QuizDetailUiState(
     val questionCount: Int = 0,
     val responseCount: Int = 0,
     val actionInProgress: Boolean = false,
-    val deleted: Boolean = false
+    val deleted: Boolean = false,
+    /** Whether this quiz has at least one Free Text question that isn't marked "Ungraded" — drives
+     *  whether the Manual Marking card shows at all. */
+    val hasGradedFreeTextQuestions: Boolean = false,
+    val pendingMarkingCount: Int = 0
 )
 
 @HiltViewModel
 class QuizDetailViewModel @Inject constructor(
     private val quizRepository: QuizRepository,
+    private val manualMarkingRepository: ManualMarkingRepository,
     private val analyticsLogger: AnalyticsLogger,
     private val pdfBrandingProvider: PdfBrandingProvider,
     savedStateHandle: SavedStateHandle
@@ -63,11 +70,24 @@ class QuizDetailViewModel @Inject constructor(
                 is AppResult.Error -> 0
             }
 
+            // Only worth the extra queries when the quiz actually has a Free Text question that
+            // isn't marked "Ungraded" — the common case (no manual marking needed at all) skips
+            // straight past this.
+            val questions = (quizRepository.getQuestionsForQuiz(quizId) as? AppResult.Success)?.data.orEmpty()
+            val hasGradedFreeText = questions.any { it.type == QuestionType.FREE_TEXT && !it.isUngraded }
+            val pendingMarkingCount = if (hasGradedFreeText) {
+                (manualMarkingRepository.getMarkingItems(quizId) as? AppResult.Success)?.data?.count { it.isPending } ?: 0
+            } else {
+                0
+            }
+
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
                 quiz = (quizResult as AppResult.Success).data,
                 questionCount = questionCount,
-                responseCount = responseCount
+                responseCount = responseCount,
+                hasGradedFreeTextQuestions = hasGradedFreeText,
+                pendingMarkingCount = pendingMarkingCount
             )
         }
     }

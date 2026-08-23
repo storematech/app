@@ -3,18 +3,22 @@ package com.quizmaker.android.ui.quizcreate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -32,6 +36,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,8 +46,6 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -57,7 +60,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -117,7 +124,10 @@ fun CreateQuizScreen(
     Scaffold(
         containerColor = AppBackground,
         topBar = {
-            Column(modifier = Modifier.background(AppBackground)) {
+            // Scaffold's topBar slot gets no automatic system-bar inset padding on its own (only
+            // material3's own TopAppBar composable applies that internally) — since the app runs
+            // edge-to-edge, without this the back button rendered partly under the status bar.
+            Column(modifier = Modifier.background(AppBackground).statusBarsPadding()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -319,20 +329,22 @@ private fun DetailsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewMod
         )
         Spacer(Modifier.height(16.dp))
         if (uiState.timeLimitType == "overall") {
-            Text("${uiState.timeLimitMinutes} minutes total", color = TextSecondary, fontSize = 13.sp)
-            Slider(
-                value = uiState.timeLimitMinutes.toFloat(),
-                onValueChange = { viewModel.onTimeLimitMinutesChange(it.toInt()) },
-                valueRange = 1f..60f,
-                colors = SliderDefaults.colors(thumbColor = BrandIndigo, activeTrackColor = BrandIndigo)
+            Text("Total time (minutes, up to 3.5 hours)", color = TextSecondary, fontSize = 13.sp)
+            Spacer(Modifier.height(10.dp))
+            IntStepper(
+                value = uiState.timeLimitMinutes,
+                onValueChange = viewModel::onTimeLimitMinutesChange,
+                minValue = 1,
+                maxValue = MAX_TIME_LIMIT_MINUTES
             )
         } else {
-            Text("${uiState.timePerQuestionSeconds} seconds per question", color = TextSecondary, fontSize = 13.sp)
-            Slider(
-                value = uiState.timePerQuestionSeconds.toFloat(),
-                onValueChange = { viewModel.onTimePerQuestionChange(it.toInt()) },
-                valueRange = 5f..120f,
-                colors = SliderDefaults.colors(thumbColor = BrandIndigo, activeTrackColor = BrandIndigo)
+            Text("Seconds per question", color = TextSecondary, fontSize = 13.sp)
+            Spacer(Modifier.height(10.dp))
+            IntStepper(
+                value = uiState.timePerQuestionSeconds,
+                onValueChange = viewModel::onTimePerQuestionChange,
+                minValue = 5,
+                maxValue = 120
             )
         }
     }
@@ -714,6 +726,27 @@ private fun NewQuestionSheet(
                 value = draft.points,
                 onValueChange = { onUpdate { d -> d.copy(points = it) } }
             )
+            Spacer(Modifier.height(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onUpdate { d -> d.copy(isUngraded = !d.isUngraded) } }
+            ) {
+                Checkbox(
+                    checked = draft.isUngraded,
+                    onCheckedChange = { checked -> onUpdate { d -> d.copy(isUngraded = checked) } }
+                )
+                Spacer(Modifier.width(4.dp))
+                Column {
+                    Text("Ungraded", color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    if (draft.type == QuestionType.FREE_TEXT) {
+                        Text(
+                            "Unchecked = you'll manually award points after each submission",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
 
             Spacer(Modifier.height(20.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -838,6 +871,44 @@ private fun PointsStepper(
     }
 }
 
+/** Same +/- + type-directly shape as [PointsStepper], for whole-number values (quiz timing) rather
+ *  than decimals — kept separate since the two need different keyboard types/parsing. */
+@Composable
+private fun IntStepper(
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    minValue: Int,
+    maxValue: Int
+) {
+    var text by remember(value) { mutableStateOf(value.toString()) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(
+            onClick = { onValueChange((value - 1).coerceIn(minValue, maxValue)) },
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = BrandIndigo)
+        }
+        OutlinedTextField(
+            value = text,
+            onValueChange = { input ->
+                text = input
+                input.toIntOrNull()?.let { onValueChange(it.coerceIn(minValue, maxValue)) }
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.width(84.dp)
+        )
+        IconButton(
+            onClick = { onValueChange((value + 1).coerceIn(minValue, maxValue)) },
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Increase", tint = BrandIndigo)
+        }
+    }
+}
+
 @Composable
 private fun AddRemoveOptionsRow(draft: NewQuestionDraft, onUpdate: ((NewQuestionDraft) -> NewQuestionDraft) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -880,6 +951,8 @@ private fun typeLabel(type: QuestionType) = when (type) {
 
 @Composable
 private fun SettingsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewModel) {
+    var showColorPicker by remember { mutableStateOf(false) }
+
     SectionCard(title = "Results") {
         SwitchSettingsRow("Show results after submission", uiState.showResults, viewModel::onShowResultsChange)
         SwitchSettingsRow("Email results to participant", uiState.sendResultEmail, viewModel::onSendResultEmailChange)
@@ -907,28 +980,250 @@ private fun SettingsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewMo
     }
 
     SectionCard(title = "Accent Color") {
-        Row {
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             QUIZ_COLOR_SWATCHES.forEach { hex ->
                 val color = Color(android.graphics.Color.parseColor(hex))
+                val isSelected = uiState.quizColor == hex
+                // A halo ring in the swatch's own color, offset from the swatch itself, reads as
+                // "selected" more clearly at a glance than a border drawn directly on the color —
+                // and the 48dp outer box is a proper touch target regardless of the swatch's own size.
                 Box(
                     modifier = Modifier
-                        .padding(end = 10.dp)
-                        .size(38.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .background(color)
-                        .border(
-                            width = if (uiState.quizColor == hex) 3.dp else 0.dp,
-                            color = TextPrimary,
-                            shape = CircleShape
-                        )
-                        .clickable { viewModel.onQuizColorChange(hex) },
+                        .border(width = if (isSelected) 2.dp else 0.dp, color = color, shape = CircleShape)
+                        .clickable { viewModel.onQuizColorChange(hex) }
+                        .padding(6.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (uiState.quizColor == hex) {
-                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Box(
+                        modifier = Modifier.fillMaxSize().clip(CircleShape).background(color),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSelected) {
+                            Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color.White, modifier = Modifier.size(20.dp))
+                        }
                     }
                 }
             }
+
+            // A 6th "custom" swatch — same halo-ring treatment as the presets. Shows the actually
+            // picked custom color (with its own check mark) once one is active; otherwise a
+            // rainbow ring around a "+" is what invites tapping it in the first place.
+            val isCustomActive = uiState.quizColor !in QUIZ_COLOR_SWATCHES
+            val customColor = if (isCustomActive) runCatching { Color(android.graphics.Color.parseColor(uiState.quizColor)) }.getOrNull() else null
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .border(
+                        width = 2.dp,
+                        brush = if (customColor != null) Brush.horizontalGradient(listOf(customColor, customColor)) else Brush.sweepGradient(RAINBOW_HUES),
+                        shape = CircleShape
+                    )
+                    .clickable { showColorPicker = true }
+                    .padding(6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (customColor != null) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().clip(CircleShape).background(customColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = "Custom color selected", tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize().clip(CircleShape).background(Brush.sweepGradient(RAINBOW_HUES)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Pick a custom color", tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+        }
+    }
+
+    if (showColorPicker) {
+        ColorPickerDialog(
+            initialHex = uiState.quizColor,
+            onConfirm = { hex ->
+                viewModel.onQuizColorChange(hex)
+                showColorPicker = false
+            },
+            onDismiss = { showColorPicker = false }
+        )
+    }
+}
+
+/** Full-spectrum stops for the "pick a custom color" ring/swatch and the hue slider below — red
+ *  back to red so a [Brush.sweepGradient]/[Brush.horizontalGradient] built from it wraps cleanly. */
+private val RAINBOW_HUES = listOf(
+    Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red
+)
+
+/**
+ * A dependency-free HSV color picker: a saturation/brightness square (drag or tap anywhere) plus a
+ * hue bar below it, with a hex field wired both ways so precise values can be typed directly too.
+ * No color-picker library exists in this project yet, and this is the only place one's needed.
+ */
+@Composable
+private fun ColorPickerDialog(initialHex: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    val initialHsv = remember {
+        val argb = runCatching { android.graphics.Color.parseColor(initialHex) }
+            .getOrDefault(android.graphics.Color.parseColor(QUIZ_COLOR_SWATCHES.first()))
+        FloatArray(3).also { android.graphics.Color.colorToHSV(argb, it) }
+    }
+    var hue by remember { mutableStateOf(initialHsv[0]) }
+    var saturation by remember { mutableStateOf(initialHsv[1]) }
+    var brightness by remember { mutableStateOf(initialHsv[2]) }
+
+    val selectedColor = Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, brightness)))
+    val selectedHex = "#%06X".format(selectedColor.toArgb() and 0xFFFFFF)
+
+    // Only follows the picker's own hue/sat/brightness changes — typing into the field updates
+    // hue/sat/brightness directly (see its onValueChange below) rather than the other way round,
+    // so an in-progress, not-yet-valid hex string typed by the user is never stomped mid-edit.
+    var hexInput by remember { mutableStateOf(selectedHex) }
+    LaunchedEffect(selectedHex) { hexInput = selectedHex }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = SurfaceWhite,
+        title = {
+            BlurBehindDialog()
+            Text("Custom Color", color = TextPrimary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(selectedColor)
+                            .border(1.dp, BorderGray, CircleShape)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    OutlinedTextField(
+                        value = hexInput,
+                        onValueChange = { input ->
+                            hexInput = input
+                            val normalized = if (input.startsWith("#")) input else "#$input"
+                            if (Regex("^#[0-9A-Fa-f]{6}$").matches(normalized)) {
+                                runCatching { android.graphics.Color.parseColor(normalized) }.getOrNull()?.let { argb ->
+                                    val hsv = FloatArray(3)
+                                    android.graphics.Color.colorToHSV(argb, hsv)
+                                    hue = hsv[0]; saturation = hsv[1]; brightness = hsv[2]
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(Modifier.height(18.dp))
+                SaturationBrightnessBox(
+                    hue = hue,
+                    saturation = saturation,
+                    brightness = brightness,
+                    onChange = { s, b -> saturation = s; brightness = b }
+                )
+                Spacer(Modifier.height(14.dp))
+                HueSliderBar(hue = hue, onHueChange = { hue = it })
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.Button(
+                onClick = { onConfirm(selectedHex) },
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = BrandIndigo)
+            ) {
+                Text("Use Color", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel", color = TextSecondary) }
+        }
+    )
+}
+
+@Composable
+private fun SaturationBrightnessBox(hue: Float, saturation: Float, brightness: Float, onChange: (Float, Float) -> Unit) {
+    val hueColor = Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, 1f, 1f)))
+    var boxSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(hueColor)
+            .background(Brush.horizontalGradient(listOf(Color.White, Color.Transparent)))
+            .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
+            .onSizeChanged { boxSize = it }
+            .pointerInput(Unit) {
+                fun updateFrom(offset: androidx.compose.ui.geometry.Offset) {
+                    if (boxSize.width == 0 || boxSize.height == 0) return
+                    val s = (offset.x / boxSize.width).coerceIn(0f, 1f)
+                    val v = 1f - (offset.y / boxSize.height).coerceIn(0f, 1f)
+                    onChange(s, v)
+                }
+                detectDragGestures(
+                    onDragStart = { offset -> updateFrom(offset) },
+                    onDrag = { change, _ -> change.consume(); updateFrom(change.position) }
+                )
+            }
+    ) {
+        if (boxSize.width > 0 && boxSize.height > 0) {
+            val thumbX = with(density) { (saturation * boxSize.width).toDp() } - 10.dp
+            val thumbY = with(density) { ((1f - brightness) * boxSize.height).toDp() } - 10.dp
+            Box(
+                modifier = Modifier
+                    .offset(x = thumbX, y = thumbY)
+                    .size(20.dp)
+                    .border(2.dp, Color.White, CircleShape)
+                    .border(1.dp, Color.Black.copy(alpha = 0.25f), CircleShape)
+            )
+        }
+    }
+}
+
+@Composable
+private fun HueSliderBar(hue: Float, onHueChange: (Float) -> Unit) {
+    var barSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(28.dp)
+            .clip(RoundedCornerShape(50))
+            .background(Brush.horizontalGradient(RAINBOW_HUES))
+            .onSizeChanged { barSize = it }
+            .pointerInput(Unit) {
+                fun updateFrom(x: Float) {
+                    if (barSize.width == 0) return
+                    onHueChange(((x / barSize.width).coerceIn(0f, 1f) * 360f).coerceAtMost(359.99f))
+                }
+                detectDragGestures(
+                    onDragStart = { offset -> updateFrom(offset.x) },
+                    onDrag = { change, _ -> change.consume(); updateFrom(change.position.x) }
+                )
+            }
+    ) {
+        if (barSize.width > 0) {
+            val thumbX = with(density) { ((hue / 360f) * barSize.width).toDp() } - 4.dp
+            Box(
+                modifier = Modifier
+                    .offset(x = thumbX)
+                    .width(8.dp)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color.White)
+                    .border(1.dp, Color.Black.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
+            )
         }
     }
 }

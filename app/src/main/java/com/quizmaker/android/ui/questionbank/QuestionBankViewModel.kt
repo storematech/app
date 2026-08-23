@@ -216,7 +216,7 @@ class QuestionBankViewModel @Inject constructor(
                     options = optionPairs,
                     freeTextAnswer = draft.freeTextAnswer.ifBlank { null },
                     imageUrl = null,
-                    isUngraded = draft.type == QuestionType.FREE_TEXT
+                    isUngraded = draft.isUngraded
                 )
             } else {
                 questionRepository.createQuestion(
@@ -231,7 +231,7 @@ class QuestionBankViewModel @Inject constructor(
                     options = optionPairs,
                     freeTextAnswer = draft.freeTextAnswer.ifBlank { null },
                     imageUrl = null,
-                    isUngraded = draft.type == QuestionType.FREE_TEXT
+                    isUngraded = draft.isUngraded
                 )
             }
             when (result) {

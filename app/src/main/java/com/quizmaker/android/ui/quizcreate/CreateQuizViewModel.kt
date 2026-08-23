@@ -21,8 +21,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** The available quiz accent colors — same swatches CreateQuiz.tsx offers on the web. */
-val QUIZ_COLOR_SWATCHES = listOf("#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899")
+/** The available quiz accent color presets — a custom color can also be picked separately (see
+ *  CreateQuizScreen's color picker dialog), so [quizColor] isn't restricted to just these five. */
+val QUIZ_COLOR_SWATCHES = listOf("#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444")
+
+/** Longest an "overall" quiz timer can run — 3.5 hours, in minutes. */
+const val MAX_TIME_LIMIT_MINUTES = 210
 
 enum class CreateQuizStep { DETAILS, QUESTIONS, SETTINGS, REVIEW }
 
@@ -37,7 +41,11 @@ data class NewQuestionDraft(
     val negativePoints: Double = 0.0,
     val difficulty: QuestionDifficulty = QuestionDifficulty.MEDIUM,
     val tags: List<String> = emptyList(),
-    val explanation: String? = null
+    val explanation: String? = null,
+    /** Excluded from scoring entirely — see the "Ungraded" checkbox next to Points. A Free Text
+     *  question left unchecked here needs manual marking after each submission (see
+     *  ManualMarkingScreen), since free text can't be auto-graded. */
+    val isUngraded: Boolean = false
 )
 
 data class CreateQuizUiState(
@@ -51,7 +59,7 @@ data class CreateQuizUiState(
     val title: String = "",
     val description: String = "",
     val timeLimitType: String = "overall",
-    val timeLimitMinutes: Int = 5,
+    val timeLimitMinutes: Int = 10,
     val timePerQuestionSeconds: Int = 30,
     val shuffleQuestions: Boolean = false,
     /** 'none' | 'uniform' | 'per_question' — see quiz_negative_marking_mode.sql. */
@@ -85,7 +93,7 @@ data class CreateQuizUiState(
     val collectAddress: Boolean = false,
     val collectPhone: Boolean = false,
     val requireOtpVerification: Boolean = false,
-    val allowMultipleAttempts: Boolean = true,
+    val allowMultipleAttempts: Boolean = false,
 
     // Step 4: review/create
     val isSubmitting: Boolean = false,
@@ -220,10 +228,17 @@ class CreateQuizViewModel @Inject constructor(
     }
 
     // ---- Step 1 ----
-    fun onTitleChange(value: String) { _uiState.value = _uiState.value.copy(title = value) }
+    /** Auto-capitalizes the first letter as the user types, so the title always starts capitalized
+     *  without them having to remember to do it themselves. */
+    fun onTitleChange(value: String) {
+        val capitalized = value.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        _uiState.value = _uiState.value.copy(title = capitalized)
+    }
     fun onDescriptionChange(value: String) { _uiState.value = _uiState.value.copy(description = value) }
     fun onTimeLimitTypeChange(value: String) { _uiState.value = _uiState.value.copy(timeLimitType = value) }
-    fun onTimeLimitMinutesChange(value: Int) { _uiState.value = _uiState.value.copy(timeLimitMinutes = value) }
+    fun onTimeLimitMinutesChange(value: Int) {
+        _uiState.value = _uiState.value.copy(timeLimitMinutes = value.coerceIn(1, MAX_TIME_LIMIT_MINUTES))
+    }
     fun onTimePerQuestionChange(value: Int) { _uiState.value = _uiState.value.copy(timePerQuestionSeconds = value) }
     fun onShuffleChange(value: Boolean) { _uiState.value = _uiState.value.copy(shuffleQuestions = value) }
 
@@ -313,7 +328,7 @@ class CreateQuizViewModel @Inject constructor(
                 options = optionPairs,
                 freeTextAnswer = draft.freeTextAnswer.ifBlank { null },
                 imageUrl = null,
-                isUngraded = draft.type == QuestionType.FREE_TEXT
+                isUngraded = draft.isUngraded
             )
             when (result) {
                 is AppResult.Success -> _uiState.value = _uiState.value.copy(

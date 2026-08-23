@@ -131,7 +131,7 @@ fun LearnerFormDialog(
             )
 
             Spacer(Modifier.height(16.dp))
-            Text("EMAIL", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+            Text("EMAIL (OPTIONAL)", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = email,

@@ -93,6 +93,7 @@ import com.quizmaker.android.ui.featuretour.FeatureTourScreen
 import com.quizmaker.android.ui.faq.FaqScreen
 import com.quizmaker.android.ui.importquestions.ImportQuestionsScreen
 import com.quizmaker.android.ui.leaderboard.LeaderboardScreen
+import com.quizmaker.android.ui.manualmarking.ManualMarkingScreen
 import com.quizmaker.android.ui.masterpaper.MasterPaperScreen
 import com.quizmaker.android.ui.more.MoreScreen
 import com.quizmaker.android.ui.notifications.NotificationPermissionScreen
@@ -639,7 +640,8 @@ fun QuizMakerNavGraph(
                     onNavigateBack = { navController.popBackStack() },
                     onViewLeaderboard = { quizId -> navController.navigate(Screen.Leaderboard.createRoute(quizId)) },
                     onEditQuiz = { quizId -> navController.navigate(Screen.EditQuiz.createRoute(quizId)) },
-                    onOpenMasterPaper = { quizId -> navController.navigate(Screen.MasterPaper.createRoute(quizId)) }
+                    onOpenMasterPaper = { quizId -> navController.navigate(Screen.MasterPaper.createRoute(quizId)) },
+                    onOpenManualMarking = { quizId -> navController.navigate(Screen.ManualMarking.createRoute(quizId)) }
                 )
             }
             composable(
@@ -647,6 +649,12 @@ fun QuizMakerNavGraph(
                 arguments = listOf(navArgument("quizId") { type = NavType.StringType })
             ) {
                 LeaderboardScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(
+                route = Screen.ManualMarking.route,
+                arguments = listOf(navArgument("quizId") { type = NavType.StringType })
+            ) {
+                ManualMarkingScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(
                 route = Screen.MasterPaper.route,

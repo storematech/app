@@ -47,7 +47,9 @@ data class ClassDashboardUiState(
     val isLinkSheetOpen: Boolean = false,
     val linkableQuizzes: List<Quiz> = emptyList(),
     val isLoadingLinkableQuizzes: Boolean = false,
-    val isLinking: Boolean = false
+    val isLinking: Boolean = false,
+    /** Non-null only while that quiz's class_quizzes link is being removed. */
+    val unlinkingQuizId: String? = null
 )
 
 @HiltViewModel
@@ -174,6 +176,22 @@ class ClassDashboardViewModel @Inject constructor(
                     loadClassAiSummary()
                 }
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isLinking = false)
+            }
+        }
+    }
+
+    /** Removes the class_quizzes link only — never touches the quiz itself, so it's trivially
+     *  reversible via "Add / Link Quizzes" again, same as linkQuiz() needs no confirmation. */
+    fun unlinkQuiz(quizId: String) {
+        _uiState.value = _uiState.value.copy(unlinkingQuizId = quizId)
+        viewModelScope.launch {
+            when (classRepository.unlinkQuiz(classId, quizId)) {
+                is AppResult.Success -> {
+                    _uiState.value = _uiState.value.copy(unlinkingQuizId = null)
+                    loadDashboardData()
+                    loadClassAiSummary()
+                }
+                is AppResult.Error -> _uiState.value = _uiState.value.copy(unlinkingQuizId = null)
             }
         }
     }

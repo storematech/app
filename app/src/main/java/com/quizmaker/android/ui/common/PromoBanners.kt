@@ -468,6 +468,7 @@ fun TrialEndedBanner(onClick: () -> Unit) {
  * the flat light-indigo card the other promo banners use here — this one needs to read as "tap me,
  * there's a lot to see," not as a quiet informational strip.
  */
+@Composable
 fun FeatureTourBanner(onClick: () -> Unit, onDismiss: () -> Unit) {
     Box(
         modifier = Modifier

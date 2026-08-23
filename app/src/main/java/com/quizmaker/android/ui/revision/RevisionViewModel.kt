@@ -231,7 +231,7 @@ class RevisionViewModel @Inject constructor(
                 options = optionPairs,
                 freeTextAnswer = draft.freeTextAnswer.ifBlank { null },
                 imageUrl = null,
-                isUngraded = draft.type == QuestionType.FREE_TEXT
+                isUngraded = draft.isUngraded
             )
             when (result) {
                 is AppResult.Success -> {

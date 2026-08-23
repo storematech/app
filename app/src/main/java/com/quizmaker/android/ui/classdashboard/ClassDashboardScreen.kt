@@ -36,10 +36,13 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,6 +54,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -227,7 +233,9 @@ fun ClassDashboardScreen(
                                     aiSummary = uiState.aiSummaries[performance.quizId],
                                     isAiSummaryExpanded = performance.quizId in uiState.expandedAiSummaryQuizIds,
                                     isAiSummaryLoading = performance.quizId in uiState.loadingAiSummaryQuizIds,
-                                    onToggleAiSummary = { viewModel.onToggleQuizAiSummary(performance.quizId) }
+                                    isUnlinking = uiState.unlinkingQuizId == performance.quizId,
+                                    onToggleAiSummary = { viewModel.onToggleQuizAiSummary(performance.quizId) },
+                                    onUnlink = { viewModel.unlinkQuiz(performance.quizId) }
                                 )
                                 Spacer(Modifier.height(12.dp))
                             }
@@ -290,7 +298,9 @@ private fun ClassQuizPerformanceRow(
     aiSummary: QuizAiSummary?,
     isAiSummaryExpanded: Boolean,
     isAiSummaryLoading: Boolean,
-    onToggleAiSummary: () -> Unit
+    isUnlinking: Boolean,
+    onToggleAiSummary: () -> Unit,
+    onUnlink: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -310,6 +320,8 @@ private fun ClassQuizPerformanceRow(
             )
             Spacer(Modifier.width(8.dp))
             QuizAiToggleIcon(isExpanded = isAiSummaryExpanded, onClick = onToggleAiSummary)
+            Spacer(Modifier.width(4.dp))
+            QuizRowOverflowMenu(isUnlinking = isUnlinking, onUnlink = onUnlink)
         }
         Spacer(Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -357,6 +369,31 @@ private fun QuizAiToggleIcon(isExpanded: Boolean, onClick: () -> Unit) {
             tint = BrandIndigo,
             modifier = Modifier.size(16.dp)
         )
+    }
+}
+
+/** The only action here is unlinking — it only removes the class_quizzes row (see
+ *  ClassDashboardViewModel.unlinkQuiz's KDoc), never the quiz itself, so no confirmation dialog. */
+@Composable
+private fun QuizRowOverflowMenu(isUnlinking: Boolean, onUnlink: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }, enabled = !isUnlinking, modifier = Modifier.size(36.dp)) {
+            if (isUnlinking) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = TextSecondary)
+            } else {
+                Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = TextSecondary)
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Remove from Class") },
+                onClick = {
+                    expanded = false
+                    onUnlink()
+                }
+            )
+        }
     }
 }
 

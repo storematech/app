@@ -162,15 +162,18 @@ class LearnersViewModel @Inject constructor(
         notes: String
     ) {
         val userId = authRepository.currentUserId() ?: return
-        if (name.isBlank() || !email.contains("@")) {
+        // Email is optional — a student added without one just has no email on file — but
+        // whatever IS typed still has to look like a real address rather than silently saving junk.
+        if (name.isBlank() || (email.isNotBlank() && !email.contains("@"))) {
             viewModelScope.launch {
                 // AlertBus rather than uiState.errorMessage — the form is a bottom sheet, and the
                 // ErrorBanner that renders uiState.errorMessage lives on the screen underneath it.
-                AlertBus.error(if (name.isBlank()) "Name is required." else "Enter a valid email.")
+                AlertBus.error(if (name.isBlank()) "Name is required." else "Enter a valid email, or leave it blank.")
             }
             return
         }
 
+        val trimmedEmail = email.trim().ifBlank { null }
         val editing = _uiState.value.editingLearner
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSavingLearner = true, errorMessage = null)
@@ -178,7 +181,7 @@ class LearnersViewModel @Inject constructor(
                 learnersRepository.updateLearner(
                     learnerId = editing.id,
                     name = name.trim(),
-                    email = email.trim(),
+                    email = trimmedEmail,
                     groupId = groupId,
                     parentName = parentName.trim().ifBlank { null },
                     parentContact = parentContact.trim().ifBlank { null },
@@ -188,7 +191,7 @@ class LearnersViewModel @Inject constructor(
                 learnersRepository.createLearner(
                     userId = userId,
                     name = name.trim(),
-                    email = email.trim(),
+                    email = trimmedEmail,
                     groupId = groupId,
                     parentName = parentName.trim().ifBlank { null },
                     parentContact = parentContact.trim().ifBlank { null },

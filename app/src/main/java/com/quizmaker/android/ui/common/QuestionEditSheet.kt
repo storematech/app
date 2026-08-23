@@ -251,6 +251,30 @@ fun QuestionEditSheet(
                 value = draft.points,
                 onValueChange = { onUpdateDraft { d -> d.copy(points = it) } }
             )
+            Spacer(Modifier.height(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onUpdateDraft { d -> d.copy(isUngraded = !d.isUngraded) } }
+            ) {
+                Checkbox(
+                    checked = draft.isUngraded,
+                    onCheckedChange = { checked -> onUpdateDraft { d -> d.copy(isUngraded = checked) } }
+                )
+                Spacer(Modifier.width(4.dp))
+                Column {
+                    Text("Ungraded", color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    // Free Text specifically calls this out since that's the type this actually
+                    // matters for — everything else is auto-graded regardless, so leaving this
+                    // unchecked there just has no effect either way.
+                    if (draft.type == QuestionType.FREE_TEXT) {
+                        Text(
+                            "Unchecked = you'll manually award points after each submission",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
 
             Spacer(Modifier.height(20.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {

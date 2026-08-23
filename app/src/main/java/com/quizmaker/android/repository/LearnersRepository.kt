@@ -70,7 +70,7 @@ class LearnersRepository @Inject constructor(
     suspend fun createLearner(
         userId: String,
         name: String,
-        email: String,
+        email: String?,
         groupId: String?,
         parentName: String?,
         parentContact: String?,
@@ -80,7 +80,9 @@ class LearnersRepository @Inject constructor(
             LearnerInsertDto(
                 studentId = generateStudentId(),
                 name = name,
-                email = email.lowercase(),
+                // Null rather than an empty string — several students with no email shouldn't
+                // collide on a would-be unique index the way multiple "" values could.
+                email = email?.trim()?.ifBlank { null }?.lowercase(),
                 groupId = groupId,
                 parentName = parentName,
                 parentContact = parentContact,
@@ -94,7 +96,7 @@ class LearnersRepository @Inject constructor(
     suspend fun updateLearner(
         learnerId: String,
         name: String,
-        email: String,
+        email: String?,
         groupId: String?,
         parentName: String?,
         parentContact: String?,
@@ -103,7 +105,7 @@ class LearnersRepository @Inject constructor(
         supabase.from("learners").update(
             LearnerUpdateDto(
                 name = name,
-                email = email.lowercase(),
+                email = email?.trim()?.ifBlank { null }?.lowercase(),
                 groupId = groupId,
                 parentName = parentName,
                 parentContact = parentContact,

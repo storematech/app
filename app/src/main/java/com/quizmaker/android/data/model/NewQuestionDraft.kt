@@ -17,7 +17,12 @@ data class NewQuestionDraft(
     // an edit doesn't silently wipe them. Null id means "creating a new question".
     val editingQuestionId: String? = null,
     val tags: List<String> = emptyList(),
-    val explanation: String? = null
+    val explanation: String? = null,
+    /** Excluded from scoring entirely (0 points, no correct/incorrect) — see QuestionEditSheet's
+     *  "Ungraded" checkbox. A free-text question left *unchecked* here needs a human to manually
+     *  award points after submission (see ManualMarkingScreen), since free text can't be
+     *  auto-graded. */
+    val isUngraded: Boolean = false
 )
 
 /** Populates a draft for editing an existing question — used by both Question Bank and Revision. */
@@ -47,6 +52,7 @@ fun Question.toDraft(): NewQuestionDraft {
         difficulty = difficulty ?: QuestionDifficulty.MEDIUM,
         editingQuestionId = id,
         tags = tags,
-        explanation = explanation
+        explanation = explanation,
+        isUngraded = isUngraded
     )
 }
