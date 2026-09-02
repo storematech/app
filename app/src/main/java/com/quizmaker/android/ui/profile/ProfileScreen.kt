@@ -159,6 +159,54 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = uiState.website,
+                onValueChange = viewModel::onWebsiteChange,
+                label = { Text("Website") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = uiState.registrationNumber,
+                onValueChange = viewModel::onRegistrationNumberChange,
+                label = { Text("Registration number") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = uiState.tagline,
+                onValueChange = viewModel::onTaglineChange,
+                label = { Text("Tagline") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = uiState.letterheadPhone,
+                onValueChange = viewModel::onLetterheadPhoneChange,
+                label = { Text("Letterhead phone") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = uiState.letterheadEmail,
+                onValueChange = viewModel::onLetterheadEmailChange,
+                label = { Text("Letterhead email") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = uiState.gstNumber,
+                onValueChange = viewModel::onGstNumberChange,
+                label = { Text("GST / Tax ID") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
             if (uiState.saveSuccess) {
                 Text("Saved!", color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(8.dp))

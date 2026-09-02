@@ -56,8 +56,9 @@ import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.util.GenericCardPdfExporter
 import com.quizmaker.android.util.GenericCsvExporter
-import com.quizmaker.android.util.GenericTablePdfExporter
+import com.quizmaker.android.util.PdfCardData
 import com.quizmaker.android.util.formatDateTime
 import com.quizmaker.android.util.formatShortDate
 import kotlinx.coroutines.launch
@@ -100,12 +101,11 @@ fun FeedbackSubmissionsScreen(
                         IconButton(onClick = {
                             scope.launch {
                                 val branding = viewModel.getPdfBranding()
-                                val intent = GenericTablePdfExporter.export(
+                                val intent = GenericCardPdfExporter.export(
                                     context = context,
                                     fileName = "feedback_submissions.pdf",
                                     title = uiState.formTitle.ifBlank { "Submissions" },
-                                    columns = feedbackPdfColumns(uiState.fieldLabels),
-                                    rows = uiState.submissions.map { feedbackRow(it, uiState.fieldLabels) },
+                                    cards = uiState.submissions.map { feedbackCard(it, uiState.fieldLabels) },
                                     branding = branding
                                 )
                                 context.startActivity(Intent.createChooser(intent, "Export submissions (PDF)"))
@@ -210,10 +210,21 @@ private fun feedbackRow(submission: FeedbackSubmission, fieldLabels: Map<String,
         fieldLabels.keys.map { submission.answers[it].orEmpty() } +
         formatDateTime(submission.createdAt)
 
-/** Fixed Name/Email/Rating/Submitted columns plus an even split of the remaining page width across whatever dynamic questions this form has. */
-private fun feedbackPdfColumns(fieldLabels: Map<String, String>): List<Pair<String, Float>> {
-    val dynamicWidth = if (fieldLabels.isEmpty()) 0f else (191f / fieldLabels.size).coerceAtLeast(40f)
-    return listOf("Name" to 80f, "Email" to 110f, "Rating" to 50f) +
-        fieldLabels.values.map { it to dynamicWidth } +
-        listOf("Submitted" to 70f)
+/** One card per submission — see GenericCardPdfExporter's header for why this replaced a fixed-column
+ *  table here: the number of dynamic questions (fieldLabels) is whatever the form's creator defined. */
+private fun feedbackCard(submission: FeedbackSubmission, fieldLabels: Map<String, String>): PdfCardData {
+    val headline = submission.learnerName?.takeIf { it.isNotBlank() } ?: submission.learnerEmail ?: "Anonymous"
+    val subheadline = listOfNotNull(
+        submission.learnerEmail?.takeIf { it.isNotBlank() && it != headline },
+        submission.overallRating?.let { "Rating: $it/5" }
+    ).joinToString("   •   ").takeIf { it.isNotBlank() }
+    val fields = fieldLabels.mapNotNull { (fieldId, label) ->
+        submission.answers[fieldId]?.takeIf { it.isNotBlank() }?.let { label to it }
+    }
+    return PdfCardData(
+        headline = headline,
+        subheadline = subheadline,
+        fields = fields,
+        footer = "Submitted ${formatDateTime(submission.createdAt)}"
+    )
 }

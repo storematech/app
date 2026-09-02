@@ -65,18 +65,26 @@ object QuizAnalysisPdfExporter {
             "Responses: ${data.totalResponses}   Avg score: ${data.averageScore}%   Avg time: $avgTimeLabel   Generated: $generatedAt",
             MARGIN, y, subtitlePaint
         )
-        y += 20f
+        y += 26f
 
-        checkPage(20f)
-        canvas.drawText("Question Breakdown", MARGIN, y, sectionPaint)
-        y += 18f
+        checkPage(24f)
+        canvas.drawText("Question Breakdown", MARGIN, y + 12f, sectionPaint)
+        y += 26f
 
-        data.questions.forEach { stat ->
+        val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F3F4F6") }
+
+        data.questions.forEachIndexed { index, stat ->
             val qLines = wrapText("Q${stat.order}. ${stat.text}", questionPaint, CONTENT_WIDTH - 50f)
-            val blockHeight = qLines.size * 13f + BAR_HEIGHT + 26f
-            checkPage(blockHeight + 6f)
+            val blockHeight = qLines.size * 14f + BAR_HEIGHT + 44f
+            checkPage(blockHeight + 16f)
 
-            var qy = y + 10f
+            // Skipped right after a page break (y == MARGIN there) — a divider floating just under
+            // the fresh page's top margin, with no row above it on that page, would look like a stray line.
+            if (index > 0 && y > MARGIN) {
+                canvas.drawLine(MARGIN, y - 8f, MARGIN + CONTENT_WIDTH, y - 8f, dividerPaint)
+            }
+
+            var qy = y + 12f
             val percentColor = when {
                 stat.correctPercent >= 70 -> "#22C55E"
                 stat.correctPercent >= 40 -> "#F59E0B"
@@ -89,31 +97,33 @@ object QuizAnalysisPdfExporter {
                 if (li == 0 && !stat.isUngraded) {
                     canvas.drawText("${stat.correctPercent}%", MARGIN + CONTENT_WIDTH - 40f, qy, percentPaint)
                 }
-                qy += 13f
+                qy += 14f
             }
-            qy += 2f
+            qy += 6f
 
             if (stat.isUngraded) {
                 canvas.drawText(
                     "Ungraded — ${stat.attempted} attempted, ${stat.skippedCount} skipped",
                     MARGIN, qy, statsPaint
                 )
-                qy += BAR_HEIGHT + 8f
+                qy += BAR_HEIGHT + 10f
             } else {
-                canvas.drawRect(MARGIN, qy, MARGIN + CONTENT_WIDTH, qy + BAR_HEIGHT, barBgPaint)
-                canvas.drawRect(
-                    MARGIN, qy, MARGIN + CONTENT_WIDTH * (stat.correctPercent / 100f), qy + BAR_HEIGHT,
+                val barRadius = BAR_HEIGHT / 2f
+                canvas.drawRoundRect(MARGIN, qy, MARGIN + CONTENT_WIDTH, qy + BAR_HEIGHT, barRadius, barRadius, barBgPaint)
+                canvas.drawRoundRect(
+                    MARGIN, qy, MARGIN + (CONTENT_WIDTH * (stat.correctPercent / 100f)).coerceAtLeast(BAR_HEIGHT), qy + BAR_HEIGHT,
+                    barRadius, barRadius,
                     Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor(percentColor) }
                 )
-                qy += BAR_HEIGHT + 12f
+                qy += BAR_HEIGHT + 14f
                 canvas.drawText(
                     "${stat.correctCount} correct · ${stat.wrongCount} wrong · ${stat.skippedCount} skipped",
                     MARGIN, qy, statsPaint
                 )
-                qy += 8f
+                qy += 10f
             }
 
-            y = qy + 8f
+            y = qy + 14f
         }
 
         checkPage(16f)

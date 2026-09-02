@@ -12,10 +12,13 @@ import javax.inject.Singleton
 private val Context.trialDataStore by preferencesDataStore(name = "trial_prefs")
 
 /**
- * Device-local bookkeeping for the one-time trial-started congrats screen — NOT the trial gate
- * itself (that's always derived server-side from profiles.created_at via [com.quizmaker.android.util.trialStatus]).
- * Worst case on a reinstall this flag resets and the congrats screen shows once more; it can
- * never be used to dodge the paywall since the paywall doesn't read this at all.
+ * Device-local bookkeeping for whether this account's trial-start moment has already been
+ * recorded — NOT the trial gate itself (that's always derived server-side from
+ * profiles.created_at via [com.quizmaker.android.util.trialStatus]). Used by
+ * SessionViewModel.resolveActiveTrialGate() to log the one-time "trial started" analytics event
+ * and route a brand-new user straight to AiQuiz exactly once. Worst case on a reinstall this flag
+ * resets and that one-time routing/logging happens again; it can never be used to dodge the
+ * paywall since the paywall doesn't read this at all.
  */
 @Singleton
 class TrialPrefs @Inject constructor(

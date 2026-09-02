@@ -77,18 +77,47 @@ const AI_DAILY_LIMIT_FREE = 10;
 const AI_DAILY_LIMIT_PREMIUM = 25;
 const PREMIUM_USER_TYPES = new Set(["starter", "school", "school pro"]);
 
+// Mirrors util/TrialStatus.kt exactly — same 3-day-from-created_at rule, same admin-granted
+// `user_type = 'trial_extend'` extension via license_expired_date, same fail-closed-to-expired
+// behavior on missing/unparseable dates. The Android client already gates AI generation on this,
+// but that's only a UX nicety; this is the check that actually can't be bypassed by a modified
+// client or a direct call with a valid JWT.
+const TRIAL_DAYS = 3;
+
+function isTrialExpired(
+  profile: { user_type: string | null; license_expired_date: string | null; created_at: string | null } | null,
+  now: Date,
+): boolean {
+  const userType = (profile?.user_type ?? "").toLowerCase();
+
+  if (userType === "trial_extend" && profile?.license_expired_date) {
+    const raw = profile.license_expired_date;
+    const normalized = raw.includes("T") ? raw : `${raw}T23:59:59Z`;
+    const end = new Date(normalized);
+    if (!isNaN(end.getTime())) return now >= end;
+  }
+
+  if (!profile?.created_at) return true;
+  const created = new Date(profile.created_at);
+  if (isNaN(created.getTime())) return true;
+  const elapsedDays = Math.floor((now.getTime() - created.getTime()) / (24 * 60 * 60 * 1000));
+  return elapsedDays >= TRIAL_DAYS;
+}
+
 function buildPrompt(topic: string, questionCount: number, hasAttachment: boolean): string {
   const source = hasAttachment
     ? `Use the attached document/photo(s) as the source material. ${topic ? `Additional instructions: "${topic}".` : ""}`
     : `The topic is: "${topic}".`;
 
-  return `You are a quiz question generator for a teacher's app. Generate exactly ${questionCount} single-choice quiz questions. ${source}
+  return `You are a quiz question generator for a teacher's app. Generate exactly ${questionCount} quiz questions. ${source}
 
 Rules:
-- Each question has exactly 4 options, exactly one marked correct.
+- Each question has exactly 4 options.
+- Almost every question should have exactly one option marked correct (single-choice). For topics involving math, physics, or multi-part reasoning, you may occasionally (at most 1 in every 10 questions) mark MORE THAN ONE option correct when the content genuinely calls for it — the "which of the following statements is/are true" style used in exams like JEE Advanced. Do not force this; most questions must stay single-correct.
+- For questions that genuinely involve mathematical notation (fractions, exponents, integrals, complex numbers, set notation, etc.), write it as LaTeX wrapped in $...$ for inline math or $$...$$ for a standalone equation — e.g. "Evaluate $\\int_0^1 x^2\\,dx$." Only use this when the subject actually calls for such notation; never force LaTeX into plain topics.
 - Keep question and option text concise.
 - Base every question strictly on the given source material or topic — do not invent unrelated content.
-- Do not include explanations, numbering, or markdown — only the JSON described by the response schema.`;
+- Do not include explanations, numbering, or markdown formatting (no **bold**, no bullet lists) — only the JSON described by the response schema. LaTeX math delimiters ($...$, $$...$$) are not markdown and are fine to use where relevant.`;
 }
 
 const responseSchema = {
@@ -164,10 +193,19 @@ async function checkAuthAndRateLimit(
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("user_type")
+    .select("user_type, license_expired_date, created_at")
     .eq("id", userId)
     .maybeSingle();
   const isPremium = PREMIUM_USER_TYPES.has((profile?.user_type ?? "").toLowerCase());
+
+  if (!isPremium && isTrialExpired(profile, new Date())) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Your free trial has ended. Upgrade to Premium to keep generating quizzes with AI.",
+    };
+  }
+
   const dailyLimit = isPremium ? AI_DAILY_LIMIT_PREMIUM : AI_DAILY_LIMIT_FREE;
 
   const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

@@ -68,7 +68,12 @@ object GenericTablePdfExporter {
                 else -> canvas.drawLine(x, y + ROW_HEIGHT, PAGE_WIDTH - MARGIN, y + ROW_HEIGHT, linePaint)
             }
             columns.forEach { (label, width) ->
-                canvas.drawText(label, x + 4f, y + ROW_HEIGHT - 7f, headerTextPaint)
+                // Same per-cell truncation the body rows already get — headers had none, which is
+                // exactly what let a long dynamic-field label (e.g. "Parent / Guardian") run past its
+                // column and collide with the text of the next one.
+                val maxChars = (width / 5.2f).toInt().coerceAtLeast(4)
+                val truncated = if (label.length > maxChars) label.take(maxChars - 1) + "…" else label
+                canvas.drawText(truncated, x + 4f, y + ROW_HEIGHT - 7f, headerTextPaint)
                 x += width
             }
             y += ROW_HEIGHT

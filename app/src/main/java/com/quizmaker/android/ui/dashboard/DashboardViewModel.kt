@@ -85,6 +85,19 @@ class DashboardStateCache @Inject constructor() {
      *  permanent dismiss which is tracked in [FeatureTourBannerPrefs]. Living here rather than in
      *  DashboardViewModel itself so it survives the ViewModel recreations described above. */
     var featureTourBannerDismissedThisSession: Boolean = false
+
+    /**
+     * Set by any ViewModel that creates/edits a quiz, question, or learner elsewhere in the app
+     * (CreateQuizViewModel, QuestionBankViewModel, AiQuizViewModel, LearnersViewModel — see each
+     * for exactly where) — consumed by DashboardViewModel.refreshIfNeeded() the next time the
+     * Dashboard screen (re)enters composition. Since this cache (and the ViewModel that might be
+     * retaining stale [lastState]) survives a bottom-nav tab switch, without this a user who
+     * created a quiz elsewhere and tapped back to Dashboard would keep seeing the old counts until
+     * something else happened to trigger a fetch. A plain flag rather than a SharedFlow/event
+     * since "was anything dirtied since last shown" is exactly a boolean, not a stream of events —
+     * and it means switching tabs back and forth with no real change in between costs nothing.
+     */
+    var needsRefresh: Boolean = false
 }
 
 @HiltViewModel
@@ -129,6 +142,17 @@ class DashboardViewModel @Inject constructor(
         val userId = authRepository.currentUserId() ?: return
         FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
             viewModelScope.launch { profileRepository.updateFcmToken(userId, token) }
+        }
+    }
+
+    /** Called every time the Dashboard screen (re)enters composition (see DashboardScreen's
+     *  LaunchedEffect) — a real re-fetch only if something was actually flagged dirty elsewhere
+     *  (see DashboardStateCache.needsRefresh's KDoc), so simply switching tabs back and forth with
+     *  no real change in between is a no-op rather than a wasted network round trip. */
+    fun refreshIfNeeded() {
+        if (stateCache.needsRefresh) {
+            stateCache.needsRefresh = false
+            refresh()
         }
     }
 

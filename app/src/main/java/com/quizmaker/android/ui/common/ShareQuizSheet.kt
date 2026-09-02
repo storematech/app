@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -82,12 +81,10 @@ fun ShareQuizSheet(
 
     // skipPartiallyExpanded: opens at full content height right away instead of a half-height
     // sheet the user has to drag up first just to reach the Share Link/Done buttons below the
-    // fold. confirmValueChange additionally blocks any swipe/gesture-driven auto-dismiss — same
-    // fix as LearnerFormDialog's — so this can only close via the explicit Done button.
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { it != SheetValue.Hidden }
-    )
+    // fold. Unlike LearnerFormDialog, this sheet has no text fields — no keyboard-close-driven
+    // anchor recalculation that could silently dismiss it — so swipe-down/tap-outside dismiss is
+    // left at its default instead of being blocked down to the Done button only.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceWhite) {
         BlurBehindDialog()

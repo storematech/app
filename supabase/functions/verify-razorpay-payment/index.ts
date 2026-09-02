@@ -17,11 +17,14 @@
 //     changes often, see that function's own header, and a stale hardcoded copy here would either
 //     falsely reject real payments after a price bump or under-charge after a price drop) —
 //     discounted by whatever `sale_day` percent create-razorpay-order snapshotted into the order's
-//     `notes.app_discount_percent` at the moment it was created (see fetchFullPriceByCurrency).
+//     `notes.app_discount_percent` at the moment it was created (see fetchPlanPricingByCurrency).
 //     That snapshot — not a fresh `sale_day` lookup here — is deliberate: editing/ending a sale
 //     between checkout and payment must never retroactively invalidate a payment that was correct
 //     for the price the customer actually saw. Without any of this, paying the minimum Razorpay
 //     will accept still bought the full plan interval.
+//   - Plan length: the granted interval (30 days, 365 days, ...) is also read live from
+//     get-pricing's `interval` field per currency — never hardcoded — so changing a plan from
+//     monthly to yearly (or anything else) in get-pricing takes effect here automatically too.
 //   - Replay: this function is idempotent per `razorpay_order_id` (see
 //     razorpay_payment_idempotency.sql) — resubmitting the same already-processed order/payment/
 //     signature returns success without extending the license a second time.
@@ -63,23 +66,30 @@ async function hmacSha256Hex(secret: string, message: string): Promise<string> {
     .join("");
 }
 
-// The single self-serve plan is annual for INR (₹799/year) and monthly for USD ($4/month) —
-// mirrors get-pricing's PRICING.plans. If more plans/currencies are added later, this needs
-// to look the interval up from the order/plan instead of inferring it from currency alone.
-function planIntervalMs(currency: string): number {
+/** [interval] is whatever get-pricing's PRICING.plans.*.interval currently says ("year", "month",
+ *  ...) — read live per currency in fetchPlanPricingByCurrency, never inferred from currency here.
+ *  Unrecognized values fail closed to the shorter 30-day grant rather than silently defaulting to
+ *  a year, since under-granting is the safer direction to be wrong in. */
+function planIntervalMs(interval: string): number {
   const DAY_MS = 24 * 60 * 60 * 1000;
-  return currency === "INR" ? 365 * DAY_MS : 30 * DAY_MS;
+  return interval === "year" ? 365 * DAY_MS : 30 * DAY_MS;
+}
+
+interface PlanPricing {
+  amountMinor: number;
+  interval: string;
 }
 
 /**
- * Live full (non-sale) price per currency, smallest unit — fetched from get-pricing itself rather
- * than duplicated as a local constant. Pricing here changes often (see get-pricing's own header:
- * "edit these and redeploy to change pricing everywhere"), and a hardcoded copy in this function
- * would silently drift out of sync every time — either rejecting real payments after a price
- * increase, or accepting underpayment after a price cut. This is the only place that number needs
- * to be edited for it to take effect everywhere, including here.
+ * Live full (non-sale) price AND plan length per currency — fetched from get-pricing itself rather
+ * than duplicated as local constants. Both change often (see get-pricing's own header: "edit these
+ * and redeploy to change pricing everywhere"), and a hardcoded copy in this function would silently
+ * drift out of sync every time — a price bump could reject real payments, a price cut could accept
+ * underpayment, and a plan switched from monthly to yearly in get-pricing wouldn't actually grant a
+ * year here. get-pricing is the only place either needs to be edited for it to take effect
+ * everywhere, including here.
  */
-async function fetchFullPriceByCurrency(supabaseUrl: string, serviceRoleKey: string): Promise<Record<string, number> | null> {
+async function fetchPlanPricingByCurrency(supabaseUrl: string, serviceRoleKey: string): Promise<Record<string, PlanPricing> | null> {
   try {
     const res = await fetch(`${supabaseUrl}/functions/v1/get-pricing`, {
       headers: { Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey },
@@ -93,10 +103,10 @@ async function fetchFullPriceByCurrency(supabaseUrl: string, serviceRoleKey: str
       console.error("get-pricing returned an unexpected shape:", data);
       return null;
     }
-    const byCurrency: Record<string, number> = {};
-    for (const plan of Object.values(data.plans) as Array<{ currency?: unknown; amountMinor?: unknown }>) {
-      if (typeof plan.currency === "string" && typeof plan.amountMinor === "number") {
-        byCurrency[plan.currency] = plan.amountMinor;
+    const byCurrency: Record<string, PlanPricing> = {};
+    for (const plan of Object.values(data.plans) as Array<{ currency?: unknown; amountMinor?: unknown; interval?: unknown }>) {
+      if (typeof plan.currency === "string" && typeof plan.amountMinor === "number" && typeof plan.interval === "string") {
+        byCurrency[plan.currency] = { amountMinor: plan.amountMinor, interval: plan.interval };
       }
     }
     return byCurrency;
@@ -123,11 +133,11 @@ function readSnapshottedDiscountPercent(order: { notes?: Record<string, unknown>
  *  honoring the discount snapshotted on the order itself. Truncates the same way the Android
  *  client's own discount math does (PricingViewModel.discountedAmountMinor). */
 function getExpectedMinAmount(
-  fullPriceByCurrency: Record<string, number>,
+  planPricingByCurrency: Record<string, PlanPricing>,
   currency: string,
   discountPercent: number,
 ): number | null {
-  const fullPrice = fullPriceByCurrency[currency];
+  const fullPrice = planPricingByCurrency[currency]?.amountMinor;
   if (fullPrice === undefined) return null; // unrecognized currency — caller rejects
   return Math.floor((fullPrice * (100 - discountPercent)) / 100);
 }
@@ -179,12 +189,12 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const fullPriceByCurrency = await fetchFullPriceByCurrency(supabaseUrl, serviceRoleKey);
-    if (!fullPriceByCurrency) {
+    const planPricingByCurrency = await fetchPlanPricingByCurrency(supabaseUrl, serviceRoleKey);
+    if (!planPricingByCurrency) {
       return jsonResponse({ success: false, error: "Payment could not be verified." }, 502);
     }
     const discountPercent = readSnapshottedDiscountPercent(order);
-    const expectedMinAmount = getExpectedMinAmount(fullPriceByCurrency, currency, discountPercent);
+    const expectedMinAmount = getExpectedMinAmount(planPricingByCurrency, currency, discountPercent);
     if (expectedMinAmount === null || amountMinor < expectedMinAmount) {
       console.error(`Underpayment on order ${orderId}: paid ${amountMinor} ${currency}, expected at least ${expectedMinAmount}`);
       return jsonResponse({ success: false, error: "Payment amount does not match the plan price." }, 400);
@@ -215,8 +225,10 @@ Deno.serve(async (req) => {
       ? new Date(existingProfile.license_expired_date).getTime()
       : now;
     // Extends from the later of "now" or the existing expiry, so renewing before expiry
-    // stacks on top of remaining time instead of discarding it.
-    const newExpiry = new Date(Math.max(now, currentExpiry) + planIntervalMs(currency)).toISOString();
+    // stacks on top of remaining time instead of discarding it. planPricingByCurrency[currency] is
+    // guaranteed present here — the underpayment check above already returned early otherwise.
+    const interval = planPricingByCurrency[currency]?.interval ?? "month";
+    const newExpiry = new Date(Math.max(now, currentExpiry) + planIntervalMs(interval)).toISOString();
 
     const { error: updateError } = await supabase
       .from("profiles")

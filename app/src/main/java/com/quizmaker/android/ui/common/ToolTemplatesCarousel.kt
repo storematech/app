@@ -78,12 +78,13 @@ fun <T> ToolTemplatesCarousel(
     }
 }
 
-private data class TemplateGradient(val start: Color, val end: Color)
+internal data class TemplateGradient(val start: Color, val end: Color)
 
 /** Same eight colors AiQuizScreen's themeFor() cycles a prompt category through — reused here by
  *  position instead of category so the visual language matches without needing an equivalent to
- *  AiPromptCategory for every one of these tools. */
-private val TEMPLATE_GRADIENTS = listOf(
+ *  AiPromptCategory for every one of these tools. Internal (not private) so ExploreTemplatesScreen
+ *  can cycle the same palette for its row cards. */
+internal val TEMPLATE_GRADIENTS = listOf(
     TemplateGradient(Color(0xFFB45309), Color(0xFF78350F)),
     TemplateGradient(Color(0xFF16A34A), Color(0xFF15803D)),
     TemplateGradient(Color(0xFF2563EB), Color(0xFF1D4ED8)),

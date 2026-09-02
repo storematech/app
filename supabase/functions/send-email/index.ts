@@ -7,7 +7,8 @@
 // All HTML is written inline below (no Brevo dashboard template needed/used).
 //
 // Two ways to invoke:
-//  1. Direct call:  { "emailType": "welcome"|"trial_ending"|"license_purchased"|"weekly_summary", ...fields }
+//  1. Direct call:  { "emailType": "welcome"|"trial_ending"|"license_purchased"|"weekly_summary"
+//                     |"marketing_proposal", ...fields }
 //  2. A Database Webhook on `profiles` INSERT (same payload shape notify-quiz-submission's webhook
 //     already uses): { "type": "INSERT", "table": "profiles", "record": {...} } — auto-detected and
 //     treated as a "welcome" email using record.email/record.name, no separate function needed.
@@ -144,9 +145,36 @@ function weeklySummaryEmail(name: string, weekLabel: string, quizzes: WeeklyQuiz
   return { subject, html };
 }
 
+function marketingProposalEmail(orgName: string) {
+  const name = orgName || "there";
+  const subject = `YunoLMS Proposal for ${name}`;
+  const html = layout(
+    `An invitation for ${escapeHtml(name)}`,
+    `<p>Hello <strong>${escapeHtml(name)}</strong>, this is an official proposal from <strong>${APP_NAME}</strong>. We're reaching out because we see you as one of the most trusted and honest educating organizations in India — exactly who we built ${APP_NAME} for.</p>
+     <p>We'd like to invite you to try our LMS, <a href="https://yunolms.com" style="color:${BRAND_COLOR};">YunoLMS.com</a> — completely free to test, no strings attached.</p>
+     <p><strong>Here's what ${APP_NAME} can do for you:</strong></p>
+     <ul style="padding-left:18px;margin:12px 0;">
+       <li style="margin-bottom:8px;">📸 Upload any photo or PDF to instantly create a quiz — no manual typing.</li>
+       <li style="margin-bottom:8px;">💬 No question bank tension — 1 message about a chapter, 1 quiz ready.</li>
+       <li style="margin-bottom:8px;">✅ Results sent out automatically with auto-grading.</li>
+       <li style="margin-bottom:8px;">🧠 AI quiz analysis tells you exactly which student is lacking in which subject.</li>
+       <li style="margin-bottom:8px;">🏫 Create Classes, Revision, and Student Batches — all in one place.</li>
+       <li style="margin-bottom:8px;">🛠️ Tools like Onboarding forms, Feedback forms, and more, all together.</li>
+     </ul>
+     ${button("Try YunoLMS Free", "https://yunolms.com")}
+     <p style="margin-top:20px;color:#6B7280;font-size:12px;">Just reply to this email for a personal walkthrough — or to let us know if you'd rather not hear from us again.</p>`,
+  );
+  return { subject, html };
+}
+
 // ---- Brevo --------------------------------------------------------------------------------
 
-async function sendViaBrevo(to: { email: string; name?: string }, subject: string, htmlContent: string) {
+async function sendViaBrevo(
+  to: { email: string; name?: string },
+  subject: string,
+  htmlContent: string,
+  replyTo?: { email: string; name?: string },
+) {
   const apiKey = Deno.env.get("BREVO_API_KEY");
   if (!apiKey) {
     throw new Error("Brevo is not configured (BREVO_API_KEY).");
@@ -164,6 +192,7 @@ async function sendViaBrevo(to: { email: string; name?: string }, subject: strin
       to: [{ email: to.email, name: to.name || undefined }],
       subject,
       htmlContent,
+      ...(replyTo ? { replyTo } : {}),
     }),
   });
 
@@ -190,6 +219,7 @@ Deno.serve(async (req) => {
     let to: { email: string; name?: string } | null = null;
     let subject = "";
     let html = "";
+    let replyTo: { email: string; name?: string } | undefined;
 
     if (emailType === "welcome") {
       const email = isProfileInsertWebhook ? body.record.email : body.email;
@@ -209,11 +239,18 @@ Deno.serve(async (req) => {
       if (!body.email) return jsonResponse({ success: false, error: "email required" }, 400);
       to = { email: body.email, name: body.name };
       ({ subject, html } = weeklySummaryEmail(body.name ?? "", body.weekLabel ?? "", body.quizzes ?? []));
+    } else if (emailType === "marketing_proposal") {
+      // Cold outreach to marketing_prospects rows — see scheduled-marketing-email, which is the
+      // only caller of this branch. Replies go to a real inbox, not the no-reply sender address.
+      if (!body.email) return jsonResponse({ success: false, error: "email required" }, 400);
+      to = { email: body.email, name: body.name };
+      ({ subject, html } = marketingProposalEmail(body.name ?? ""));
+      replyTo = { email: "seconddokan@gmail.com" };
     } else {
       return jsonResponse({ success: false, error: `Unknown emailType: ${emailType}` }, 400);
     }
 
-    await sendViaBrevo(to!, subject, html);
+    await sendViaBrevo(to!, subject, html, replyTo);
     return jsonResponse({ success: true });
   } catch (error) {
     console.error("send-email error:", error);

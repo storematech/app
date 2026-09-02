@@ -1,10 +1,12 @@
 package com.quizmaker.android.ui.tools.onboarding
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
+import com.quizmaker.android.data.model.ONBOARDING_FORM_TEMPLATES
 import com.quizmaker.android.data.model.OnboardingForm
 import com.quizmaker.android.data.model.OnboardingFormTemplate
 import com.quizmaker.android.data.model.ToolField
@@ -34,7 +36,8 @@ data class OnboardingFormListUiState(
 class OnboardingFormListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val repository: OnboardingFormRepository,
-    private val analyticsLogger: AnalyticsLogger
+    private val analyticsLogger: AnalyticsLogger,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingFormListUiState())
@@ -42,6 +45,11 @@ class OnboardingFormListViewModel @Inject constructor(
 
     init {
         refresh()
+        // ExploreTemplatesScreen route-arg handoff — see PollListViewModel's identical init block.
+        val templateIndex = savedStateHandle.get<Int>("template") ?: -1
+        if (templateIndex >= 0) {
+            ONBOARDING_FORM_TEMPLATES.getOrNull(templateIndex)?.let { openCreateSheetFromTemplate(it) }
+        }
     }
 
     fun refresh() {

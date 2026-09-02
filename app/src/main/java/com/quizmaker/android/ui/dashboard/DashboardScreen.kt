@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -49,6 +50,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -135,6 +137,11 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // Fires every time this screen (re)enters composition — including navigating back to the
+    // Dashboard tab after creating a quiz/question/learner elsewhere — but only actually re-fetches
+    // if DashboardStateCache.needsRefresh was flagged dirty by that action; see refreshIfNeeded().
+    LaunchedEffect(Unit) { viewModel.refreshIfNeeded() }
+
     // Notification permission is asked via its own dedicated interstitial right after phone
     // collection / sign-in — see SessionViewModel.resolvePostAuthGate() — rather than here.
 
@@ -177,6 +184,12 @@ fun DashboardScreen(
                         activeSale != null -> SaleDayBanner(saleName = activeSale.name, onClick = onOpenPricing)
                         trialStatus is TrialStatus.Expired -> TrialEndedBanner(onClick = onOpenPricing)
                         trialStatus is TrialStatus.Extended -> TrialExtendedBanner(daysLeft = trialStatus.daysLeft, onClick = onOpenPricing)
+                        // Before their first quiz exists, a brand-new trial account has had zero
+                        // chance to see any value yet — show the neutral feature-chip welcome
+                        // instead of the countdown/"View Plans" banner, so the very first thing a
+                        // new user sees on Dashboard isn't a pricing pitch. The plain trial banner
+                        // takes back over from their second quiz-owning visit onward.
+                        trialStatus is TrialStatus.Active && uiState.totalQuizzes == 0 -> WelcomeBanner()
                         trialStatus is TrialStatus.Active -> TrialActiveBanner(daysLeft = trialStatus.daysLeft, onClick = onOpenPricing)
                         else -> WelcomeBanner()
                     }
@@ -449,18 +462,20 @@ private fun QuickActionButton(
 ) {
     Column(
         modifier = modifier
+            .aspectRatio(1f)
             .elevatedSurface(shape = RoundedCornerShape(16.dp), elevation = 3.dp)
             .clickable(onClick = onClick)
-            .padding(vertical = 14.dp, horizontal = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(vertical = 10.dp, horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Box(
-            modifier = Modifier.size(40.dp).clip(CircleShape).background(iconBg),
+            modifier = Modifier.size(34.dp).clip(CircleShape).background(iconBg),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
             label,
             color = TextPrimary,

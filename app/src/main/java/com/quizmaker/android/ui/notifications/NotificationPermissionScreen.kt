@@ -68,6 +68,7 @@ import com.quizmaker.android.core.theme.SuccessGreen
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.common.GradientButton
+import com.quizmaker.android.ui.common.OnboardingStepIndicator
 import com.quizmaker.android.ui.common.elevatedSurface
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -114,7 +115,13 @@ fun NotificationPermissionScreen(
             .padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(28.dp))
+        // Final step of the new-account sequence (Create Account -> Phone -> Notifications) —
+        // this screen is also reached by a returning sign-in on a new device/first API-33+
+        // launch, where the "step 3 of 3" framing is a harmless approximation rather than a
+        // literal claim, since it's a one-shot screen either way.
+        OnboardingStepIndicator(currentStep = 3, totalSteps = 3)
+        Spacer(Modifier.height(20.dp))
         Column(
             modifier = Modifier
                 .fillMaxWidth()

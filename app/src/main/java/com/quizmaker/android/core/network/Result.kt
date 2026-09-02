@@ -1,9 +1,12 @@
 package com.quizmaker.android.core.network
 
 import android.util.Log
+import com.posthog.PostHog
 import com.quizmaker.android.core.alert.AlertBus
 import io.github.jan.supabase.exceptions.RestException
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
 
@@ -38,11 +41,40 @@ const val GENERIC_API_ERROR_MESSAGE = "We're facing high demand. Please try agai
 suspend fun <T> safeCall(notifyOnError: Boolean = true, block: suspend () -> T): AppResult<T> {
     return try {
         AppResult.Success(block())
+    } catch (c: CancellationException) {
+        // Not a real failure — fires on completely normal, expected things like leaving a screen
+        // or a ViewModel being cleared while this call was still in flight. Must always be
+        // rethrown (never swallowed) per structured-concurrency's contract, or the cancellation
+        // wouldn't actually propagate — and, in practice, this is exactly what was popping a
+        // spurious "high demand" error banner for benign navigation, not a genuine error.
+        throw c
     } catch (t: Throwable) {
         // The user only ever sees GENERIC_API_ERROR_MESSAGE (see toUserMessage()'s KDoc for why) —
         // this is the one place the real cause survives, for `adb logcat -s AppResult` while debugging.
         Log.e("AppResult", "safeCall failed", t)
         val message = t.toUserMessage()
+        // Every repository call in the app goes through this one function (login, profile,
+        // quiz/question/class/tools creation, AI generation, etc.), so capturing here — rather
+        // than at each of those 25+ call sites — gets every one of them into PostHog for free,
+        // including anything added later. Silent (notifyOnError = false) failures are captured
+        // too: even a background check the user was never shown a banner for is still something
+        // worth knowing failed. Screen/session context comes from PostHog's own screen-tracking
+        // and session replay (see AnalyticsLogger.logScreenView / QuizMakerApp's sessionReplay)
+        // rather than being threaded through every call site here.
+        //
+        // errorDetail deliberately never reads a RestException's own .message — see
+        // edgeFunctionMessage()'s KDoc just below: that string embeds the full request URL and
+        // every header, including the Authorization/apikey bearer token (already leaked once,
+        // into a user-facing error). .error is the raw response BODY only, safe to send as-is.
+        val errorDetail = if (t is RestException) t.error else t.message
+        PostHog.capture(
+            event = "app_error",
+            properties = mapOf(
+                "error_type" to (t::class.simpleName ?: t.javaClass.name),
+                "error_message" to (errorDetail?.take(500) ?: ""),
+                "user_message" to message
+            )
+        )
         if (notifyOnError) AlertBus.error(message)
         AppResult.Error(message, t)
     }
@@ -82,6 +114,14 @@ private fun RestException.edgeFunctionMessage(): String? =
  * (timeout, offline, upstream 503, whatever).
  */
 private fun Throwable.toUserMessage(): String {
+    // Checked before the IllegalArgumentException branch below: kotlinx.serialization's
+    // SerializationException (e.g. MissingFieldException from a malformed/unexpected API response
+    // body) is itself an IllegalArgumentException subclass, so without this it would otherwise
+    // fall into that branch and leak its raw technical parse-error text — never actually meant for
+    // a user to see — straight into the UI instead of the generic fallback.
+    if (this is SerializationException) {
+        return GENERIC_API_ERROR_MESSAGE
+    }
     if (this is IllegalStateException || this is IllegalArgumentException) {
         return message?.trim()?.takeIf { it.isNotBlank() } ?: GENERIC_API_ERROR_MESSAGE
     }

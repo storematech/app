@@ -95,6 +95,7 @@ import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.ToolTemplatesCarousel
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.ui.tools.ToolsFabOverlay
 import com.quizmaker.android.util.QrCodeGenerator
 import com.quizmaker.android.util.formatShortDate
 
@@ -103,6 +104,7 @@ import com.quizmaker.android.util.formatShortDate
 fun VotingListScreen(
     onNavigateBack: () -> Unit,
     onViewResults: (String) -> Unit,
+    onOpenTemplates: () -> Unit,
     viewModel: VotingListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -110,6 +112,7 @@ fun VotingListScreen(
     var campaignPendingMenu by remember { mutableStateOf<VotingCampaign?>(null) }
     var campaignPendingDelete by remember { mutableStateOf<VotingCampaign?>(null) }
 
+    ToolsFabOverlay(onOpenTemplates = onOpenTemplates) {
     Scaffold(
         containerColor = AppBackground,
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Top),
@@ -181,6 +184,7 @@ fun VotingListScreen(
                 }
             }
         }
+    }
     }
 
     if (uiState.isEditSheetOpen) {

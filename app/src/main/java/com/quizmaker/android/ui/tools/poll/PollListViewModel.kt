@@ -1,10 +1,12 @@
 package com.quizmaker.android.ui.tools.poll
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
+import com.quizmaker.android.data.model.POLL_TEMPLATES
 import com.quizmaker.android.data.model.Poll
 import com.quizmaker.android.data.model.PollOption
 import com.quizmaker.android.data.model.PollTemplate
@@ -34,7 +36,8 @@ data class PollListUiState(
 class PollListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val repository: PollRepository,
-    private val analyticsLogger: AnalyticsLogger
+    private val analyticsLogger: AnalyticsLogger,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PollListUiState())
@@ -42,6 +45,15 @@ class PollListViewModel @Inject constructor(
 
     init {
         refresh()
+        // ExploreTemplatesScreen navigates here with ?template={index} embedded in the route when a
+        // Poll template was picked — Navigation Compose feeds route args straight into this
+        // destination's own SavedStateHandle, so a fresh instance of this ViewModel (this screen is
+        // always (re)pushed, never just popped back to, when arriving from a template pick) can read
+        // it once here and have the create sheet already open on the very first frame.
+        val templateIndex = savedStateHandle.get<Int>("template") ?: -1
+        if (templateIndex >= 0) {
+            POLL_TEMPLATES.getOrNull(templateIndex)?.let { openCreateSheetFromTemplate(it) }
+        }
     }
 
     fun refresh() {

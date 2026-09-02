@@ -63,6 +63,7 @@ import com.quizmaker.android.ui.common.CsvFileIcon
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
+import com.quizmaker.android.ui.common.MathText
 import com.quizmaker.android.ui.common.StatTile
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.PdfPrinter
@@ -246,10 +247,9 @@ private fun AnswerDetailCard(index: Int, answer: AnswerDetail) {
             .padding(14.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(
-                "Q${index + 1}. ${answer.questionText}",
+            MathText(
+                text = "Q${index + 1}. ${answer.questionText}",
                 color = TextPrimary,
-                fontWeight = FontWeight.Medium,
                 fontSize = 14.sp,
                 modifier = Modifier.weight(1f)
             )
@@ -265,10 +265,10 @@ private fun AnswerDetailCard(index: Int, answer: AnswerDetail) {
         }
         Spacer(Modifier.height(10.dp))
         Text("Submitted Answer", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-        Text(answer.studentAnswer, color = TextPrimary, fontSize = 13.sp)
+        MathText(text = answer.studentAnswer, color = TextPrimary, fontSize = 13.sp)
         Spacer(Modifier.height(8.dp))
         Text("Correct Answer", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-        Text(answer.correctAnswer, color = SuccessGreen, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        MathText(text = answer.correctAnswer, color = SuccessGreen, fontSize = 13.sp)
         Spacer(Modifier.height(8.dp))
         Text(
             if (answer.status == AnswerStatus.UNGRADED) "Ungraded" else "${answer.pointsEarned}/${answer.maxPoints} points",

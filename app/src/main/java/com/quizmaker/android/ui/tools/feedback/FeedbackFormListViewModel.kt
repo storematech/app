@@ -1,10 +1,12 @@
 package com.quizmaker.android.ui.tools.feedback
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
+import com.quizmaker.android.data.model.FEEDBACK_FORM_TEMPLATES
 import com.quizmaker.android.data.model.FeedbackForm
 import com.quizmaker.android.data.model.FeedbackFormTemplate
 import com.quizmaker.android.data.model.ToolField
@@ -34,7 +36,8 @@ data class FeedbackFormListUiState(
 class FeedbackFormListViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val repository: FeedbackFormRepository,
-    private val analyticsLogger: AnalyticsLogger
+    private val analyticsLogger: AnalyticsLogger,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedbackFormListUiState())
@@ -42,6 +45,11 @@ class FeedbackFormListViewModel @Inject constructor(
 
     init {
         refresh()
+        // ExploreTemplatesScreen route-arg handoff — see PollListViewModel's identical init block.
+        val templateIndex = savedStateHandle.get<Int>("template") ?: -1
+        if (templateIndex >= 0) {
+            FEEDBACK_FORM_TEMPLATES.getOrNull(templateIndex)?.let { openCreateSheetFromTemplate(it) }
+        }
     }
 
     fun refresh() {

@@ -1,5 +1,6 @@
 package com.quizmaker.android.ui.quizcreate
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,19 +8,29 @@ import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.NewQuizSpec
+import com.quizmaker.android.data.model.QUIZ_NAME_SUGGESTIONS
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionDifficulty
 import com.quizmaker.android.data.model.QuestionType
 import com.quizmaker.android.data.model.Quiz
+import com.quizmaker.android.data.model.QuizNameSuggestion
+import com.quizmaker.android.repository.AiQuizRepository
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuestionRepository
 import com.quizmaker.android.repository.QuizRepository
+import com.quizmaker.android.ui.aiquiz.MAX_AI_QUESTION_COUNT
+import com.quizmaker.android.ui.aiquiz.MIN_AI_QUESTION_COUNT
+import com.quizmaker.android.ui.dashboard.DashboardStateCache
+import com.quizmaker.android.util.TrialStatus
+import com.quizmaker.android.util.trialStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private const val QUIZ_NAME_SUGGESTION_COUNT = 5
 
 /** The available quiz accent color presets — a custom color can also be picked separately (see
  *  CreateQuizScreen's color picker dialog), so [quizColor] isn't restricted to just these five. */
@@ -67,6 +78,9 @@ data class CreateQuizUiState(
     /** Only meaningful in 'uniform' mode — the deduction pre-filled into every question added
      *  to this quiz while it's selected. */
     val negativeMarkingValue: Double = 1.0,
+    // Random 5-of-50 tap-to-fill title/description starters shown on Details for a brand-new
+    // (non-edit) quiz — see reshuffleQuizNameSuggestions().
+    val quizNameSuggestions: List<QuizNameSuggestion> = emptyList(),
 
     // Step 2: questions
     val questionBank: List<Question> = emptyList(),
@@ -80,6 +94,18 @@ data class CreateQuizUiState(
     val questionSearchQuery: String = "",
     val questionTagFilter: String? = null,
     val questionDifficultyFilter: QuestionDifficulty? = null,
+    // In-wizard "AI" button on the Questions step — generates straight into questionBank/
+    // selectedQuestionIds below, no separate review step and no leaving this screen.
+    val showAiQuestionSheet: Boolean = false,
+    val aiPrompt: String = "",
+    val aiQuestionCount: Int = 5,
+    val isGeneratingAiQuestions: Boolean = false,
+    val aiQuestionError: String? = null,
+    // Same trial gate every other create action in the app enforces (see QuestionBankViewModel/
+    // AiQuizViewModel) — without this, the in-wizard AI button would be an unintended bypass of
+    // the paywall those other entry points already enforce.
+    val isAiCreationBlocked: Boolean = false,
+    val showTrialPaywall: Boolean = false,
 
     // Step 3: settings
     val showResults: Boolean = true,
@@ -121,21 +147,39 @@ class CreateQuizViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val questionRepository: QuestionRepository,
     private val quizRepository: QuizRepository,
+    private val aiQuizRepository: AiQuizRepository,
     private val analyticsLogger: AnalyticsLogger,
+    private val dashboardStateCache: DashboardStateCache,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val editQuizId: String? = savedStateHandle["quizId"]
 
-    // Arriving from the AI quiz flow: these questions (already saved to the bank) come pre-checked.
+    // Arriving from the AI quiz flow (or a re-test/manual selection): these questions come pre-checked.
     private val preselectedQuestionIds: List<String> =
         savedStateHandle.get<String>("preselectedIds").orEmpty().split(",").filter { it.isNotBlank() }
+
+    /** Lets Details offer a "Publish Now" shortcut straight past Questions/Settings — every field
+     *  those two steps would otherwise ask for already has a sensible default (see
+     *  CreateQuizUiState's defaults), and Questions is already satisfied by [preselectedQuestionIds]
+     *  — so once a title exists, [submit] can legitimately fire from Details already. Only for a
+     *  brand-new quiz (never edit mode) that actually arrived with preselected questions, e.g. the
+     *  AI quiz flow's "1 message = 1 quiz" promise, or Revision's "Create A Re-Test". */
+    val isQuickPublishAvailable: Boolean = editQuizId == null && preselectedQuestionIds.isNotEmpty()
+
+    // Also from the AI quiz flow — the AI's own suggested title, percent-decoded (see
+    // Screen.CreateQuiz.createRoute for why it's encoded). Empty when arriving any other way,
+    // which is harmless: it just leaves the title field blank like today, and loadQuizForEdit()
+    // below overwrites it anyway when editing an existing quiz.
+    private val prefilledTitle: String = Uri.decode(savedStateHandle.get<String>("prefilledTitle").orEmpty())
 
     private val _uiState = MutableStateFlow(
         CreateQuizUiState(
             isEditMode = editQuizId != null,
+            title = prefilledTitle,
             selectedQuestionIds = preselectedQuestionIds,
-            pinnedQuestionIds = preselectedQuestionIds.toSet()
+            pinnedQuestionIds = preselectedQuestionIds.toSet(),
+            quizNameSuggestions = QUIZ_NAME_SUGGESTIONS.shuffled().take(QUIZ_NAME_SUGGESTION_COUNT)
         )
     )
     val uiState: StateFlow<CreateQuizUiState> = _uiState.asStateFlow()
@@ -146,6 +190,95 @@ class CreateQuizViewModel @Inject constructor(
             loadQuizForEdit(quizId)
         }
         loadQuestionBank()
+        loadTrialGate()
+    }
+
+    /** A fresh random 5-of-50 every time this is called — the Details step's own shuffle button,
+     *  independent of the one-shuffle-per-visit set already seeded into the initial state above. */
+    fun reshuffleQuizNameSuggestions() {
+        _uiState.value = _uiState.value.copy(quizNameSuggestions = QUIZ_NAME_SUGGESTIONS.shuffled().take(QUIZ_NAME_SUGGESTION_COUNT))
+    }
+
+    /** Tapping a suggestion chip fills both fields at once — capitalization already matches
+     *  onTitleChange's own rule since these are all written pre-capitalized. */
+    fun applyQuizNameSuggestion(suggestion: QuizNameSuggestion) {
+        _uiState.value = _uiState.value.copy(title = suggestion.title, description = suggestion.description)
+    }
+
+    /** Independent of everything else here — a failed/slow trial check shouldn't block the rest
+     *  of the wizard from working. */
+    private fun loadTrialGate() {
+        viewModelScope.launch {
+            val profile = (authRepository.getCurrentProfile() as? AppResult.Success)?.data ?: return@launch
+            _uiState.value = _uiState.value.copy(isAiCreationBlocked = profile.trialStatus() is TrialStatus.Expired)
+        }
+    }
+
+    fun dismissTrialPaywall() {
+        _uiState.value = _uiState.value.copy(showTrialPaywall = false)
+    }
+
+    // ---- In-wizard AI question generation (Questions step's "AI" button) ----
+
+    fun openAiQuestionSheet() {
+        if (_uiState.value.isAiCreationBlocked) {
+            _uiState.value = _uiState.value.copy(showTrialPaywall = true)
+            return
+        }
+        _uiState.value = _uiState.value.copy(
+            showAiQuestionSheet = true,
+            // Defaults to the quiz's own title as the topic — the common case is "generate
+            // questions about whatever this quiz is already called" — but still fully editable.
+            aiPrompt = _uiState.value.title,
+            aiQuestionError = null
+        )
+    }
+
+    fun dismissAiQuestionSheet() {
+        if (_uiState.value.isGeneratingAiQuestions) return
+        _uiState.value = _uiState.value.copy(showAiQuestionSheet = false)
+    }
+
+    fun onAiPromptChange(value: String) {
+        _uiState.value = _uiState.value.copy(aiPrompt = value, aiQuestionError = null)
+    }
+
+    fun onAiQuestionCountChange(value: Int) {
+        _uiState.value = _uiState.value.copy(aiQuestionCount = value.coerceIn(MIN_AI_QUESTION_COUNT, MAX_AI_QUESTION_COUNT))
+    }
+
+    /** Generates straight into this wizard's own questionBank/selectedQuestionIds — no separate
+     *  review step and no leaving this screen, unlike the standalone AI tab: the new questions
+     *  just appear, already selected, in the same list the user was already looking at. */
+    fun generateAiQuestions() {
+        val state = _uiState.value
+        val prompt = state.aiPrompt.trim()
+        if (prompt.isBlank() || state.isGeneratingAiQuestions) return
+        val userId = authRepository.currentUserId() ?: return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isGeneratingAiQuestions = true, aiQuestionError = null)
+            when (val result = aiQuizRepository.generateQuestionsFromPrompt(prompt, state.aiQuestionCount)) {
+                is AppResult.Success -> {
+                    when (val saved = aiQuizRepository.saveQuestions(userId, result.data.questions)) {
+                        is AppResult.Success -> {
+                            dashboardStateCache.needsRefresh = true
+                            analyticsLogger.logAiQuizGenerated(source = "quiz_wizard", questionCount = saved.data.size)
+                            _uiState.value = _uiState.value.copy(
+                                isGeneratingAiQuestions = false,
+                                showAiQuestionSheet = false,
+                                questionBank = saved.data + _uiState.value.questionBank,
+                                selectedQuestionIds = _uiState.value.selectedQuestionIds + saved.data.map { it.id }
+                            )
+                        }
+                        is AppResult.Error -> _uiState.value =
+                            _uiState.value.copy(isGeneratingAiQuestions = false, aiQuestionError = saved.message)
+                    }
+                }
+                is AppResult.Error -> _uiState.value =
+                    _uiState.value.copy(isGeneratingAiQuestions = false, aiQuestionError = result.message)
+            }
+        }
     }
 
     private fun loadQuizForEdit(quizId: String) {
@@ -331,12 +464,15 @@ class CreateQuizViewModel @Inject constructor(
                 isUngraded = draft.isUngraded
             )
             when (result) {
-                is AppResult.Success -> _uiState.value = _uiState.value.copy(
-                    isSavingQuestion = false,
-                    questionDraft = null,
-                    questionBank = listOf(result.data) + _uiState.value.questionBank,
-                    selectedQuestionIds = _uiState.value.selectedQuestionIds + result.data.id
-                )
+                is AppResult.Success -> {
+                    dashboardStateCache.needsRefresh = true
+                    _uiState.value = _uiState.value.copy(
+                        isSavingQuestion = false,
+                        questionDraft = null,
+                        questionBank = listOf(result.data) + _uiState.value.questionBank,
+                        selectedQuestionIds = _uiState.value.selectedQuestionIds + result.data.id
+                    )
+                }
                 is AppResult.Error -> _uiState.value =
                     _uiState.value.copy(isSavingQuestion = false, errorMessage = result.message)
             }
@@ -399,6 +535,7 @@ class CreateQuizViewModel @Inject constructor(
             when (result) {
                 is AppResult.Success -> {
                     _uiState.value = _uiState.value.copy(isSubmitting = false, resultQuiz = result.data)
+                    dashboardStateCache.needsRefresh = true
                     if (editQuizId == null) {
                         analyticsLogger.logQuizCreated(
                             quizId = result.data.id,

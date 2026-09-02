@@ -51,8 +51,9 @@ import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.util.GenericCardPdfExporter
 import com.quizmaker.android.util.GenericCsvExporter
-import com.quizmaker.android.util.GenericTablePdfExporter
+import com.quizmaker.android.util.PdfCardData
 import com.quizmaker.android.util.formatDateTime
 import com.quizmaker.android.util.formatShortDate
 import kotlinx.coroutines.launch
@@ -95,12 +96,11 @@ fun OnboardingSubmissionsScreen(
                         IconButton(onClick = {
                             scope.launch {
                                 val branding = viewModel.getPdfBranding()
-                                val intent = GenericTablePdfExporter.export(
+                                val intent = GenericCardPdfExporter.export(
                                     context = context,
                                     fileName = "onboarding_submissions.pdf",
                                     title = uiState.formTitle.ifBlank { "Submissions" },
-                                    columns = onboardingPdfColumns(uiState.fieldLabels),
-                                    rows = uiState.submissions.map { onboardingRow(it, uiState.fieldLabels) },
+                                    cards = uiState.submissions.map { onboardingCard(it, uiState.fieldLabels) },
                                     branding = branding
                                 )
                                 context.startActivity(Intent.createChooser(intent, "Export submissions (PDF)"))
@@ -192,10 +192,21 @@ private fun onboardingRow(submission: OnboardingSubmission, fieldLabels: Map<Str
         fieldLabels.keys.map { submission.answers[it].orEmpty() } +
         formatDateTime(submission.createdAt)
 
-/** Fixed Name/Email/Phone/Submitted columns plus an even split of the remaining page width across whatever dynamic fields this form has. */
-private fun onboardingPdfColumns(fieldLabels: Map<String, String>): List<Pair<String, Float>> {
-    val dynamicWidth = if (fieldLabels.isEmpty()) 0f else (201f / fieldLabels.size).coerceAtLeast(40f)
-    return listOf("Name" to 80f, "Email" to 110f, "Phone" to 70f) +
-        fieldLabels.values.map { it to dynamicWidth } +
-        listOf("Submitted" to 70f)
+/** One card per submission — see GenericCardPdfExporter's header for why this replaced a fixed-column
+ *  table here: the number of dynamic fields (fieldLabels) is whatever the form's creator defined. */
+private fun onboardingCard(submission: OnboardingSubmission, fieldLabels: Map<String, String>): PdfCardData {
+    val headline = submission.name?.takeIf { it.isNotBlank() } ?: submission.email ?: "Anonymous"
+    val subheadline = listOfNotNull(
+        submission.email?.takeIf { it.isNotBlank() && it != headline },
+        submission.phone?.takeIf { it.isNotBlank() }
+    ).joinToString("   •   ").takeIf { it.isNotBlank() }
+    val fields = fieldLabels.mapNotNull { (fieldId, label) ->
+        submission.answers[fieldId]?.takeIf { it.isNotBlank() }?.let { label to it }
+    }
+    return PdfCardData(
+        headline = headline,
+        subheadline = subheadline,
+        fields = fields,
+        footer = "Submitted ${formatDateTime(submission.createdAt)}"
+    )
 }

@@ -64,6 +64,7 @@ import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
+import com.quizmaker.android.ui.common.MathText
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.formatDateTime
 
@@ -174,7 +175,7 @@ private fun ReportedQuestionCard(report: ReportedQuestion, isUpdating: Boolean, 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(report.quizTitle, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(report.questionText, color = TextSecondary, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                MathText(text = report.questionText, color = TextSecondary, fontSize = 13.sp, maxLines = 2)
             }
             Spacer(Modifier.width(8.dp))
             Box(

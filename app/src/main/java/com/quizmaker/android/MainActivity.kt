@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -21,6 +22,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.quizmaker.android.core.messaging.EXTRA_RESPONSE_ID
 import com.quizmaker.android.core.navigation.QuizMakerNavGraph
+import com.quizmaker.android.core.navigation.SessionGate
+import com.quizmaker.android.core.navigation.SessionViewModel
 import com.quizmaker.android.core.payment.RazorpayResult
 import com.quizmaker.android.core.payment.RazorpayResultBus
 import com.quizmaker.android.core.prefs.AppThemeMode
@@ -53,11 +56,24 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     @Inject
     lateinit var themePrefs: ThemePrefs
 
+    // Same instance NavGraph's own hiltViewModel() call resolves to (both default to this
+    // Activity's ViewModelStore) — grabbed here too just to read [SessionViewModel.gate] for the
+    // splash screen's keep-on-screen condition below, before Compose has even run once.
+    private val sessionViewModel: SessionViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate() — applies Theme.QuizMaker.Splash's branded splash
         // (blue background + the "Y" mark) and then switches to Theme.QuizMaker once ready.
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Held up through the whole session/profile gate check (SessionGate.LOADING) instead of
+        // dismissing after the first Compose frame — without this, the OS splash handed off
+        // almost immediately to AppLoadingScreen, a second near-identical "Y + Yuno LMS + spinner"
+        // screen, which read as a jarring double-loading flicker (and on a slow resolve, briefly
+        // showed a bare background with no logo at all in the gap between the two). Now there's
+        // only ever one loading screen — the system-rendered splash, which paints reliably and
+        // immediately — for either a fresh sign-out (fast) or an existing session's gate check.
+        splashScreen.setKeepOnScreenCondition { sessionViewModel.gate.value == SessionGate.LOADING }
         // Default enableEdgeToEdge() draws a translucent white/dark scrim behind the status bar
         // for contrast, which washes out full-bleed colored headers like Dashboard's banner into
         // a muddy gray strip. Screens that go under the status bar (Dashboard) provide their own

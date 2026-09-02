@@ -5,10 +5,12 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import com.quizmaker.android.BuildConfig
+import kotlinx.coroutines.delay
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -48,12 +50,34 @@ suspend fun launchGoogleSignIn(
         .addCredentialOption(googleIdOption)
         .build()
 
+    val credentialManager = CredentialManager.create(context)
+
     try {
-        val result = CredentialManager.create(context).getCredential(context = context, request = request)
+        val result = credentialManager.getCredential(context = context, request = request)
         val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
         onIdToken(googleIdTokenCredential.idToken, rawNonce)
     } catch (e: GetCredentialCancellationException) {
         // User dismissed the account picker — not an error.
+    } catch (e: NoCredentialException) {
+        // A known Credential Manager quirk: right after a fresh install, Play Services hasn't
+        // finished warming up this app's credential provider yet, so the very first call reports
+        // "no credential available" even though a Google account genuinely exists on the device —
+        // a retry moments later succeeds without the user doing anything differently. One silent
+        // retry covers that case; only a second failure is treated as a real "no account" state.
+        try {
+            delay(600)
+            val result = credentialManager.getCredential(context = context, request = request)
+            val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
+            onIdToken(googleIdTokenCredential.idToken, rawNonce)
+        } catch (e: GetCredentialCancellationException) {
+            // User dismissed the account picker — not an error.
+        } catch (e: NoCredentialException) {
+            onError("No Google account found on this device. Add one in Settings, then try again.")
+        } catch (e: GetCredentialException) {
+            onError(e.message?.ifBlank { null } ?: "Couldn't sign in with Google. Please try again.")
+        } catch (e: GoogleIdTokenParsingException) {
+            onError("Couldn't verify that Google account. Please try again.")
+        }
     } catch (e: GetCredentialException) {
         onError(e.message?.ifBlank { null } ?: "Couldn't sign in with Google. Please try again.")
     } catch (e: GoogleIdTokenParsingException) {

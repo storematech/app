@@ -8,8 +8,12 @@ import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.AI_PROMPT_TEMPLATES
 import com.quizmaker.android.data.model.AiPromptTemplate
 import com.quizmaker.android.data.model.Question
+import com.quizmaker.android.repository.AiGeneratedQuiz
 import com.quizmaker.android.repository.AiQuizRepository
 import com.quizmaker.android.repository.AuthRepository
+import com.quizmaker.android.ui.dashboard.DashboardStateCache
+import com.quizmaker.android.util.TrialStatus
+import com.quizmaker.android.util.trialStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,12 +39,21 @@ data class AiQuizUiState(
     // KDoc), and which of them the user wants to keep.
     val reviewQuestions: List<Question> = emptyList(),
     val selectedReviewIds: Set<String> = emptySet(),
+    // The AI's own suggested title for this batch (may be null if it didn't return one) — shown
+    // nowhere in this screen, just carried forward to prefill Create Quiz's title field.
+    val generatedQuizTitle: String? = null,
     // True while confirmSelection() is writing the selected questions to the question bank.
     val isSaving: Boolean = false,
     val navigateToCreateQuizWith: List<String>? = null,
+    val navigateToCreateQuizTitle: String? = null,
     val addQuestionsCompleted: Boolean = false,
     // Random 10-of-50 "trending" prompt starters shown as a carousel — see reshuffleTemplates().
-    val trendingTemplates: List<AiPromptTemplate> = emptyList()
+    val trendingTemplates: List<AiPromptTemplate> = emptyList(),
+    // Same trial gate as QuestionBankViewModel/QuizListViewModel — AI generation is a create action
+    // too, so a trial-expired free account shouldn't be able to use it just because this screen was
+    // reached directly (e.g. the bottom-nav AI tab, which skips those screens' own onOpenAiClick gate).
+    val isCreationBlocked: Boolean = false,
+    val showTrialPaywall: Boolean = false
 ) {
     val canGenerate: Boolean get() = (prompt.isNotBlank() || attachmentKind != null) && !isGenerating
     val hasReview: Boolean get() = reviewQuestions.isNotEmpty()
@@ -51,6 +64,7 @@ class AiQuizViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val aiQuizRepository: AiQuizRepository,
     private val analyticsLogger: AnalyticsLogger,
+    private val dashboardStateCache: DashboardStateCache,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -66,6 +80,22 @@ class AiQuizViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AiQuizUiState())
     val uiState: StateFlow<AiQuizUiState> = _uiState.asStateFlow()
+
+    init {
+        loadTrialGate()
+    }
+
+    /** Independent of everything else here — a failed/slow trial check shouldn't block the composer from showing. */
+    private fun loadTrialGate() {
+        viewModelScope.launch {
+            val profile = (authRepository.getCurrentProfile() as? AppResult.Success)?.data ?: return@launch
+            _uiState.value = _uiState.value.copy(isCreationBlocked = profile.trialStatus() is TrialStatus.Expired)
+        }
+    }
+
+    fun dismissTrialPaywall() {
+        _uiState.value = _uiState.value.copy(showTrialPaywall = false)
+    }
 
     fun onPromptChange(value: String) {
         _uiState.value = _uiState.value.copy(prompt = value, errorMessage = null)
@@ -140,16 +170,21 @@ class AiQuizViewModel @Inject constructor(
         runGeneration(source = "images") { aiQuizRepository.generateQuestionsFromImages(state.prompt.trim(), images, state.questionCount) }
     }
 
-    private fun runGeneration(source: String, block: suspend () -> AppResult<List<Question>>) {
+    private fun runGeneration(source: String, block: suspend () -> AppResult<AiGeneratedQuiz>) {
+        if (_uiState.value.isCreationBlocked) {
+            _uiState.value = _uiState.value.copy(showTrialPaywall = true)
+            return
+        }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isGenerating = true, errorMessage = null)
             when (val result = block()) {
                 is AppResult.Success -> {
-                    analyticsLogger.logAiQuizGenerated(source = source, questionCount = result.data.size)
+                    analyticsLogger.logAiQuizGenerated(source = source, questionCount = result.data.questions.size)
                     _uiState.value = _uiState.value.copy(
                         isGenerating = false,
-                        reviewQuestions = result.data,
-                        selectedReviewIds = result.data.map { it.id }.toSet()
+                        reviewQuestions = result.data.questions,
+                        selectedReviewIds = result.data.questions.map { it.id }.toSet(),
+                        generatedQuizTitle = result.data.quizTitle
                     )
                 }
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isGenerating = false, errorMessage = result.message)
@@ -178,10 +213,18 @@ class AiQuizViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isSaving = true, errorMessage = null)
             when (val result = aiQuizRepository.saveQuestions(userId, selected)) {
                 is AppResult.Success -> {
+                    // Both modes write new rows into the question bank here (see AiQuizRepository's
+                    // saveQuestions KDoc) — Dashboard's totalQuestions changes either way, regardless
+                    // of whether this batch is about to become a quiz too.
+                    dashboardStateCache.needsRefresh = true
                     _uiState.value = if (isAddQuestionsMode) {
                         _uiState.value.copy(isSaving = false, addQuestionsCompleted = true)
                     } else {
-                        _uiState.value.copy(isSaving = false, navigateToCreateQuizWith = result.data.map { it.id })
+                        _uiState.value.copy(
+                            isSaving = false,
+                            navigateToCreateQuizWith = result.data.map { it.id },
+                            navigateToCreateQuizTitle = state.generatedQuizTitle
+                        )
                     }
                 }
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = result.message)

@@ -1,5 +1,7 @@
 package com.quizmaker.android.core.navigation
 
+import android.net.Uri
+
 /** Sealed set of navigable destinations. Plain string routes — simplest thing that works reliably. */
 sealed class Screen(val route: String) {
     data object Splash : Screen("splash")
@@ -7,13 +9,14 @@ sealed class Screen(val route: String) {
     data object ForgotPassword : Screen("forgot_password")
     data object CollectPhone : Screen("collect_phone")
     data object NotificationPermission : Screen("notification_permission")
-    data object TrialStarted : Screen("trial_started")
     data object TrialEnded : Screen("trial_ended")
 
     data object AiQuiz : Screen("ai_quiz?source={source}") {
         /** [source] = "questions" when launched from the Question Bank's AI button (Add Questions mode). */
         fun createRoute(source: String? = null): String = "ai_quiz?source=${source.orEmpty()}"
     }
+    /** AI Quiz's second mode — a real exam's full structure, as opposed to AiQuiz's single prompt. */
+    data object FullTest : Screen("full_test")
     data object Dashboard : Screen("dashboard")
     data object QuizList : Screen("quiz_list")
     data object Questions : Screen("questions")
@@ -31,10 +34,13 @@ sealed class Screen(val route: String) {
         fun createRoute(quizId: String) = "quiz_created/$quizId"
     }
 
-    data object CreateQuiz : Screen("create_quiz?preselectedIds={preselectedIds}") {
-        /** [preselectedIds] pre-checks these questions on the Questions step — used when arriving from the AI quiz flow. */
-        fun createRoute(preselectedIds: List<String> = emptyList()): String =
-            "create_quiz?preselectedIds=${preselectedIds.joinToString(",")}"
+    data object CreateQuiz : Screen("create_quiz?preselectedIds={preselectedIds}&prefilledTitle={prefilledTitle}") {
+        /** [preselectedIds] pre-checks these questions on the Questions step, and [prefilledTitle] seeds the
+         *  title field — both used when arriving from the AI quiz flow. [prefilledTitle] is percent-encoded
+         *  since it's arbitrary free text (the AI's own suggested title) that could otherwise break this
+         *  hand-built query string (spaces, "&", "#", etc.) — see CreateQuizViewModel's matching Uri.decode. */
+        fun createRoute(preselectedIds: List<String> = emptyList(), prefilledTitle: String? = null): String =
+            "create_quiz?preselectedIds=${preselectedIds.joinToString(",")}&prefilledTitle=${Uri.encode(prefilledTitle.orEmpty())}"
     }
 
     data object EditQuiz : Screen("edit_quiz/{quizId}") {
@@ -84,35 +90,52 @@ sealed class Screen(val route: String) {
 
     data object Tools : Screen("tools")
     data object ToolsIntro : Screen("tools_intro")
-    data object OnboardingForms : Screen("onboarding_forms")
+
+    /** [template] = index into ONBOARDING_FORM_TEMPLATES to open straight into the create sheet
+     *  pre-filled, from ExploreTemplatesScreen — null/absent for a plain visit to this list. */
+    data object OnboardingForms : Screen("onboarding_forms?template={template}") {
+        fun createRoute(template: Int? = null) = "onboarding_forms?template=${template ?: -1}"
+    }
 
     data object OnboardingSubmissions : Screen("onboarding_submissions/{formId}") {
         fun createRoute(formId: String) = "onboarding_submissions/$formId"
     }
 
-    data object FeedbackForms : Screen("feedback_forms")
+    data object FeedbackForms : Screen("feedback_forms?template={template}") {
+        fun createRoute(template: Int? = null) = "feedback_forms?template=${template ?: -1}"
+    }
 
     data object FeedbackSubmissions : Screen("feedback_submissions/{formId}") {
         fun createRoute(formId: String) = "feedback_submissions/$formId"
     }
 
-    data object Polls : Screen("polls")
+    data object Polls : Screen("polls?template={template}") {
+        fun createRoute(template: Int? = null) = "polls?template=${template ?: -1}"
+    }
 
     data object PollResults : Screen("poll_results/{pollId}") {
         fun createRoute(pollId: String) = "poll_results/$pollId"
     }
 
-    data object Voting : Screen("voting")
+    data object Voting : Screen("voting?template={template}") {
+        fun createRoute(template: Int? = null) = "voting?template=${template ?: -1}"
+    }
 
     data object VotingResults : Screen("voting_results/{campaignId}") {
         fun createRoute(campaignId: String) = "voting_results/$campaignId"
     }
 
-    data object RsvpEvents : Screen("rsvp_events")
+    data object RsvpEvents : Screen("rsvp_events?template={template}") {
+        fun createRoute(template: Int? = null) = "rsvp_events?template=${template ?: -1}"
+    }
 
     data object RsvpRegistrations : Screen("rsvp_registrations/{eventId}") {
         fun createRoute(eventId: String) = "rsvp_registrations/$eventId"
     }
+
+    /** Single combined "browse every tool's templates" screen (replaces 5 separate per-tool
+     *  galleries) — sections stack vertically, one per tool, each a horizontally-swipeable row. */
+    data object ExploreTemplates : Screen("explore_templates")
 
     data object Pricing : Screen("pricing")
     data object FeatureTour : Screen("feature_tour")

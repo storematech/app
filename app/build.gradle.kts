@@ -38,8 +38,8 @@ android {
         applicationId = "com.quizmakeronline.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 10
-        versionName = "15.31.1"
+        versionCode = 11
+        versionName = "15.31.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -146,4 +146,11 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.google.id)
+
+    // LaTeX math rendering (question/option text containing $...$ or $$...$$) — see ui/common/MathText.kt.
+    // ext-latex transitively pulls in the correct JLaTeXMath renderer (ru.noties:jlatexmath-android)
+    // on its own — do NOT add org.scilab.forge:jlatexmath or io.noties:jlatexmath-android explicitly,
+    // both collide with it (same org.scilab.forge.jlatexmath.* classes, duplicate-class build failure).
+    implementation(libs.markwon.core)
+    implementation(libs.markwon.ext.latex)
 }

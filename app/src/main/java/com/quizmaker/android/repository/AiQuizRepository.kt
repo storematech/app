@@ -22,6 +22,10 @@ import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** [quizTitle] is the AI's suggested title for the batch, or null if it didn't return one — carried
+ *  through to prefill the title field on the Create Quiz screen once the user confirms their selection. */
+data class AiGeneratedQuiz(val quizTitle: String?, val questions: List<Question>)
+
 /**
  * Generates quiz questions from a prompt/PDF/photos via the `generate-quiz-ai` Edge Function
  * (which holds the Gemini key server-side — see that function's source for why). [generate] only
@@ -40,11 +44,11 @@ class AiQuizRepository @Inject constructor(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun generateQuestionsFromPrompt(prompt: String, questionCount: Int): AppResult<List<Question>> =
+    suspend fun generateQuestionsFromPrompt(prompt: String, questionCount: Int): AppResult<AiGeneratedQuiz> =
         generate(prompt, questionCount, pdfBase64 = null, images = null)
 
     /** [pdfBase64] is the raw file's base64 — never persisted, only relayed through the edge function to Gemini. */
-    suspend fun generateQuestionsFromPdf(extraPrompt: String, pdfBase64: String, questionCount: Int): AppResult<List<Question>> =
+    suspend fun generateQuestionsFromPdf(extraPrompt: String, pdfBase64: String, questionCount: Int): AppResult<AiGeneratedQuiz> =
         generate(extraPrompt, questionCount, pdfBase64 = pdfBase64, images = null)
 
     /** [images] are (base64, mimeType) pairs for up to a few photos — never persisted, only relayed to Gemini. */
@@ -52,7 +56,7 @@ class AiQuizRepository @Inject constructor(
         extraPrompt: String,
         images: List<Pair<String, String>>,
         questionCount: Int
-    ): AppResult<List<Question>> = generate(
+    ): AppResult<AiGeneratedQuiz> = generate(
         extraPrompt,
         questionCount,
         pdfBase64 = null,
@@ -64,7 +68,7 @@ class AiQuizRepository @Inject constructor(
         questionCount: Int,
         pdfBase64: String?,
         images: List<GenerateQuizAiImageInput>?
-    ): AppResult<List<Question>> = safeCall {
+    ): AppResult<AiGeneratedQuiz> = safeCall {
         val response = supabase.functions.invoke("generate-quiz-ai") {
             contentType(ContentType.Application.Json)
             // The client-wide 30s requestTimeout (see SupabaseModule.kt) is fine for normal
@@ -92,7 +96,10 @@ class AiQuizRepository @Inject constructor(
             Question(
                 id = "ai-review-$index",
                 text = aiQuestion.text,
-                type = QuestionType.SINGLE_CHOICE,
+                // The prompt occasionally allows more than one correct option for math/physics
+                // "which of the following statements is/are true" style questions — reflect that
+                // in the question type instead of forcing every AI question into single-choice.
+                type = if (options.count { it.isCorrect } > 1) QuestionType.MULTI_CHOICE else QuestionType.SINGLE_CHOICE,
                 options = options,
                 correctAnswer = null,
                 explanation = null,
@@ -110,20 +117,21 @@ class AiQuizRepository @Inject constructor(
             error("AI generated questions, but none were usable. Please try again.")
         }
 
-        reviewQuestions
+        AiGeneratedQuiz(quizTitle = result.quizTitle?.trim()?.takeIf { it.isNotEmpty() }, questions = reviewQuestions)
     }
 
     /**
      * Persists the given (unsaved, synthetic-id) reviewed questions into [userId]'s question
-     * bank, returning the real, saved rows. Fails the whole batch — rather than silently saving
-     * a partial set — if any single question can't be created, so the caller never ends up with
-     * an ambiguous "some of these are real, some aren't" result to reconcile.
+     * bank, returning the real, saved rows. Uses QuestionRepository.createQuestions' bulk-insert
+     * path (two requests total, regardless of batch size) rather than one createQuestion() call
+     * per question — a Full Test batch of 75-250 questions used to mean hundreds of sequential
+     * HTTP round trips here, where a single transient network blip failed the whole save.
      */
-    suspend fun saveQuestions(userId: String, questions: List<Question>): AppResult<List<Question>> = safeCall {
-        questions.map { question ->
-            when (
-                val created = questionRepository.createQuestion(
-                    userId = userId,
+    suspend fun saveQuestions(userId: String, questions: List<Question>): AppResult<List<Question>> =
+        questionRepository.createQuestions(
+            userId = userId,
+            questions = questions.map { question ->
+                QuestionInsertPayload(
                     text = question.text,
                     type = question.type,
                     points = question.points,
@@ -132,14 +140,10 @@ class AiQuizRepository @Inject constructor(
                     explanation = question.explanation,
                     tags = question.tags,
                     options = question.options.map { it.text to it.isCorrect },
-                    freeTextAnswer = null,
+                    freeTextAnswer = question.correctAnswer,
                     imageUrl = question.imageUrl,
                     isUngraded = question.isUngraded
                 )
-            ) {
-                is AppResult.Success -> created.data
-                is AppResult.Error -> error(created.message)
             }
-        }
-    }
+        )
 }

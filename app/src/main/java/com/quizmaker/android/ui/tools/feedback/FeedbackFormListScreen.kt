@@ -95,6 +95,7 @@ import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.ToolTemplatesCarousel
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.ui.tools.ToolsFabOverlay
 import com.quizmaker.android.util.QrCodeGenerator
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,6 +103,7 @@ import com.quizmaker.android.util.QrCodeGenerator
 fun FeedbackFormListScreen(
     onNavigateBack: () -> Unit,
     onViewSubmissions: (String) -> Unit,
+    onOpenTemplates: () -> Unit,
     viewModel: FeedbackFormListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -109,6 +111,7 @@ fun FeedbackFormListScreen(
     var formPendingMenu by remember { mutableStateOf<FeedbackForm?>(null) }
     var formPendingDelete by remember { mutableStateOf<FeedbackForm?>(null) }
 
+    ToolsFabOverlay(onOpenTemplates = onOpenTemplates) {
     Scaffold(
         containerColor = AppBackground,
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Top),
@@ -180,6 +183,7 @@ fun FeedbackFormListScreen(
                 }
             }
         }
+    }
     }
 
     if (uiState.isEditSheetOpen) {

@@ -27,7 +27,13 @@ class ProfileRepository @Inject constructor(
         businessName: String,
         phoneNumber: String,
         country: String,
-        address: String
+        address: String,
+        website: String,
+        registrationNumber: String,
+        letterheadPhone: String,
+        letterheadEmail: String,
+        tagline: String,
+        gstNumber: String
     ): AppResult<Unit> = safeCall {
         supabase.from("profiles")
             .update(
@@ -36,7 +42,13 @@ class ProfileRepository @Inject constructor(
                     businessName = businessName,
                     phoneNumber = phoneNumber,
                     country = country,
-                    address = address
+                    address = address,
+                    website = website,
+                    registrationNumber = registrationNumber,
+                    letterheadPhone = letterheadPhone,
+                    letterheadEmail = letterheadEmail,
+                    tagline = tagline,
+                    gstNumber = gstNumber
                 )
             ) { filter { eq("id", userId) } }
         Unit

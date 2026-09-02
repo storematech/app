@@ -93,6 +93,7 @@ import com.quizmaker.android.ui.common.FilledPill
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
+import com.quizmaker.android.ui.common.MathText
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.QuestionEditSheet
 import com.quizmaker.android.ui.common.TrialPaywallSheet
@@ -352,7 +353,7 @@ private fun QuestionCard(
                     Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
                     Spacer(Modifier.width(4.dp))
                 }
-                Text(question.text, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+                MathText(text = question.text, bold = true, fontSize = 17.sp, color = TextPrimary, modifier = Modifier.weight(1f))
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

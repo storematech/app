@@ -25,7 +25,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 /** Whether the initial nav graph should show the loading gate, the auth flow, the main app, or one of the one-time/recurring post-login interstitials. */
-enum class SessionGate { LOADING, LOGGED_OUT, LOGGED_IN, NEEDS_PHONE, NEEDS_NOTIFICATION_PERMISSION, TRIAL_STARTED, TRIAL_ENDED }
+enum class SessionGate { LOADING, LOGGED_OUT, LOGGED_IN, NEEDS_PHONE, NEEDS_NOTIFICATION_PERMISSION, TRIAL_JUST_STARTED, TRIAL_ENDED }
 
 /** A hung network call (bad connectivity, etc.) during cold-start gate resolution should never
  *  leave the "Y" loading screen spinning forever — past this, resolution fails open the same way
@@ -91,9 +91,23 @@ class SessionViewModel @Inject constructor(
             // An admin-granted extension isn't a "new" trial start, so it skips straight to the
             // app — the Dashboard banner (see TrialExtendedBanner) is what actually breaks the news.
             is TrialStatus.Extended -> SessionGate.LOGGED_IN
-            is TrialStatus.Active ->
-                if (trialPrefs.hasShownTrialStarted(profile.id)) SessionGate.LOGGED_IN else SessionGate.TRIAL_STARTED
+            is TrialStatus.Active -> resolveActiveTrialGate(profile.id)
         }
+    }
+
+    /**
+     * No "your trial has started" congrats interstitial anymore — a brand-new user goes straight
+     * into the app instead of being handed a trial-days countdown before they've explored
+     * anything. The very first time this resolves Active for the account, it still logs the
+     * trial-start analytics event once (see TrialPrefs) and routes straight to AiQuiz (matching
+     * where the old congrats screen's "Start Journey" button used to send new users) rather than
+     * Dashboard; every resolution after that is a normal LOGGED_IN landing on Dashboard.
+     */
+    private suspend fun resolveActiveTrialGate(userId: String): SessionGate {
+        if (trialPrefs.hasShownTrialStarted(userId)) return SessionGate.LOGGED_IN
+        trialPrefs.markTrialStartedShown(userId)
+        analyticsLogger.logTrialStarted()
+        return SessionGate.TRIAL_JUST_STARTED
     }
 
     /** True right after phone collection for a new account, and right after sign-in for a

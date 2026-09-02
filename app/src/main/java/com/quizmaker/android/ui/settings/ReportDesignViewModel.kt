@@ -21,6 +21,12 @@ data class ReportDesignUiState(
     val colorHex: String = ReportDesign.DEFAULT_COLOR_HEX,
     val businessName: String = "",
     val address: String = "",
+    val website: String = "",
+    val registrationNumber: String = "",
+    val letterheadPhone: String = "",
+    val letterheadEmail: String = "",
+    val tagline: String = "",
+    val gstNumber: String = "",
     val businessLogoUrl: String? = null,
     val isUploadingLogo: Boolean = false,
     val isSavingBranding: Boolean = false,
@@ -66,6 +72,12 @@ class ReportDesignViewModel @Inject constructor(
                         colorHex = designResult.data.colorHex,
                         businessName = profile?.businessName.orEmpty(),
                         address = profile?.address.orEmpty(),
+                        website = profile?.website.orEmpty(),
+                        registrationNumber = profile?.registrationNumber.orEmpty(),
+                        letterheadPhone = profile?.letterheadPhone.orEmpty(),
+                        letterheadEmail = profile?.letterheadEmail.orEmpty(),
+                        tagline = profile?.tagline.orEmpty(),
+                        gstNumber = profile?.gstNumber.orEmpty(),
                         businessLogoUrl = profile?.businessLogo
                     )
                     is AppResult.Error -> _uiState.value.copy(isLoading = false, errorMessage = designResult.message)
@@ -100,6 +112,30 @@ class ReportDesignViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(address = value, brandingSaveSuccess = false)
     }
 
+    fun onWebsiteChange(value: String) {
+        _uiState.value = _uiState.value.copy(website = value, brandingSaveSuccess = false)
+    }
+
+    fun onRegistrationNumberChange(value: String) {
+        _uiState.value = _uiState.value.copy(registrationNumber = value, brandingSaveSuccess = false)
+    }
+
+    fun onLetterheadPhoneChange(value: String) {
+        _uiState.value = _uiState.value.copy(letterheadPhone = value, brandingSaveSuccess = false)
+    }
+
+    fun onLetterheadEmailChange(value: String) {
+        _uiState.value = _uiState.value.copy(letterheadEmail = value, brandingSaveSuccess = false)
+    }
+
+    fun onTaglineChange(value: String) {
+        _uiState.value = _uiState.value.copy(tagline = value, brandingSaveSuccess = false)
+    }
+
+    fun onGstNumberChange(value: String) {
+        _uiState.value = _uiState.value.copy(gstNumber = value, brandingSaveSuccess = false)
+    }
+
     fun saveBranding() {
         val userId = authRepository.currentUserId() ?: return
         val state = _uiState.value
@@ -111,7 +147,13 @@ class ReportDesignViewModel @Inject constructor(
                 businessName = state.businessName.trim(),
                 phoneNumber = profilePhoneNumber,
                 country = profileCountry,
-                address = state.address.trim()
+                address = state.address.trim(),
+                website = state.website.trim(),
+                registrationNumber = state.registrationNumber.trim(),
+                letterheadPhone = state.letterheadPhone.trim(),
+                letterheadEmail = state.letterheadEmail.trim(),
+                tagline = state.tagline.trim(),
+                gstNumber = state.gstNumber.trim()
             )
             when (result) {
                 is AppResult.Success -> _uiState.value = _uiState.value.copy(isSavingBranding = false, brandingSaveSuccess = true)

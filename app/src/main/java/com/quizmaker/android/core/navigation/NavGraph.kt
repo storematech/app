@@ -62,6 +62,7 @@ import com.quizmaker.android.core.theme.BrandIndigoLight
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.aiquiz.AiQuizScreen
+import com.quizmaker.android.ui.fulltest.FullTestScreen
 import com.quizmaker.android.ui.auth.CollectPhoneScreen
 import com.quizmaker.android.ui.auth.ForgotPasswordScreen
 import com.quizmaker.android.ui.auth.LoginScreen
@@ -73,9 +74,15 @@ import com.quizmaker.android.ui.classweaklearners.ClassWeakLearnersScreen
 import com.quizmaker.android.ui.learners.LearnersIntroScreen
 import com.quizmaker.android.ui.learners.LearnersIntroViewModel
 import com.quizmaker.android.ui.learners.LearnersScreen
+import com.quizmaker.android.ui.tools.ExploreTemplatesScreen
 import com.quizmaker.android.ui.tools.ToolsIntroScreen
 import com.quizmaker.android.ui.tools.ToolsIntroViewModel
 import com.quizmaker.android.ui.tools.ToolsScreen
+import com.quizmaker.android.data.model.FEEDBACK_FORM_TEMPLATES
+import com.quizmaker.android.data.model.ONBOARDING_FORM_TEMPLATES
+import com.quizmaker.android.data.model.POLL_TEMPLATES
+import com.quizmaker.android.data.model.RSVP_EVENT_TEMPLATES
+import com.quizmaker.android.data.model.VOTING_TEMPLATES
 import com.quizmaker.android.ui.tools.feedback.FeedbackFormListScreen
 import com.quizmaker.android.ui.tools.feedback.FeedbackSubmissionsScreen
 import com.quizmaker.android.ui.tools.onboarding.OnboardingFormListScreen
@@ -114,18 +121,20 @@ import com.quizmaker.android.ui.settings.ReportDesignScreen
 import com.quizmaker.android.ui.settings.SettingsScreen
 import com.quizmaker.android.ui.takequiz.TakeQuizScreen
 import com.quizmaker.android.ui.trial.TrialEndedScreen
-import com.quizmaker.android.ui.trial.TrialStartedScreen
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.launch
 
 private val authRoutes = setOf(Screen.Login.route, Screen.ForgotPassword.route)
 
-/** Where a resolved post-auth gate lands. Only ever called with LOGGED_IN/NEEDS_PHONE/TRIAL_STARTED/
- *  TRIAL_ENDED in practice — LOADING/LOGGED_OUT are handled separately by their callers. */
+/** Where a resolved post-auth gate lands. Only ever called with LOGGED_IN/NEEDS_PHONE/
+ *  TRIAL_JUST_STARTED/TRIAL_ENDED in practice — LOADING/LOGGED_OUT are handled separately by
+ *  their callers. */
 private fun SessionGate.toRoute(): String = when (this) {
     SessionGate.NEEDS_PHONE -> Screen.CollectPhone.route
     SessionGate.NEEDS_NOTIFICATION_PERMISSION -> Screen.NotificationPermission.route
-    SessionGate.TRIAL_STARTED -> Screen.TrialStarted.route
+    // No more standalone congrats screen — routes straight into the app on AiQuiz, same
+    // destination that screen's "Start Journey" button used to send a brand-new user to.
+    SessionGate.TRIAL_JUST_STARTED -> Screen.AiQuiz.createRoute()
     SessionGate.TRIAL_ENDED -> Screen.TrialEnded.route
     SessionGate.LOGGED_IN, SessionGate.LOGGED_OUT, SessionGate.LOADING -> Screen.Dashboard.route
 }
@@ -256,6 +265,13 @@ fun QuizMakerNavGraph(
 
         Box(modifier = Modifier.fillMaxSize()) {
         NavHost(navController = navController, startDestination = startDestination, modifier = contentModifier) {
+            // Shared by both the Tools hub's own embedded template sections and ExploreTemplatesScreen:
+            // collapses the back stack down to Tools (dropping ExploreTemplates/whatever list screen was
+            // on top, if either is present) and pushes the picked template's own tool screen fresh, with
+            // its index embedded in the route — see the ?template= args on those 5 Screen routes.
+            fun navigateWithTemplate(route: String) {
+                navController.navigate(route) { popUpTo(Screen.Tools.route) }
+            }
             composable(Screen.Login.route) {
                 LoginScreen(
                     onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) }
@@ -270,8 +286,9 @@ fun QuizMakerNavGraph(
                     onSaved = {
                         // Re-run the same post-auth gate check used at cold start, rather than
                         // jumping straight to Dashboard — a brand-new account's trial starts the
-                        // moment the phone number is saved, so this is what actually routes to
-                        // TrialStarted immediately instead of only on the next app launch.
+                        // moment the phone number is saved, so this is what actually routes
+                        // straight into the app (AiQuiz) immediately instead of only on the next
+                        // app launch.
                         scope.launch {
                             navController.navigate(sessionViewModel.resolvePostAuthGate().toRoute()) {
                                 popUpTo(0) { inclusive = true }
@@ -285,20 +302,11 @@ fun QuizMakerNavGraph(
                 NotificationPermissionScreen(
                     onContinue = {
                         // Same "re-run the gate check" pattern as CollectPhone — lands on
-                        // TrialStarted/TrialEnded/Dashboard, whichever actually applies next.
+                        // AiQuiz/TrialEnded/Dashboard, whichever actually applies next.
                         scope.launch {
                             navController.navigate(sessionViewModel.resolvePostAuthGate().toRoute()) {
                                 popUpTo(0) { inclusive = true }
                             }
-                        }
-                    }
-                )
-            }
-            composable(Screen.TrialStarted.route) {
-                TrialStartedScreen(
-                    onStartJourney = {
-                        navController.navigate(Screen.AiQuiz.createRoute()) {
-                            popUpTo(0) { inclusive = true }
                         }
                     }
                 )
@@ -319,10 +327,21 @@ fun QuizMakerNavGraph(
                 arguments = listOf(navArgument("source") { type = NavType.StringType; defaultValue = "" })
             ) {
                 AiQuizScreen(
-                    onNavigateToCreateQuiz = { ids ->
-                        navController.navigate(Screen.CreateQuiz.createRoute(ids))
+                    onNavigateToCreateQuiz = { ids, title ->
+                        navController.navigate(Screen.CreateQuiz.createRoute(ids, title))
                     },
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) },
+                    onOpenFullTest = { navController.navigate(Screen.FullTest.route) }
+                )
+            }
+            composable(Screen.FullTest.route) {
+                FullTestScreen(
+                    onNavigateToCreateQuiz = { ids, title ->
+                        navController.navigate(Screen.CreateQuiz.createRoute(ids, title))
+                    },
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) }
                 )
             }
             composable(Screen.Dashboard.route) {
@@ -490,57 +509,112 @@ fun QuizMakerNavGraph(
             composable(Screen.Tools.route) {
                 ToolsScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onOpenOnboardingForms = { navController.navigate(Screen.OnboardingForms.route) },
-                    onOpenFeedbackForms = { navController.navigate(Screen.FeedbackForms.route) },
-                    onOpenPolls = { navController.navigate(Screen.Polls.route) },
-                    onOpenVoting = { navController.navigate(Screen.Voting.route) },
-                    onOpenRsvpEvents = { navController.navigate(Screen.RsvpEvents.route) }
+                    onOpenOnboardingForms = { navController.navigate(Screen.OnboardingForms.createRoute()) },
+                    onOpenFeedbackForms = { navController.navigate(Screen.FeedbackForms.createRoute()) },
+                    onOpenPolls = { navController.navigate(Screen.Polls.createRoute()) },
+                    onOpenVoting = { navController.navigate(Screen.Voting.createRoute()) },
+                    onOpenRsvpEvents = { navController.navigate(Screen.RsvpEvents.createRoute()) },
+                    onSelectOnboardingTemplate = { template ->
+                        navigateWithTemplate(Screen.OnboardingForms.createRoute(ONBOARDING_FORM_TEMPLATES.indexOf(template)))
+                    },
+                    onSelectFeedbackTemplate = { template ->
+                        navigateWithTemplate(Screen.FeedbackForms.createRoute(FEEDBACK_FORM_TEMPLATES.indexOf(template)))
+                    },
+                    onSelectPollTemplate = { template ->
+                        navigateWithTemplate(Screen.Polls.createRoute(POLL_TEMPLATES.indexOf(template)))
+                    },
+                    onSelectVotingTemplate = { template ->
+                        navigateWithTemplate(Screen.Voting.createRoute(VOTING_TEMPLATES.indexOf(template)))
+                    },
+                    onSelectRsvpTemplate = { template ->
+                        navigateWithTemplate(Screen.RsvpEvents.createRoute(RSVP_EVENT_TEMPLATES.indexOf(template)))
+                    }
                 )
             }
-            composable(Screen.OnboardingForms.route) {
+            composable(
+                route = Screen.OnboardingForms.route,
+                arguments = listOf(navArgument("template") { type = NavType.IntType; defaultValue = -1 })
+            ) {
                 OnboardingFormListScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onViewSubmissions = { formId -> navController.navigate(Screen.OnboardingSubmissions.createRoute(formId)) }
+                    onViewSubmissions = { formId -> navController.navigate(Screen.OnboardingSubmissions.createRoute(formId)) },
+                    onOpenTemplates = { navController.navigate(Screen.ExploreTemplates.route) }
                 )
             }
             composable(Screen.OnboardingSubmissions.route) {
                 OnboardingSubmissionsScreen(onNavigateBack = { navController.popBackStack() })
             }
-            composable(Screen.FeedbackForms.route) {
+            composable(
+                route = Screen.FeedbackForms.route,
+                arguments = listOf(navArgument("template") { type = NavType.IntType; defaultValue = -1 })
+            ) {
                 FeedbackFormListScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onViewSubmissions = { formId -> navController.navigate(Screen.FeedbackSubmissions.createRoute(formId)) }
+                    onViewSubmissions = { formId -> navController.navigate(Screen.FeedbackSubmissions.createRoute(formId)) },
+                    onOpenTemplates = { navController.navigate(Screen.ExploreTemplates.route) }
                 )
             }
             composable(Screen.FeedbackSubmissions.route) {
                 FeedbackSubmissionsScreen(onNavigateBack = { navController.popBackStack() })
             }
-            composable(Screen.Polls.route) {
+            composable(
+                route = Screen.Polls.route,
+                arguments = listOf(navArgument("template") { type = NavType.IntType; defaultValue = -1 })
+            ) {
                 PollListScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onViewResults = { pollId -> navController.navigate(Screen.PollResults.createRoute(pollId)) }
+                    onViewResults = { pollId -> navController.navigate(Screen.PollResults.createRoute(pollId)) },
+                    onOpenTemplates = { navController.navigate(Screen.ExploreTemplates.route) }
                 )
             }
             composable(Screen.PollResults.route) {
                 PollResultsScreen(onNavigateBack = { navController.popBackStack() })
             }
-            composable(Screen.Voting.route) {
+            composable(
+                route = Screen.Voting.route,
+                arguments = listOf(navArgument("template") { type = NavType.IntType; defaultValue = -1 })
+            ) {
                 VotingListScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onViewResults = { campaignId -> navController.navigate(Screen.VotingResults.createRoute(campaignId)) }
+                    onViewResults = { campaignId -> navController.navigate(Screen.VotingResults.createRoute(campaignId)) },
+                    onOpenTemplates = { navController.navigate(Screen.ExploreTemplates.route) }
                 )
             }
             composable(Screen.VotingResults.route) {
                 VotingResultsScreen(onNavigateBack = { navController.popBackStack() })
             }
-            composable(Screen.RsvpEvents.route) {
+            composable(
+                route = Screen.RsvpEvents.route,
+                arguments = listOf(navArgument("template") { type = NavType.IntType; defaultValue = -1 })
+            ) {
                 RsvpEventListScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onViewRegistrations = { eventId -> navController.navigate(Screen.RsvpRegistrations.createRoute(eventId)) }
+                    onViewRegistrations = { eventId -> navController.navigate(Screen.RsvpRegistrations.createRoute(eventId)) },
+                    onOpenTemplates = { navController.navigate(Screen.ExploreTemplates.route) }
                 )
             }
             composable(Screen.RsvpRegistrations.route) {
                 RsvpRegistrationsScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.ExploreTemplates.route) {
+                ExploreTemplatesScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onSelectOnboarding = { template ->
+                        navigateWithTemplate(Screen.OnboardingForms.createRoute(ONBOARDING_FORM_TEMPLATES.indexOf(template)))
+                    },
+                    onSelectFeedback = { template ->
+                        navigateWithTemplate(Screen.FeedbackForms.createRoute(FEEDBACK_FORM_TEMPLATES.indexOf(template)))
+                    },
+                    onSelectPoll = { template ->
+                        navigateWithTemplate(Screen.Polls.createRoute(POLL_TEMPLATES.indexOf(template)))
+                    },
+                    onSelectVoting = { template ->
+                        navigateWithTemplate(Screen.Voting.createRoute(VOTING_TEMPLATES.indexOf(template)))
+                    },
+                    onSelectRsvp = { template ->
+                        navigateWithTemplate(Screen.RsvpEvents.createRoute(RSVP_EVENT_TEMPLATES.indexOf(template)))
+                    }
+                )
             }
             composable(Screen.Faq.route) {
                 FaqScreen(onNavigateBack = { navController.popBackStack() })
@@ -585,7 +659,10 @@ fun QuizMakerNavGraph(
             }
             composable(
                 route = Screen.CreateQuiz.route,
-                arguments = listOf(navArgument("preselectedIds") { type = NavType.StringType; defaultValue = "" })
+                arguments = listOf(
+                    navArgument("preselectedIds") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("prefilledTitle") { type = NavType.StringType; defaultValue = "" }
+                )
             ) {
                 CreateQuizScreen(
                     onNavigateBack = { navController.popBackStack() },
@@ -593,7 +670,8 @@ fun QuizMakerNavGraph(
                         navController.navigate(Screen.QuizCreated.createRoute(quizId)) {
                             popUpTo(Screen.Dashboard.route)
                         }
-                    }
+                    },
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) }
                 )
             }
             composable(
@@ -617,7 +695,8 @@ fun QuizMakerNavGraph(
             ) {
                 CreateQuizScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onQuizCreated = { navController.popBackStack() }
+                    onQuizCreated = { navController.popBackStack() },
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) }
                 )
             }
             composable(Screen.Profile.route) {

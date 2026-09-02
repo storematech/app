@@ -94,6 +94,7 @@ import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.ToolTemplatesCarousel
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.ui.tools.ToolsFabOverlay
 import com.quizmaker.android.util.QrCodeGenerator
 import com.quizmaker.android.util.formatShortDate
 
@@ -102,6 +103,7 @@ import com.quizmaker.android.util.formatShortDate
 fun PollListScreen(
     onNavigateBack: () -> Unit,
     onViewResults: (String) -> Unit,
+    onOpenTemplates: () -> Unit,
     viewModel: PollListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -109,6 +111,7 @@ fun PollListScreen(
     var pollPendingMenu by remember { mutableStateOf<Poll?>(null) }
     var pollPendingDelete by remember { mutableStateOf<Poll?>(null) }
 
+    ToolsFabOverlay(onOpenTemplates = onOpenTemplates) {
     Scaffold(
         containerColor = AppBackground,
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Top),
@@ -180,6 +183,7 @@ fun PollListScreen(
                 }
             }
         }
+    }
     }
 
     if (uiState.isEditSheetOpen) {

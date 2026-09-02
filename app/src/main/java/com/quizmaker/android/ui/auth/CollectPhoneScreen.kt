@@ -65,13 +65,14 @@ import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
+import com.quizmaker.android.ui.common.OnboardingStepIndicator
 import com.quizmaker.android.util.Country
 import com.quizmaker.android.util.CountryCodes
 
 /**
  * One-time onboarding interstitial shown after sign-in/sign-up when `profiles.phone_number` is
- * still empty — see SessionViewModel.needsPhoneNumber(). No OTP/verification: this is a plain
- * collection field, saved straight to Supabase.
+ * still empty — see SessionViewModel.resolvePostAuthGate(). No OTP/verification: this is a plain
+ * collection field, saved straight to Supabase. Mandatory by design — no skip option.
  */
 @Composable
 fun CollectPhoneScreen(
@@ -99,6 +100,13 @@ fun CollectPhoneScreen(
                 .padding(top = 28.dp, bottom = 20.dp, start = 28.dp, end = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            OnboardingStepIndicator(
+                currentStep = 2,
+                totalSteps = 3,
+                activeColor = Color.White,
+                inactiveColor = Color.White.copy(alpha = 0.3f)
+            )
+            Spacer(Modifier.height(14.dp))
             Box(
                 modifier = Modifier.size(64.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.16f)),
                 contentAlignment = Alignment.Center

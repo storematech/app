@@ -70,6 +70,14 @@ class QuizMakerApp : Application() {
         ).apply {
             captureScreenViews = false
             debug = BuildConfig.DEBUG
+            sessionReplay = true
+            // Default wireframe-reconstruction mode walks the native Android View hierarchy and
+            // redraws each element as a rectangle — but this whole app is one single Compose
+            // screen (a ComposeView) from that hierarchy's point of view, so wireframe mode has
+            // nothing to walk into and just renders one solid block per screen. screenshot mode
+            // captures actual rendered pixels instead, which works regardless of Compose vs.
+            // classic Views — the only way to get a real, watchable recording here.
+            sessionReplayConfig.screenshot = true
         }
         PostHogAndroid.setup(this, config)
     }

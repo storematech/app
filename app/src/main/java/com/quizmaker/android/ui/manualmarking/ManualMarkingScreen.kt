@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,6 +35,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +57,7 @@ import com.quizmaker.android.data.model.MarkingItem
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
+import com.quizmaker.android.ui.common.MathText
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.formatPoints
 
@@ -125,11 +128,11 @@ private fun MarkingCard(item: MarkingItem, isSaving: Boolean, onSubmit: (Double)
             StatusPill(isPending = item.isPending)
         }
         Spacer(Modifier.height(8.dp))
-        Text(item.questionText, color = TextPrimary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        MathText(text = item.questionText, color = TextPrimary, fontSize = 15.sp, bold = true)
         Spacer(Modifier.height(10.dp))
         Text("ANSWER", color = BrandIndigo, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp)
         Spacer(Modifier.height(4.dp))
-        Text(item.studentAnswer, color = TextPrimary, fontSize = 14.sp)
+        MathText(text = item.studentAnswer, color = TextPrimary, fontSize = 14.sp)
         Spacer(Modifier.height(16.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {

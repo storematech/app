@@ -20,7 +20,13 @@ data class ProfileDto(
     @SerialName("user_type") val userType: String? = null,
     @SerialName("license_expired_date") val licenseExpiredDate: String? = null,
     @SerialName("business_logo") val businessLogo: String? = null,
-    val address: String? = null
+    val address: String? = null,
+    val website: String? = null,
+    @SerialName("registration_number") val registrationNumber: String? = null,
+    @SerialName("letterhead_phone") val letterheadPhone: String? = null,
+    @SerialName("letterhead_email") val letterheadEmail: String? = null,
+    val tagline: String? = null,
+    @SerialName("gst_number") val gstNumber: String? = null
 )
 
 /** Partial update payload — only non-null fields are sent. */
@@ -33,7 +39,13 @@ data class ProfileUpdateDto(
     val email: String? = null,
     @SerialName("device_type") val deviceType: String? = null,
     val browser: String? = null,
-    val address: String? = null
+    val address: String? = null,
+    val website: String? = null,
+    @SerialName("registration_number") val registrationNumber: String? = null,
+    @SerialName("letterhead_phone") val letterheadPhone: String? = null,
+    @SerialName("letterhead_email") val letterheadEmail: String? = null,
+    val tagline: String? = null,
+    @SerialName("gst_number") val gstNumber: String? = null
 )
 
 /** Letterhead logo — its own DTO since it's written by a dedicated upload flow, never bundled into the general profile-fields update. */

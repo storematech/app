@@ -71,7 +71,8 @@ object ResponseDetailPdfExporter {
         y += 8f
 
         // Summary box
-        canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + 58f, summaryBgPaint)
+        val summaryBoxHeight = 66f
+        canvas.drawRect(MARGIN, y, MARGIN + CONTENT_WIDTH, y + summaryBoxHeight, summaryBgPaint)
         val timeLabel = data.timeSeconds?.let { "${it / 60}m ${it % 60}s" } ?: "-"
         val summaryItems = listOf(
             "Student" to data.userName,
@@ -83,23 +84,23 @@ object ResponseDetailPdfExporter {
         summaryItems.forEachIndexed { index, (label, value) ->
             val col = index % 2
             val row = index / 2
-            val bx = MARGIN + 8f + col * colW
-            val by = y + 14f + row * 26f
+            val bx = MARGIN + 12f + col * colW
+            val by = y + 18f + row * 30f
             canvas.drawText(label, bx, by, labelPaint)
-            canvas.drawText(value, bx, by + 12f, valuePaint)
+            canvas.drawText(value, bx, by + 13f, valuePaint)
         }
-        y += 68f
+        y += summaryBoxHeight + 22f
 
         // Section header
-        checkPage(20f)
-        canvas.drawText("Question by Question Analysis", MARGIN, y, titlePaint)
-        y += 16f
+        checkPage(24f)
+        canvas.drawText("Question by Question Analysis", MARGIN, y + 12f, titlePaint)
+        y += 26f
 
         val answerLabel = "Submitted Answer:"
         val correctLabel = "Correct:"
         val labelGap = 6f
-        val answerValueIndent = 10f + labelBoldPaint.measureText(answerLabel) + labelGap
-        val correctValueIndent = 10f + labelBoldPaint.measureText(correctLabel) + labelGap
+        val answerValueIndent = 14f + labelBoldPaint.measureText(answerLabel) + labelGap
+        val correctValueIndent = 14f + labelBoldPaint.measureText(correctLabel) + labelGap
 
         data.answers.forEachIndexed { index, answer ->
             val (bandColor, statusLabel) = when (answer.status) {
@@ -110,36 +111,36 @@ object ResponseDetailPdfExporter {
             }
             val bandPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor(bandColor) }
 
-            val qLines = wrapText("Q${index + 1}. ${answer.questionText}", questionPaint, CONTENT_WIDTH - 12f)
+            val qLines = wrapText("Q${index + 1}. ${answer.questionText}", questionPaint, CONTENT_WIDTH - 14f)
             val ansLines = wrapText(answer.studentAnswer, answerPaint, CONTENT_WIDTH - answerValueIndent)
             val corLines = wrapText(answer.correctAnswer, correctPaint, CONTENT_WIDTH - correctValueIndent)
-            val blockHeight = qLines.size * 12f + ansLines.size * 13f + corLines.size * 13f + 26f
+            val blockHeight = qLines.size * 13f + ansLines.size * 14f + corLines.size * 14f + 42f
 
-            checkPage(blockHeight + 6f)
+            checkPage(blockHeight + 14f)
 
             canvas.drawRect(MARGIN, y, MARGIN + 3f, y + blockHeight, bandPaint)
-            var qy = y + 10f
-            qLines.forEach { line -> canvas.drawText(line, MARGIN + 10f, qy, questionPaint); qy += 12f }
-            qy += 4f
+            var qy = y + 12f
+            qLines.forEach { line -> canvas.drawText(line, MARGIN + 14f, qy, questionPaint); qy += 13f }
+            qy += 6f
 
-            canvas.drawText(answerLabel, MARGIN + 10f, qy, labelBoldPaint)
+            canvas.drawText(answerLabel, MARGIN + 14f, qy, labelBoldPaint)
             ansLines.forEachIndexed { li, line ->
-                canvas.drawText(line, if (li == 0) MARGIN + answerValueIndent else MARGIN + 14f, qy, answerPaint)
-                qy += 13f
+                canvas.drawText(line, if (li == 0) MARGIN + answerValueIndent else MARGIN + 18f, qy, answerPaint)
+                qy += 14f
             }
-            qy += 2f
+            qy += 5f
 
-            canvas.drawText(correctLabel, MARGIN + 10f, qy, labelBoldPaint)
+            canvas.drawText(correctLabel, MARGIN + 14f, qy, labelBoldPaint)
             corLines.forEachIndexed { li, line ->
-                canvas.drawText(line, if (li == 0) MARGIN + correctValueIndent else MARGIN + 14f, qy, correctPaint)
-                qy += 13f
+                canvas.drawText(line, if (li == 0) MARGIN + correctValueIndent else MARGIN + 18f, qy, correctPaint)
+                qy += 14f
             }
-            qy += 2f
+            qy += 5f
 
             val pointsLabel = if (answer.status == AnswerStatus.UNGRADED) "Ungraded" else "${answer.pointsEarned}/${answer.maxPoints} pts"
-            canvas.drawText("$pointsLabel  •  $statusLabel", MARGIN + 10f, qy, labelPaint)
+            canvas.drawText("$pointsLabel  •  $statusLabel", MARGIN + 14f, qy, labelPaint)
 
-            y += blockHeight + 8f
+            y += blockHeight + 16f
         }
 
         checkPage(16f)

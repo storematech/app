@@ -31,9 +31,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -84,14 +86,20 @@ import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.util.formatPoints
 import com.quizmaker.android.data.model.QuestionDifficulty
 import com.quizmaker.android.data.model.QuestionType
+import com.quizmaker.android.data.model.QuizNameSuggestion
+import com.quizmaker.android.ui.aiquiz.MAX_AI_QUESTION_COUNT
+import com.quizmaker.android.ui.aiquiz.MIN_AI_QUESTION_COUNT
 import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.FilledPill
 import com.quizmaker.android.ui.common.GradientButton
+import com.quizmaker.android.ui.common.MathPreview
+import com.quizmaker.android.ui.common.MathText
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.QuestionTypeOption
 import com.quizmaker.android.ui.common.SettingsRow
+import com.quizmaker.android.ui.common.TrialPaywallSheet
 import com.quizmaker.android.ui.common.elevatedSurface
 
 private val STEP_LABELS = listOf("Details", "Questions", "Settings", "Review")
@@ -101,6 +109,7 @@ private val STEP_LABELS = listOf("Details", "Questions", "Settings", "Review")
 fun CreateQuizScreen(
     onNavigateBack: () -> Unit,
     onQuizCreated: (String) -> Unit,
+    onOpenPricing: () -> Unit = {},
     viewModel: CreateQuizViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -172,12 +181,35 @@ fun CreateQuizScreen(
                     CreateQuizStep.REVIEW -> !uiState.isSubmitting
                 }
                 val reviewLabel = if (uiState.isEditMode) "Save Changes" else "Create Quiz"
+                val showQuickPublish = uiState.step == CreateQuizStep.DETAILS && viewModel.isQuickPublishAvailable
+                if (showQuickPublish) {
+                    // Secondary-styled "Next" (same visual weight as the "Back" button elsewhere in
+                    // this row) so "Publish Now" reads as the primary action here, mirroring how a
+                    // GradientButton is the emphasized choice on every other step.
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                            .clip(RoundedCornerShape(50))
+                            .border(1.dp, BorderGray, RoundedCornerShape(50))
+                            .clickable(onClick = viewModel::goNext),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Next", color = TextPrimary, fontWeight = FontWeight.Bold)
+                    }
+                }
                 GradientButton(
-                    text = if (uiState.step == CreateQuizStep.REVIEW) reviewLabel else "Next",
-                    onClick = { if (uiState.step == CreateQuizStep.REVIEW) viewModel.submit() else viewModel.goNext() },
+                    text = when {
+                        uiState.step == CreateQuizStep.REVIEW -> reviewLabel
+                        showQuickPublish -> "Publish Now"
+                        else -> "Next"
+                    },
+                    onClick = {
+                        if (uiState.step == CreateQuizStep.REVIEW || showQuickPublish) viewModel.submit() else viewModel.goNext()
+                    },
                     enabled = canProceed,
                     loading = uiState.isSubmitting,
-                    modifier = Modifier.weight(if (uiState.step == CreateQuizStep.DETAILS) 1f else 1.4f)
+                    modifier = Modifier.weight(if (uiState.step == CreateQuizStep.DETAILS && !showQuickPublish) 1f else 1.4f)
                 )
             }
         }
@@ -216,6 +248,14 @@ fun CreateQuizScreen(
                 Spacer(Modifier.height(24.dp))
             }
         }
+    }
+
+    if (uiState.showTrialPaywall) {
+        TrialPaywallSheet(onDismiss = viewModel::dismissTrialPaywall, onViewPlans = onOpenPricing)
+    }
+
+    if (uiState.showAiQuestionSheet) {
+        AiQuestionSheet(uiState = uiState, viewModel = viewModel)
     }
 }
 
@@ -319,6 +359,25 @@ private fun DetailsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewMod
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth()
         )
+
+        // Tap-to-fill starters — only for a brand-new quiz (an edit already has a real title/
+        // description worth keeping) — so someone just exploring the app doesn't have to think of
+        // a title themselves. See CreateQuizViewModel.reshuffleQuizNameSuggestions.
+        if (!uiState.isEditMode && uiState.quizNameSuggestions.isNotEmpty()) {
+            Spacer(Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text("Need ideas? Tap one to fill it in", color = TextSecondary, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                IconButton(onClick = viewModel::reshuffleQuizNameSuggestions, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Shuffle suggestions", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(uiState.quizNameSuggestions, key = { it.title }) { suggestion ->
+                    QuizNameSuggestionChip(suggestion = suggestion, onClick = { viewModel.applyQuizNameSuggestion(suggestion) })
+                }
+            }
+        }
     }
 
     SectionCard(title = "Timing") {
@@ -391,6 +450,28 @@ private fun DetailsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewMod
     }
 }
 
+/** Small "tab"-style chip showing just the suggestion's title (its description fills in
+ *  alongside on tap — see CreateQuizViewModel.applyQuizNameSuggestion) — deliberately compact
+ *  since several sit side by side in one scrollable row. */
+@Composable
+private fun QuizNameSuggestionChip(suggestion: QuizNameSuggestion, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(BrandIndigoLight)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Text(
+            suggestion.title,
+            color = BrandIndigo,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
+    }
+}
+
 /** Light-indigo info banner — same "you need to do something" nudge used for the per-question
  *  negative marking reminder, kept generic enough to reuse elsewhere in this screen if needed. */
 @Composable
@@ -424,12 +505,22 @@ private fun QuestionsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewM
                 fontSize = 16.sp,
                 color = TextPrimary
             )
-            GradientButton(
-                text = "New",
-                onClick = viewModel::startNewQuestionDraft,
-                leadingIcon = Icons.Default.Add,
-                modifier = Modifier.width(130.dp)
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GradientButton(
+                    text = "AI",
+                    onClick = viewModel::openAiQuestionSheet,
+                    leadingIcon = Icons.Default.AutoAwesome,
+                    height = 40.dp,
+                    modifier = Modifier.width(84.dp)
+                )
+                GradientButton(
+                    text = "New",
+                    onClick = viewModel::startNewQuestionDraft,
+                    leadingIcon = Icons.Default.Add,
+                    height = 40.dp,
+                    modifier = Modifier.width(104.dp)
+                )
+            }
         }
         Spacer(Modifier.height(14.dp))
 
@@ -522,6 +613,75 @@ private fun QuestionsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewM
     }
 }
 
+/**
+ * Questions step's "AI" button — generates straight into this wizard's own question bank/
+ * selection (see CreateQuizViewModel.generateAiQuestions), no separate review step, no leaving
+ * this screen. Same ModalBottomSheet pattern as NewQuestionSheet just above.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AiQuestionSheet(uiState: CreateQuizUiState, viewModel: CreateQuizViewModel) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(onDismissRequest = viewModel::dismissAiQuestionSheet, sheetState = sheetState, containerColor = SurfaceWhite) {
+        BlurBehindDialog()
+        Column(modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Add questions with AI", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextPrimary)
+                    Text(
+                        if (uiState.title.isNotBlank()) "For \"${uiState.title}\"" else "Straight into this quiz's question list",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                }
+                IconButton(onClick = viewModel::dismissAiQuestionSheet) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+
+            uiState.aiQuestionError?.let {
+                ErrorBanner(message = it)
+                Spacer(Modifier.height(12.dp))
+            }
+
+            OutlinedTextField(
+                value = uiState.aiPrompt,
+                onValueChange = viewModel::onAiPromptChange,
+                label = { Text("Topic") },
+                placeholder = { Text("e.g. Photosynthesis, chapter 4") },
+                minLines = 2,
+                maxLines = 4,
+                shape = RoundedCornerShape(14.dp),
+                enabled = !uiState.isGeneratingAiQuestions,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(16.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Text("Questions", color = TextSecondary, fontSize = 13.sp)
+                IntStepper(
+                    value = uiState.aiQuestionCount,
+                    onValueChange = viewModel::onAiQuestionCountChange,
+                    minValue = MIN_AI_QUESTION_COUNT,
+                    maxValue = MAX_AI_QUESTION_COUNT
+                )
+            }
+            Spacer(Modifier.height(20.dp))
+
+            GradientButton(
+                text = "Generate",
+                onClick = viewModel::generateAiQuestions,
+                leadingIcon = Icons.Default.AutoAwesome,
+                enabled = uiState.aiPrompt.isNotBlank() && !uiState.isGeneratingAiQuestions,
+                loading = uiState.isGeneratingAiQuestions,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
 @Composable
 private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
@@ -549,7 +709,7 @@ private fun QuestionSelectRow(question: Question, isSelected: Boolean, onToggle:
         SelectionTick(isSelected = isSelected)
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(question.text, color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 14.sp, maxLines = 2)
+            MathText(text = question.text, color = TextPrimary, fontSize = 14.sp, maxLines = 2)
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilledPill(text = typeLabel(question.type))
@@ -648,10 +808,11 @@ private fun NewQuestionSheet(
             OutlinedTextField(
                 value = draft.text,
                 onValueChange = { text -> onUpdate { it.copy(text = text) } },
-                placeholder = { Text("Type your question here...") },
+                placeholder = { Text("Type your question here... (supports LaTeX math, e.g. $\\frac{a}{b}$)") },
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth().height(110.dp)
             )
+            MathPreview(draft.text)
 
             if (draft.type == QuestionType.SINGLE_CHOICE || draft.type == QuestionType.MULTI_CHOICE) {
                 Spacer(Modifier.height(20.dp))
@@ -678,16 +839,19 @@ private fun NewQuestionSheet(
                                 }
                             )
                         }
-                        OutlinedTextField(
-                            value = optionText,
-                            onValueChange = { text ->
-                                onUpdate { d -> d.copy(options = d.options.toMutableList().also { it[index] = text }) }
-                            },
-                            placeholder = { Text("Option ${index + 1}") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            OutlinedTextField(
+                                value = optionText,
+                                onValueChange = { text ->
+                                    onUpdate { d -> d.copy(options = d.options.toMutableList().also { it[index] = text }) }
+                                },
+                                placeholder = { Text("Option ${index + 1}") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            MathPreview(optionText)
+                        }
                     }
                 }
                 AddRemoveOptionsRow(draft, onUpdate)

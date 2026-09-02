@@ -5,10 +5,18 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -51,6 +60,7 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Card
@@ -65,6 +75,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -78,16 +89,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -104,18 +121,24 @@ import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.AiPromptCategory
 import com.quizmaker.android.data.model.AiPromptTemplate
 import com.quizmaker.android.data.model.Question
+import com.quizmaker.android.ui.common.BlurBehindDialog
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
+import com.quizmaker.android.ui.common.MathText
+import com.quizmaker.android.ui.common.TrialPaywallSheet
 import com.quizmaker.android.util.AiAttachmentUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.hypot
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiQuizScreen(
-    onNavigateToCreateQuiz: (List<String>) -> Unit,
+    onNavigateToCreateQuiz: (List<String>, String?) -> Unit,
     onNavigateBack: () -> Unit = {},
+    onOpenPricing: () -> Unit = {},
+    onOpenFullTest: () -> Unit = {},
     viewModel: AiQuizViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -127,6 +150,19 @@ fun AiQuizScreen(
     var pendingCaptureUri by remember { mutableStateOf<Uri?>(null) }
     var localError by remember { mutableStateOf<String?>(null) }
     var isPreparing by remember { mutableStateOf(false) }
+    var showCameraRationale by remember { mutableStateOf(false) }
+
+    // Full Test's entry transition: a colorful circle expands from wherever the "Full Test" tab
+    // sits, covering the whole screen, before the actual navigation fires underneath it — see
+    // QuickFullTestTabs/rootSize below. revealOrigin is null (no overlay at all) until the user
+    // actually taps it.
+    var revealOrigin by remember { mutableStateOf<Offset?>(null) }
+    val revealRadius = remember { Animatable(0f) }
+    var rootSize by remember { mutableStateOf(IntSize.Zero) }
+    // Coordinates of this screen's own overlay Box, captured so the tab's tap position can be
+    // converted into ITS coordinate space via localPositionOf — the only way to get an exact
+    // relative position regardless of whatever padding/scroll/insets sit between the two.
+    var screenCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     fun clearAttachments() {
         selectedPdfUri = null
@@ -172,7 +208,10 @@ fun AiQuizScreen(
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCapture()
         } else {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            // Explains why we're about to ask, before the system dialog itself appears — same
+            // "rationale first" pattern NotificationPermissionScreen already uses, previously
+            // missing here even though photo capture is the app's most-marketed AI entry point.
+            showCameraRationale = true
         }
     }
 
@@ -231,9 +270,10 @@ fun AiQuizScreen(
 
     LaunchedEffect(uiState.navigateToCreateQuizWith) {
         uiState.navigateToCreateQuizWith?.let { ids ->
+            val title = uiState.navigateToCreateQuizTitle
             clearAttachments()
             viewModel.consumeNavigation()
-            onNavigateToCreateQuiz(ids)
+            onNavigateToCreateQuiz(ids, title)
         }
     }
 
@@ -257,6 +297,12 @@ fun AiQuizScreen(
     // this only adds the top one — unlike Dashboard, this screen has no full-bleed banner to
     // manually paint behind the status bar, so without this the title rendered right against it
     // with no clearance.
+    Box(
+        modifier = Modifier.fillMaxSize().onGloballyPositioned {
+            rootSize = it.size
+            screenCoordinates = it
+        }
+    ) {
     Scaffold(containerColor = AppBackground, contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Top)) { padding ->
             // BoxWithConstraints so the scrollable column below can be told the viewport's actual
             // height — that's what lets Arrangement.Center genuinely center the title+composer as
@@ -274,7 +320,30 @@ fun AiQuizScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = if (isEmptyState) Arrangement.Center else Arrangement.Top
                 ) {
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
+
+            // Only offered from the main bottom-nav entry point — not shown when arriving via
+            // Question Bank/Quiz List's own "AI" button (showModeStrip == true), where jumping
+            // into an entirely different multi-step feature would be an odd detour mid-flow.
+            if (!viewModel.showModeStrip) {
+                QuickFullTestTabs(
+                    onFullTestTap = { tabCoordinates, localCenter ->
+                        val screen = screenCoordinates
+                        revealOrigin = screen?.localPositionOf(tabCoordinates, localCenter) ?: localCenter
+                        scope.launch {
+                            revealRadius.snapTo(0f)
+                            val maxRadius = hypot(rootSize.width.toFloat(), rootSize.height.toFloat())
+                            // "Super speedy" per the ask — fast enough to feel closer to a snap
+                            // than a leisurely animation, still long enough to actually read as a
+                            // deliberate reveal rather than a flicker.
+                            revealRadius.animateTo(maxRadius, animationSpec = tween(80, easing = FastOutSlowInEasing))
+                            onOpenFullTest()
+                        }
+                    }
+                )
+                Spacer(Modifier.height(20.dp))
+            }
+
             Box(
                 modifier = Modifier.size(44.dp).clip(CircleShape).background(BrandIndigoLight),
                 contentAlignment = Alignment.Center
@@ -292,7 +361,7 @@ fun AiQuizScreen(
             )
             Spacer(Modifier.height(2.dp))
             Text("Prompt it, or attach a PDF / photos", textAlign = TextAlign.Center, color = TextSecondary, fontSize = 12.sp)
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(10.dp))
 
             if (viewModel.showModeStrip) {
                 ModeStrip(label = viewModel.modeStripLabel, onClose = onNavigateBack)
@@ -433,6 +502,108 @@ fun AiQuizScreen(
                     Spacer(Modifier.height(32.dp))
                 }
             }
+    }
+
+        // Circular reveal overlay — only present once a tap has actually set an origin, and
+        // removed (rememberInfiniteTransition-free, plain Animatable) once this whole screen is
+        // disposed by the navigation it triggers below.
+        revealOrigin?.let { origin ->
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF4C8DF6), Color(0xFF9C6ADE), Color(0xFFF76CA6), Color(0xFFFDB750)),
+                        center = origin,
+                        radius = revealRadius.value.coerceAtLeast(1f)
+                    ),
+                    radius = revealRadius.value,
+                    center = origin
+                )
+            }
+        }
+    }
+
+    if (uiState.showTrialPaywall) {
+        TrialPaywallSheet(onDismiss = viewModel::dismissTrialPaywall, onViewPlans = onOpenPricing)
+    }
+
+    if (showCameraRationale) {
+        CameraPermissionRationaleSheet(
+            onDismiss = { showCameraRationale = false },
+            onAllow = {
+                showCameraRationale = false
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        )
+    }
+}
+
+/** Shown once per ask, right before the system camera permission dialog — same "why we want this"
+ *  pattern as NotificationPermissionScreen, scoped as a lightweight in-place sheet here since photo
+ *  capture is triggered ad hoc from the composer rather than being a forced onboarding step. */
+@Composable
+private fun CameraPermissionRationaleSheet(
+    onDismiss: () -> Unit,
+    onAllow: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BlurBehindDialog()
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { visible = true }
+        val noRipple = remember { MutableInteractionSource() }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable(indication = null, interactionSource = noRipple, onClick = onDismiss)
+        ) {
+            AnimatedVisibility(
+                visible = visible,
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                        .background(SurfaceWhite)
+                        .clickable(indication = null, interactionSource = noRipple, onClick = {})
+                        .navigationBarsPadding()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier.size(64.dp).clip(CircleShape).background(BrandIndigoLight),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(30.dp))
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "Use your camera to create quizzes",
+                        fontFamily = PoppinsFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = TextPrimary
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Snap a photo of any page, worksheet, or textbook chapter and we'll turn it straight into a quiz.",
+                        color = TextSecondary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    GradientButton(text = "Allow Camera Access", onClick = onAllow, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = onDismiss) {
+                        Text("Not now", color = TextSecondary, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -580,6 +751,69 @@ private fun TemplateChip(template: AiPromptTemplate, onClick: () -> Unit) {
     }
 }
 
+/** Top-of-screen "Quick | Full Test · PRO" switcher. Both tabs sit neutral at rest — this screen
+ *  IS Quick, so neither tab should look "selected" all the time. Tapping Full Test doesn't
+ *  navigate directly: it reports its own [LayoutCoordinates] plus its local center via
+ *  [onFullTestTap], letting the caller (AiQuizScreen) convert that into an exact position via
+ *  localPositionOf for a full-screen circular reveal — the actual navigation happens once that
+ *  animation finishes, not on this tap itself. */
+@Composable
+private fun QuickFullTestTabs(onFullTestTap: (tabCoordinates: LayoutCoordinates, localCenter: Offset) -> Unit) {
+    var fullTestCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(50))
+            .background(AppBackground)
+            .border(1.dp, BorderGray, RoundedCornerShape(50))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(50))
+                .background(SurfaceWhite)
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Quick", color = TextPrimary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        }
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(50))
+                .background(AppBackground)
+                .onGloballyPositioned { fullTestCoordinates = it }
+                .clickable {
+                    fullTestCoordinates?.let { coordinates ->
+                        val localCenter = Offset(coordinates.size.width / 2f, coordinates.size.height / 2f)
+                        onFullTestTap(coordinates, localCenter)
+                    }
+                }
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.School, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(5.dp))
+                Text("Full Test", color = TextSecondary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Spacer(Modifier.width(5.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFFFBBF24))
+                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                ) {
+                    Text("PRO", color = Color(0xFF1E1B4B), fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun ModeStrip(label: String, onClose: () -> Unit) {
     Row(
@@ -623,17 +857,15 @@ private fun ReviewQuestionTicket(question: Question, index: Int, isSelected: Boo
         )
         Spacer(Modifier.width(2.dp))
         Column(modifier = Modifier.weight(1f).padding(top = 10.dp)) {
-            Text(
-                "Q${index + 1}. ${question.text}",
+            MathText(
+                text = "Q${index + 1}. ${question.text}",
                 color = TextPrimary,
                 fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 3
             )
             question.options.firstOrNull { it.isCorrect }?.let { correct ->
                 Spacer(Modifier.height(4.dp))
-                Text("✓ ${correct.text}", color = SuccessGreen, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                MathText(text = "✓ ${correct.text}", color = SuccessGreen, fontSize = 11.sp)
             }
         }
     }

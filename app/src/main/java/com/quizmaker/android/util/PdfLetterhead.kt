@@ -15,16 +15,36 @@ import android.graphics.RectF
  * right after `y = MARGIN`, before drawing its own title.
  */
 object PdfLetterhead {
-    private const val LOGO_MAX_HEIGHT = 42f
-    private const val LOGO_MAX_WIDTH = 130f
+    private const val LOGO_MAX_HEIGHT = 56f
+    private const val LOGO_MAX_WIDTH = 150f
     private const val MAX_NAME_LINES = 2
-    private const val MAX_ADDRESS_LINES = 3
+    private const val MAX_ADDRESS_LINES = 2
+
+    /** Caps how wide the name/address/contact block is allowed to wrap, independent of how much
+     *  page width is actually free (which is huge once a small logo takes only ~150pt of a 531pt
+     *  content width) — otherwise a long address just runs the full page width on one line instead
+     *  of reading like a letterhead column. */
+    private const val MAX_TEXT_BLOCK_WIDTH = 260f
+
+    /** Extra breathing room between the letterhead's divider and whatever the exporter draws next
+     *  (its title, table header, ...). */
+    private const val GAP_AFTER = 24f
 
     fun draw(canvas: Canvas, marginLeft: Float, marginRight: Float, y: Float, branding: PdfBranding): Float {
         val logo = branding.logo
         val businessName = branding.businessName
         val address = branding.address
-        if (logo == null && businessName.isNullOrBlank() && address.isNullOrBlank()) return y
+        val website = branding.website
+        val registrationNumber = branding.registrationNumber
+        val tagline = branding.tagline
+        val letterheadPhone = branding.letterheadPhone
+        val letterheadEmail = branding.letterheadEmail
+        val gstNumber = branding.gstNumber
+        if (logo == null && businessName.isNullOrBlank() && address.isNullOrBlank() &&
+            website.isNullOrBlank() && registrationNumber.isNullOrBlank() &&
+            tagline.isNullOrBlank() && letterheadPhone.isNullOrBlank() &&
+            letterheadEmail.isNullOrBlank() && gstNumber.isNullOrBlank()
+        ) return y
 
         var logoBottom = y
         var textX = marginLeft
@@ -42,7 +62,7 @@ object PdfLetterhead {
         }
 
         var ty = y + 10f
-        val textWidth = marginRight - textX
+        val textWidth = (marginRight - textX).coerceAtMost(MAX_TEXT_BLOCK_WIDTH)
 
         if (!businessName.isNullOrBlank()) {
             val namePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -56,11 +76,50 @@ object PdfLetterhead {
             }
         }
 
+        if (!tagline.isNullOrBlank()) {
+            val taglinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#6B7280")
+                textSize = 8.5f
+                textSkewX = -0.25f // fake italic — no italic Typeface wired up for this Canvas-only exporter
+            }
+            wrapText(tagline, taglinePaint, textWidth, maxLines = 1).forEach { line ->
+                canvas.drawText(line, textX, ty, taglinePaint)
+                ty += 11f
+            }
+        }
+
         if (!address.isNullOrBlank()) {
             val addressPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#4B5563"); textSize = 8.5f }
             wrapText(address, addressPaint, textWidth, MAX_ADDRESS_LINES).forEach { line ->
                 canvas.drawText(line, textX, ty, addressPaint)
                 ty += 11f
+            }
+        }
+
+        val contactPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6B7280"); textSize = 8f }
+
+        // Two lines rather than cramming everything onto one: contact details vs. identifiers — a
+        // natural grouping that also keeps either line short enough to rarely need to wrap at all.
+        val contactDetails = listOfNotNull(
+            letterheadPhone?.takeIf { it.isNotBlank() }?.let { "Ph: $it" },
+            letterheadEmail?.takeIf { it.isNotBlank() },
+            website?.takeIf { it.isNotBlank() }?.let { "Web: $it" }
+        ).joinToString("   •   ")
+        if (contactDetails.isNotBlank()) {
+            wrapText(contactDetails, contactPaint, textWidth, maxLines = 1).forEach { line ->
+                canvas.drawText(line, textX, ty, contactPaint)
+                ty += 10f
+            }
+        }
+
+        val identifiers = listOfNotNull(
+            gstNumber?.takeIf { it.isNotBlank() }?.let { "GST: $it" },
+            registrationNumber?.takeIf { it.isNotBlank() }?.let { "Reg. No: $it" }
+        ).joinToString("   •   ")
+        if (identifiers.isNotBlank()) {
+            wrapText(identifiers, contactPaint, textWidth, maxLines = 1).forEach { line ->
+                canvas.drawText(line, textX, ty, contactPaint)
+                ty += 10f
             }
         }
 
@@ -72,7 +131,7 @@ object PdfLetterhead {
         }
         val blockBottom = maxOf(logoBottom, ty) + 8f
         canvas.drawLine(marginLeft, blockBottom, marginRight, blockBottom, dividerPaint)
-        return blockBottom + 12f
+        return blockBottom + GAP_AFTER
     }
 
     /** Wraps on whitespace only — a word is always kept whole, never split mid-word, and any

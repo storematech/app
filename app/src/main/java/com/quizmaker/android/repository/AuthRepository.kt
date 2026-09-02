@@ -189,7 +189,13 @@ class AuthRepository @Inject constructor(
             licenseExpiredDate = profileDto.licenseExpiredDate,
             createdAt = profileDto.createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
             businessLogo = profileDto.businessLogo,
-            address = profileDto.address
+            address = profileDto.address,
+            website = profileDto.website,
+            registrationNumber = profileDto.registrationNumber,
+            letterheadPhone = profileDto.letterheadPhone,
+            letterheadEmail = profileDto.letterheadEmail,
+            tagline = profileDto.tagline,
+            gstNumber = profileDto.gstNumber
         )
     }
 }

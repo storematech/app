@@ -53,6 +53,7 @@ import com.quizmaker.android.core.theme.StatGreenIcon
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.LeaderboardEntry
+import com.quizmaker.android.ui.common.CsvFileIcon
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
@@ -60,6 +61,7 @@ import com.quizmaker.android.ui.common.ScorePill
 import com.quizmaker.android.ui.common.StatTile
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.util.GenericCsvExporter
 import com.quizmaker.android.util.LeaderboardPdfExporter
 import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.launch
@@ -109,6 +111,17 @@ fun LeaderboardScreen(
                             }
                         }) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF", tint = PdfRed)
+                        }
+                        IconButton(onClick = {
+                            val intent = GenericCsvExporter.export(
+                                context = context,
+                                fileName = "leaderboard.csv",
+                                headers = listOf("Rank", "Name", "Email", "Score", "Points", "Time"),
+                                rows = data.entries.map { leaderboardEntryRow(it, data.maxPoints) }
+                            )
+                            context.startActivity(Intent.createChooser(intent, "Export leaderboard (CSV)"))
+                        }) {
+                            CsvFileIcon(contentDescription = "Export CSV")
                         }
                     }
                 }
@@ -183,6 +196,15 @@ fun LeaderboardScreen(
 
 private fun percentFor(entry: LeaderboardEntry, maxPoints: Int): Int =
     if (maxPoints > 0) (entry.earnedPoints * 100 / maxPoints) else 0
+
+private fun leaderboardEntryRow(entry: LeaderboardEntry, maxPoints: Int): List<String> = listOf(
+    entry.rank.toString(),
+    entry.userName,
+    entry.userEmail,
+    "${percentFor(entry, maxPoints)}%",
+    "${entry.earnedPoints}/$maxPoints",
+    formatTimeTaken(entry.timeTakenSeconds)
+)
 
 @Composable
 private fun LeaderboardRow(entry: LeaderboardEntry, maxPoints: Int) {

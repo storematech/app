@@ -95,6 +95,7 @@ import com.quizmaker.android.ui.common.LoadingCrossfade
 import com.quizmaker.android.ui.common.ToolTemplatesCarousel
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.ui.tools.ToolsFabOverlay
 import com.quizmaker.android.util.QrCodeGenerator
 import com.quizmaker.android.util.formatShortDate
 
@@ -103,6 +104,7 @@ import com.quizmaker.android.util.formatShortDate
 fun RsvpEventListScreen(
     onNavigateBack: () -> Unit,
     onViewRegistrations: (String) -> Unit,
+    onOpenTemplates: () -> Unit,
     viewModel: RsvpEventListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -110,6 +112,7 @@ fun RsvpEventListScreen(
     var eventPendingMenu by remember { mutableStateOf<RsvpEvent?>(null) }
     var eventPendingDelete by remember { mutableStateOf<RsvpEvent?>(null) }
 
+    ToolsFabOverlay(onOpenTemplates = onOpenTemplates) {
     Scaffold(
         containerColor = AppBackground,
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Top),
@@ -181,6 +184,7 @@ fun RsvpEventListScreen(
                 }
             }
         }
+    }
     }
 
     if (uiState.isEditSheetOpen) {

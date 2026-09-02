@@ -11,6 +11,7 @@ import com.quizmaker.android.data.model.LearnerQuizAttempt
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.LearnersRepository
 import com.quizmaker.android.repository.SettingsRepository
+import com.quizmaker.android.ui.dashboard.DashboardStateCache
 import com.quizmaker.android.util.PdfBranding
 import com.quizmaker.android.util.PdfBrandingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -82,7 +83,8 @@ class LearnersViewModel @Inject constructor(
     private val learnersRepository: LearnersRepository,
     private val settingsRepository: SettingsRepository,
     private val pdfBrandingProvider: PdfBrandingProvider,
-    private val analyticsLogger: AnalyticsLogger
+    private val analyticsLogger: AnalyticsLogger,
+    private val dashboardStateCache: DashboardStateCache
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LearnersUiState())
@@ -200,7 +202,10 @@ class LearnersViewModel @Inject constructor(
             }
             when (result) {
                 is AppResult.Success -> {
-                    if (editing == null) analyticsLogger.logLearnerCreated()
+                    if (editing == null) {
+                        analyticsLogger.logLearnerCreated()
+                        dashboardStateCache.needsRefresh = true
+                    }
                     _uiState.value = _uiState.value.copy(isSavingLearner = false, isLearnerFormOpen = false, editingLearner = null)
                     AlertBus.success(if (editing != null) "Learner updated" else "Learner created")
                     refresh()

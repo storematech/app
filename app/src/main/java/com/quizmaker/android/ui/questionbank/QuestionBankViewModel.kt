@@ -12,6 +12,7 @@ import com.quizmaker.android.data.model.QuestionType
 import com.quizmaker.android.data.model.toDraft
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.QuestionRepository
+import com.quizmaker.android.ui.dashboard.DashboardStateCache
 import com.quizmaker.android.util.TrialStatus
 import com.quizmaker.android.util.trialStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,7 +56,8 @@ data class QuestionBankUiState(
 class QuestionBankViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val questionRepository: QuestionRepository,
-    private val analyticsLogger: AnalyticsLogger
+    private val analyticsLogger: AnalyticsLogger,
+    private val dashboardStateCache: DashboardStateCache
 ) : ViewModel() {
 
     companion object {
@@ -236,6 +238,7 @@ class QuestionBankViewModel @Inject constructor(
             }
             when (result) {
                 is AppResult.Success -> {
+                    if (editingId == null) dashboardStateCache.needsRefresh = true
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
                         questions = if (editingId != null) {

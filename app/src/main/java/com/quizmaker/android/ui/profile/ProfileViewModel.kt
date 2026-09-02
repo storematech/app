@@ -22,6 +22,12 @@ data class ProfileUiState(
     val phoneNumber: String = "",
     val country: String = "",
     val address: String = "",
+    val website: String = "",
+    val registrationNumber: String = "",
+    val letterheadPhone: String = "",
+    val letterheadEmail: String = "",
+    val tagline: String = "",
+    val gstNumber: String = "",
     val businessLogoUrl: String? = null,
     val isUploadingLogo: Boolean = false,
     val isSaving: Boolean = false,
@@ -59,6 +65,12 @@ class ProfileViewModel @Inject constructor(
                     phoneNumber = result.data.phoneNumber,
                     country = result.data.country,
                     address = result.data.address.orEmpty(),
+                    website = result.data.website.orEmpty(),
+                    registrationNumber = result.data.registrationNumber.orEmpty(),
+                    letterheadPhone = result.data.letterheadPhone.orEmpty(),
+                    letterheadEmail = result.data.letterheadEmail.orEmpty(),
+                    tagline = result.data.tagline.orEmpty(),
+                    gstNumber = result.data.gstNumber.orEmpty(),
                     businessLogoUrl = result.data.businessLogo
                 )
                 is AppResult.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
@@ -71,6 +83,12 @@ class ProfileViewModel @Inject constructor(
     fun onPhoneNumberChange(value: String) { _uiState.value = _uiState.value.copy(phoneNumber = value, saveSuccess = false) }
     fun onCountryChange(value: String) { _uiState.value = _uiState.value.copy(country = value, saveSuccess = false) }
     fun onAddressChange(value: String) { _uiState.value = _uiState.value.copy(address = value, saveSuccess = false) }
+    fun onWebsiteChange(value: String) { _uiState.value = _uiState.value.copy(website = value, saveSuccess = false) }
+    fun onRegistrationNumberChange(value: String) { _uiState.value = _uiState.value.copy(registrationNumber = value, saveSuccess = false) }
+    fun onLetterheadPhoneChange(value: String) { _uiState.value = _uiState.value.copy(letterheadPhone = value, saveSuccess = false) }
+    fun onLetterheadEmailChange(value: String) { _uiState.value = _uiState.value.copy(letterheadEmail = value, saveSuccess = false) }
+    fun onTaglineChange(value: String) { _uiState.value = _uiState.value.copy(tagline = value, saveSuccess = false) }
+    fun onGstNumberChange(value: String) { _uiState.value = _uiState.value.copy(gstNumber = value, saveSuccess = false) }
     fun onNewPasswordChange(value: String) { _uiState.value = _uiState.value.copy(newPassword = value, passwordChangeSuccess = false) }
     fun onConfirmPasswordChange(value: String) { _uiState.value = _uiState.value.copy(confirmPassword = value, passwordChangeSuccess = false) }
 
@@ -85,7 +103,13 @@ class ProfileViewModel @Inject constructor(
                 businessName = state.businessName.trim(),
                 phoneNumber = state.phoneNumber.trim(),
                 country = state.country.trim(),
-                address = state.address.trim()
+                address = state.address.trim(),
+                website = state.website.trim(),
+                registrationNumber = state.registrationNumber.trim(),
+                letterheadPhone = state.letterheadPhone.trim(),
+                letterheadEmail = state.letterheadEmail.trim(),
+                tagline = state.tagline.trim(),
+                gstNumber = state.gstNumber.trim()
             )
             when (result) {
                 is AppResult.Success -> _uiState.value = _uiState.value.copy(isSaving = false, saveSuccess = true)

@@ -24,6 +24,10 @@ data class AuthUiState(
     val email: String = "",
     val isCheckingEmail: Boolean = false,
     val isLoading: Boolean = false,
+    /** True from the moment "Continue with Google" is tapped until the system account picker
+     * resolves (picked, cancelled, or errored) — covers the gap before that picker even appears,
+     * including launchGoogleSignIn's internal retry delay, which otherwise shows no feedback. */
+    val isGooglePickerLoading: Boolean = false,
     val isGoogleLoading: Boolean = false,
     val errorMessage: String? = null,
     /** Set after a resetPassword() call succeeds, so the screen can show a confirmation. */
@@ -117,12 +121,25 @@ class AuthViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isGoogleLoading = false, errorMessage = message)
     }
 
+    /** Called right as "Continue with Google" is tapped, before launchGoogleSignIn even runs. */
+    fun onGoogleSignInStarted() {
+        _uiState.value = _uiState.value.copy(isGooglePickerLoading = true, errorMessage = null)
+    }
+
+    /** Called once launchGoogleSignIn's suspend call returns, however it resolved — including a
+     * silent user-cancelled picker, which otherwise calls neither onIdToken nor onError. */
+    fun onGoogleSignInPickerFinished() {
+        _uiState.value = _uiState.value.copy(isGooglePickerLoading = false)
+    }
+
     fun signUp(name: String, password: String) {
         val email = _uiState.value.email
-        if (name.isBlank() || password.length < 6) {
-            _uiState.value = _uiState.value.copy(
-                errorMessage = "Enter your name and a password of at least 6 characters."
-            )
+        if (name.isBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Enter your name.")
+            return
+        }
+        if (password.length < 6) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Password must be at least 6 characters.")
             return
         }
         viewModelScope.launch {

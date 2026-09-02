@@ -20,6 +20,12 @@ data class PdfBranding(
     val logo: Bitmap?,
     val businessName: String?,
     val address: String?,
+    val website: String? = null,
+    val registrationNumber: String? = null,
+    val letterheadPhone: String? = null,
+    val letterheadEmail: String? = null,
+    val tagline: String? = null,
+    val gstNumber: String? = null,
     val accentColor: Int = ReportDesign.DEFAULT_ACCENT_COLOR,
     val template: ReportTemplate = ReportTemplate.MODERN
 ) {
@@ -52,11 +58,23 @@ class PdfBrandingProvider @Inject constructor(
         val logoUrl = profile.businessLogo?.takeIf { it.isNotBlank() }
         val businessName = profile.businessName.takeIf { it.isNotBlank() }
         val address = profile.address?.takeIf { it.isNotBlank() }
+        val website = profile.website?.takeIf { it.isNotBlank() }
+        val registrationNumber = profile.registrationNumber?.takeIf { it.isNotBlank() }
+        val letterheadPhone = profile.letterheadPhone?.takeIf { it.isNotBlank() }
+        val letterheadEmail = profile.letterheadEmail?.takeIf { it.isNotBlank() }
+        val tagline = profile.tagline?.takeIf { it.isNotBlank() }
+        val gstNumber = profile.gstNumber?.takeIf { it.isNotBlank() }
         val design = (settingsRepository.getReportDesign(profile.id) as? AppResult.Success)?.data ?: ReportDesign.DEFAULT
         return PdfBranding(
             logo = logoUrl?.let { loadBitmap(it) },
             businessName = businessName,
             address = address,
+            website = website,
+            registrationNumber = registrationNumber,
+            letterheadPhone = letterheadPhone,
+            letterheadEmail = letterheadEmail,
+            tagline = tagline,
+            gstNumber = gstNumber,
             accentColor = design.accentColorInt(),
             template = design.template
         )

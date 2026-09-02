@@ -30,10 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionType
 import com.quizmaker.android.ui.common.ErrorBanner
+import com.quizmaker.android.ui.common.MathText
 import com.quizmaker.android.util.formatPoints
 
 @Composable
@@ -238,7 +240,7 @@ private fun QuestionsContent(uiState: TakeQuizUiState, viewModel: TakeQuizViewMo
         Spacer(Modifier.height(16.dp))
 
         Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            Text(question.text, style = MaterialTheme.typography.titleLarge)
+            MathText(text = question.text, fontSize = 20.sp, bold = true)
             Spacer(Modifier.height(16.dp))
 
             when (question.type) {
@@ -296,7 +298,7 @@ private fun OptionRow(text: String, selected: Boolean, multi: Boolean, onClick: 
         } else {
             RadioButton(selected = selected, onClick = onClick)
         }
-        Text(text, modifier = Modifier.padding(start = 8.dp))
+        MathText(text = text, modifier = Modifier.padding(start = 8.dp), fontSize = 16.sp)
     }
 }
 

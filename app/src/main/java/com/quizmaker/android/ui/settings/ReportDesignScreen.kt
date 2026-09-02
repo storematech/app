@@ -265,6 +265,60 @@ fun ReportDesignScreen(
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth().height(90.dp)
                 )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = uiState.website,
+                    onValueChange = viewModel::onWebsiteChange,
+                    label = { Text("Website") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = uiState.registrationNumber,
+                    onValueChange = viewModel::onRegistrationNumberChange,
+                    label = { Text("Registration number") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = uiState.tagline,
+                    onValueChange = viewModel::onTaglineChange,
+                    label = { Text("Tagline") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = uiState.letterheadPhone,
+                    onValueChange = viewModel::onLetterheadPhoneChange,
+                    label = { Text("Letterhead phone") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = uiState.letterheadEmail,
+                    onValueChange = viewModel::onLetterheadEmailChange,
+                    label = { Text("Letterhead email") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = uiState.gstNumber,
+                    onValueChange = viewModel::onGstNumberChange,
+                    label = { Text("GST / Tax ID") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Spacer(Modifier.height(14.dp))
                 Button(
                     onClick = viewModel::saveBranding,

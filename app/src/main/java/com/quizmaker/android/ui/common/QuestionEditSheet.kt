@@ -147,10 +147,11 @@ fun QuestionEditSheet(
             OutlinedTextField(
                 value = draft.text,
                 onValueChange = { text -> onUpdateDraft { it.copy(text = text) } },
-                placeholder = { Text("Type your question here...") },
+                placeholder = { Text("Type your question here... (supports LaTeX math, e.g. $\\frac{a}{b}$)") },
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth().height(120.dp)
             )
+            MathPreview(draft.text)
 
             if (draft.type == QuestionType.SINGLE_CHOICE || draft.type == QuestionType.MULTI_CHOICE) {
                 Spacer(Modifier.height(20.dp))
@@ -174,16 +175,19 @@ fun QuestionEditSheet(
                                 }
                             )
                         }
-                        OutlinedTextField(
-                            value = optionText,
-                            onValueChange = { text ->
-                                onUpdateDraft { it.copy(options = it.options.toMutableList().also { list -> list[index] = text }) }
-                            },
-                            placeholder = { Text("Option ${index + 1}") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.weight(1f)
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            OutlinedTextField(
+                                value = optionText,
+                                onValueChange = { text ->
+                                    onUpdateDraft { it.copy(options = it.options.toMutableList().also { list -> list[index] = text }) }
+                                },
+                                placeholder = { Text("Option ${index + 1}") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            MathPreview(optionText)
+                        }
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {

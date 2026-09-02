@@ -78,6 +78,7 @@ import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
+import com.quizmaker.android.ui.common.OnboardingStepIndicator
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,11 +93,13 @@ fun LoginScreen(
 
     fun onGoogleSignInClick() {
         scope.launch {
+            viewModel.onGoogleSignInStarted()
             launchGoogleSignIn(
                 context = context,
                 onIdToken = viewModel::signInWithGoogle,
                 onError = viewModel::onGoogleSignInError
             )
+            viewModel.onGoogleSignInPickerFinished()
         }
     }
 
@@ -160,7 +163,7 @@ fun LoginScreen(
                 when (step) {
                     AuthStep.EMAIL -> EmailStep(
                         isChecking = uiState.isCheckingEmail,
-                        isGoogleLoading = uiState.isGoogleLoading,
+                        isGoogleLoading = uiState.isGooglePickerLoading || uiState.isGoogleLoading,
                         onContinue = viewModel::continueWithEmail,
                         onGoogleSignIn = ::onGoogleSignInClick
                     )
@@ -351,6 +354,11 @@ private fun SignUpStep(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Column {
+        // Step 1 of the new-account sequence: Create Account -> Phone -> Notifications (then
+        // straight into the app — no separate "trial started" screen), so a brand-new signup can
+        // see up front that the sequence is short and bounded.
+        OnboardingStepIndicator(currentStep = 1, totalSteps = 3)
+        Spacer(Modifier.height(12.dp))
         Text("Create your account", color = TextPrimary, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp)
         Spacer(Modifier.height(6.dp))
         EmailChip(email = email, onChangeEmail = onChangeEmail)
