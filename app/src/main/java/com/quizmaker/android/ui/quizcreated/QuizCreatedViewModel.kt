@@ -57,6 +57,6 @@ class QuizCreatedViewModel @Inject constructor(
 
     suspend fun getPdfBranding(): PdfBranding = pdfBrandingProvider.get()
 
-    /** [channel] is "link" | "qr_code" | "pdf_flyer". */
+    /** [channel] is "link" | "qr_code" | "print". */
     fun logShared(channel: String) = analyticsLogger.logQuizShared(channel)
 }

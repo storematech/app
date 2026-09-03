@@ -161,12 +161,18 @@ fun CollectPhoneScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (uiState.selectedCountry.iso == "IN") "Enter a 10-digit phone number" else "Enter at least ${uiState.minPhoneDigits} digits",
+                color = TextSecondary,
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(18.dp))
 
             GradientButton(
                 text = "Continue",
                 onClick = viewModel::save,
-                enabled = uiState.phoneNumber.isNotBlank(),
+                enabled = uiState.isPhoneValid,
                 loading = uiState.isSaving,
                 modifier = Modifier.fillMaxWidth()
             )

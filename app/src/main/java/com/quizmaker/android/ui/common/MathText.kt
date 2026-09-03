@@ -29,9 +29,39 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.util.superscriptBareExponents
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
+
+/** Markwon's ext-latex only ever registers its INLINE math handler for a DOUBLE-dollar delimiter
+ *  — see JLatexMathInlineProcessor's own matcher, `(\$\$)([\s\S]+?)\1` — even though every AI-
+ *  generated and hand-written question in this app is written with the conventional single-dollar
+ *  LaTeX/Markdown inline syntax (`$g=10$`, `$30^\circ$`). A single `$...$` never even gets
+ *  attempted as math with that matcher — it just passes through as literal text, dollar signs and
+ *  all, which is exactly the "math doesn't render, I just see raw $ and ^" bug this works around.
+ *  Upgrades every single-dollar span to double-dollar before Markwon ever sees it.
+ *
+ *  A lot of curated/AI content also writes bare exponents with NO `$...$` around them at all
+ *  ("9x10^9 Nm^2/C^2") — those never reach Markwon as math in the first place, so the plain
+ *  (non-$) portions are separately run through superscriptBareExponents() ("10^9" -> "10⁹"),
+ *  which needs no math renderer at all. Applied only OUTSIDE $...$ spans — a literal superscript
+ *  character inside a formula sent to JLaTeXMath isn't the same as the `^` syntax it expects. */
+private val SINGLE_DOLLAR_MATH = Regex("\\$([^$\\n]+)\\$")
+
+private fun normalizeMathDelimiters(text: String): String {
+    if (!text.contains('$')) return superscriptBareExponents(text)
+    if (text.contains("$$")) return text // real double-dollar block content, if any -- leave alone
+    val result = StringBuilder()
+    var last = 0
+    for (match in SINGLE_DOLLAR_MATH.findAll(text)) {
+        result.append(superscriptBareExponents(text.substring(last, match.range.first)))
+        result.append("$$").append(match.groupValues[1]).append("$$")
+        last = match.range.last + 1
+    }
+    result.append(superscriptBareExponents(text.substring(last)))
+    return result.toString()
+}
 
 /**
  * Renders question/option text that may contain inline (`$...$`) or block (`$$...$$`) LaTeX math
@@ -95,7 +125,7 @@ fun MathText(
             tv.maxLines = maxLines
             tv.ellipsize = if (maxLines != Int.MAX_VALUE) TextUtils.TruncateAt.END else null
             try {
-                markwon.setMarkdown(tv, text)
+                markwon.setMarkdown(tv, normalizeMathDelimiters(text))
             } catch (t: Throwable) {
                 // A single malformed formula (LaTeX syntax JLaTeXMath can't parse) must never
                 // crash the whole screen — some hand-written or AI-generated $...$ content will

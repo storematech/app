@@ -5,10 +5,12 @@ import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.drawable.Drawable
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionType
+import ru.noties.jlatexmath.JLatexMathDrawable
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -16,6 +18,21 @@ import java.util.Date
 import java.util.Locale
 
 enum class MasterPaperMode { WITH_ANSWERS, WITHOUT_ANSWERS, OFFLINE }
+
+// One fragment of a word-wrap "word" -- either a plain-text run or a single $...$ formula,
+// resolved/measured up front (see MasterPaperPdfExporter.resolveMixedWords). Kept at file scope,
+// not nested inside the object below, because Kotlin doesn't allow a `typealias` as a class/object
+// member -- only at file (top) level or local to a function.
+private sealed class TextFragment(val width: Float) {
+    class Plain(val text: String, width: Float) : TextFragment(width)
+    class Formula(val drawable: Drawable, width: Float, val height: Float) : TextFragment(width)
+}
+
+/** One whitespace-delimited token, e.g. "($g=10$" -> [Plain("("), Formula(g=10)]. Kept together as
+ *  a single wrap unit, same as any other "word" in plain word-wrap. */
+private typealias MixedWord = List<TextFragment>
+
+private fun MixedWord.totalWidth(): Float = sumOf { it.width.toDouble() }.toFloat()
 
 /** Renders a quiz's questions as a paginated PDF — with/without an answer key, or a blank offline exam paper. */
 object MasterPaperPdfExporter {
@@ -44,6 +61,134 @@ object MasterPaperPdfExporter {
     private fun Paint.lineHeight(multiplier: Float = 1.3f): Float {
         val fm = fontMetrics
         return (fm.descent - fm.ascent) * multiplier
+    }
+
+    // ---- Mixed text+math layout (single-dollar $...$ formulas embedded in question/option text) --
+    //
+    // A PdfDocument's Canvas has no rich-text layout of its own -- canvas.drawText() only ever
+    // draws plain glyphs, so a question like "coefficient of friction 0.4 ($g=10$ m/s^2)" used to
+    // come out with the literal "$g=10$" characters in the exported/printed PDF, unlike the in-app
+    // screens (see MathText.kt) which typeset it as a real formula. Fixed here the same way: each
+    // $...$ span is rendered via JLatexMathDrawable -- the same JLaTeXMath wrapper Markwon's
+    // ext-latex uses under MathText -- which is a real android.graphics.drawable.Drawable, so it
+    // can draw() onto any Canvas, a PDF page's canvas included, with no async/view-hierarchy needed.
+    //
+    // Word-wrap keeps a $...$ span glued to whatever plain-text characters share its whitespace-
+    // delimited "word" (so "($g=10$" wraps as one atomic unit, exactly like plain text word-wrap
+    // already treats any other word) and measures/wraps by each word's total width across its
+    // mixed fragments. (TextFragment/MixedWord/totalWidth() live at file scope above -- see there.)
+
+    private val MATH_SPAN = Regex("\\$([^$\\n]+?)\\$")
+
+    private fun buildFormulaDrawable(latex: String, textSizePx: Float, colorInt: Int): Drawable? = try {
+        JLatexMathDrawable.builder(latex).textSize(textSizePx).color(colorInt).build()
+    } catch (t: Throwable) {
+        // A single malformed formula (LaTeX syntax JLaTeXMath can't parse) must never break the
+        // whole export -- fall back to that one formula's raw "$latex$" source as plain text
+        // rather than failing the whole PDF over one bad question, same philosophy as MathText's
+        // own per-render fallback.
+        null
+    }
+
+    /** Tokenizes [text] into whitespace-delimited words, each split further into plain/formula
+     *  fragments, every fragment already measured/built against [paint] so wrapping and drawing
+     *  both work off this same resolved shape. */
+    private fun resolveMixedWords(text: String, paint: Paint): List<MixedWord> {
+        if (text.isBlank()) return listOf(listOf(TextFragment.Plain("", 0f)))
+        val textSizePx = paint.textSize
+        val colorInt = paint.color
+        return text.split(Regex("\\s+")).filter { it.isNotEmpty() }.map { raw ->
+            val fragments = mutableListOf<TextFragment>()
+            var last = 0
+            for (m in MATH_SPAN.findAll(raw)) {
+                if (m.range.first > last) {
+                    val plain = superscriptBareExponents(raw.substring(last, m.range.first))
+                    fragments.add(TextFragment.Plain(plain, paint.measureText(plain)))
+                }
+                val latex = m.groupValues[1]
+                val drawable = buildFormulaDrawable(latex, textSizePx, colorInt)
+                fragments.add(
+                    if (drawable != null) {
+                        TextFragment.Formula(drawable, drawable.intrinsicWidth.toFloat(), drawable.intrinsicHeight.toFloat())
+                    } else {
+                        val rawFormula = "$$latex$"
+                        TextFragment.Plain(rawFormula, paint.measureText(rawFormula))
+                    }
+                )
+                last = m.range.last + 1
+            }
+            if (last < raw.length) {
+                val plain = superscriptBareExponents(raw.substring(last))
+                fragments.add(TextFragment.Plain(plain, paint.measureText(plain)))
+            }
+            if (fragments.isEmpty()) {
+                val plain = superscriptBareExponents(raw)
+                fragments.add(TextFragment.Plain(plain, paint.measureText(plain)))
+            }
+            fragments
+        }
+    }
+
+    /** Greedy word-wrap over already-measured [words], mirroring wrapText()'s algorithm but
+     *  summing fragment widths per word instead of measuring a single plain string. */
+    private fun wrapMixedWords(words: List<MixedWord>, spaceWidth: Float, maxWidth: Float): List<List<MixedWord>> {
+        val lines = mutableListOf<List<MixedWord>>()
+        var current = mutableListOf<MixedWord>()
+        var currentWidth = 0f
+        for (word in words) {
+            val wordWidth = word.totalWidth()
+            val candidateWidth = if (current.isEmpty()) wordWidth else currentWidth + spaceWidth + wordWidth
+            if (candidateWidth > maxWidth && current.isNotEmpty()) {
+                lines.add(current)
+                current = mutableListOf(word)
+                currentWidth = wordWidth
+            } else {
+                current.add(word)
+                currentWidth = candidateWidth
+            }
+        }
+        if (current.isNotEmpty()) lines.add(current)
+        return lines
+    }
+
+    /** Draws already-wrapped/resolved [words] left-to-right starting at ([x], [baselineY]) with no
+     *  further wrapping -- the single-line primitive both drawMixedLine() below and single-line
+     *  callers (option rows, which never wrap) share. Formula fragments are bottom-aligned to
+     *  [baselineY], same as how an inline image defaults to baseline alignment next to text. */
+    private fun Canvas.drawMixedRun(words: List<MixedWord>, x: Float, baselineY: Float, paint: Paint, spaceWidth: Float) {
+        var cursorX = x
+        words.forEachIndexed { wordIndex, word ->
+            word.forEach { fragment ->
+                when (fragment) {
+                    is TextFragment.Plain -> drawText(fragment.text, cursorX, baselineY, paint)
+                    is TextFragment.Formula -> {
+                        val left = cursorX.toInt()
+                        val top = (baselineY - fragment.height).toInt()
+                        fragment.drawable.setBounds(left, top, left + fragment.width.toInt(), top + fragment.height.toInt())
+                        fragment.drawable.draw(this)
+                    }
+                }
+                cursorX += fragment.width
+            }
+            if (wordIndex != words.lastIndex) cursorX += spaceWidth
+        }
+    }
+
+    /** Draws one already-wrapped line of mixed words at [y] (top of the line, same "y is the top"
+     *  contract as Canvas.drawTextLine() above), returning the y for the next line -- tall enough
+     *  to clear the tallest formula on the line, not just [paint]'s own font metrics. */
+    private fun Canvas.drawMixedLine(line: List<MixedWord>, x: Float, y: Float, paint: Paint, spaceWidth: Float, multiplier: Float = 1.3f): Float {
+        val fm = paint.fontMetrics
+        val textLineHeight = (fm.descent - fm.ascent) * multiplier
+        val tallestFormula = line.maxOfOrNull { word ->
+            word.filterIsInstance<TextFragment.Formula>().maxOfOrNull { it.height } ?: 0f
+        } ?: 0f
+        val lineHeight = maxOf(textLineHeight, tallestFormula * 1.15f)
+        // Extra height (if any) is split above/below so a line with a tall formula doesn't shove
+        // its plain text down to the very bottom of the line box.
+        val baselineY = y - fm.ascent + (lineHeight - textLineHeight) / 2f
+        drawMixedRun(line, x, baselineY, paint, spaceWidth)
+        return y + lineHeight
     }
 
     fun export(
@@ -130,10 +275,14 @@ object MasterPaperPdfExporter {
             y = fieldsRow2Top + optionPaint.lineHeight(1.6f) + 8f
         }
 
+        val spaceWidth = questionTextPaint.measureText(" ")
+        val optionSpaceWidth = optionPaint.measureText(" ")
+
         questions.forEachIndexed { index, q ->
-            val qTextLines = wrapText(q.text, questionTextPaint, CONTENT_WIDTH - 8f)
+            val qWords = resolveMixedWords(q.text, questionTextPaint)
+            val qLines = wrapMixedWords(qWords, spaceWidth, CONTENT_WIDTH - 8f)
             val optCount = if (q.type == QuestionType.SINGLE_CHOICE || q.type == QuestionType.MULTI_CHOICE) q.options.size else 1
-            val estimatedHeight = 26f + qTextLines.size * questionLineHeight + optCount * optionLineHeight + 20f
+            val estimatedHeight = 26f + qLines.size * questionLineHeight + optCount * optionLineHeight + 20f
             checkPage(estimatedHeight)
 
             val badgeTop = y
@@ -153,8 +302,8 @@ object MasterPaperPdfExporter {
             canvas.drawText("${q.points.formatPoints()} pt${if (q.points > 1) "s" else ""}", MARGIN + 130f, badgeTop + 10f, pointsPaint)
             y += 22f
 
-            qTextLines.forEach { line ->
-                y = canvas.drawTextLine(line, MARGIN + 2f, y, questionTextPaint, 1.25f)
+            qLines.forEach { line ->
+                y = canvas.drawMixedLine(line, MARGIN + 2f, y, questionTextPaint, spaceWidth, 1.25f)
             }
             y += 4f
 
@@ -171,7 +320,15 @@ object MasterPaperPdfExporter {
                         val label = ('A' + optIndex)
                         val paint = if (isCorrect && showAnswers) correctOptionPaint else optionPaint
                         val baselineY = rowTop + rowHeight / 2f - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2f
-                        canvas.drawText("$label. ${opt.text}", MARGIN + 6f, baselineY, paint)
+                        val prefix = "$label. "
+                        canvas.drawText(prefix, MARGIN + 6f, baselineY, paint)
+                        canvas.drawMixedRun(
+                            resolveMixedWords(opt.text, paint),
+                            MARGIN + 6f + paint.measureText(prefix),
+                            baselineY,
+                            paint,
+                            optionSpaceWidth
+                        )
                         if (isCorrect && showAnswers) {
                             canvas.drawText("✓ Correct", MARGIN + CONTENT_WIDTH - 55f, baselineY, correctOptionPaint)
                         }
@@ -209,11 +366,12 @@ object MasterPaperPdfExporter {
             y += 4f
             questions.forEachIndexed { index, q ->
                 val summary = answerSummary(q)
-                val lines = wrapText(summary, optionPaint, CONTENT_WIDTH - 40f)
+                val words = resolveMixedWords(summary, correctOptionPaint)
+                val lines = wrapMixedWords(words, optionSpaceWidth, CONTENT_WIDTH - 40f)
                 checkPage(optionLineHeight * lines.size)
                 val rowTop = y
                 lines.forEach { line ->
-                    y = canvas.drawTextLine(line, MARGIN + 32f, y, correctOptionPaint, 1.3f)
+                    y = canvas.drawMixedLine(line, MARGIN + 32f, y, correctOptionPaint, optionSpaceWidth, 1.3f)
                 }
                 val labelBaselineY = rowTop + optionPaint.lineHeight(1.3f) / 2f - (optionPaint.fontMetrics.ascent + optionPaint.fontMetrics.descent) / 2f
                 canvas.drawText("Q${index + 1}:", MARGIN, labelBaselineY, optionPaint)

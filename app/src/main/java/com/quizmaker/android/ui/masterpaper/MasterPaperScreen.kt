@@ -52,6 +52,7 @@ import com.quizmaker.android.ui.common.FilledPill
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.ListScreenSkeleton
 import com.quizmaker.android.ui.common.LoadingCrossfade
+import com.quizmaker.android.ui.common.MathText
 import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.MasterPaperMode
@@ -186,7 +187,7 @@ private fun QuestionPreviewCard(index: Int, question: Question) {
             Text("${question.points.formatPoints()} pt${if (question.points > 1) "s" else ""}", color = TextSecondary, fontSize = 12.sp)
         }
         Spacer(Modifier.height(10.dp))
-        Text(question.text, fontWeight = FontWeight.Medium, color = TextPrimary, fontSize = 15.sp)
+        MathText(text = question.text, color = TextPrimary, fontSize = 15.sp)
         Spacer(Modifier.height(10.dp))
 
         when (question.type) {
@@ -202,8 +203,8 @@ private fun QuestionPreviewCard(index: Int, question: Question) {
                                 fontWeight = FontWeight.Bold,
                                 color = if (option.isCorrect) SuccessGreen else TextSecondary
                             )
-                            Text(
-                                option.text,
+                            MathText(
+                                text = option.text,
                                 color = if (option.isCorrect) SuccessGreen else TextPrimary,
                                 modifier = Modifier.weight(1f)
                             )

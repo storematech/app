@@ -1,12 +1,7 @@
 package com.quizmaker.android.ui.fulltest
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +12,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,31 +22,44 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -63,6 +73,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
@@ -73,9 +84,11 @@ import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.data.model.ExamCategory
+import com.quizmaker.android.data.model.ExamSuggestion
 import com.quizmaker.android.data.model.FullTestChapterConfig
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionFormat
+import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.GradientButton
 import com.quizmaker.android.ui.common.MathText
@@ -95,6 +108,8 @@ fun FullTestScreen(
     onNavigateToCreateQuiz: (List<String>, String?) -> Unit,
     onNavigateBack: () -> Unit,
     onOpenPricing: () -> Unit,
+    onNavigateToQuizList: () -> Unit,
+    onOpenQuiz: (String) -> Unit,
     viewModel: FullTestViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -164,34 +179,46 @@ fun FullTestScreen(
                         color = TextPrimary
                     )
                 }
+            },
+            bottomBar = {
+                // Fixed at the bottom instead of living at the end of SelectExamStep's scrollable
+                // content — previously reaching "Create Full Test" meant scrolling past every
+                // suggestion row first, on every visit to this step.
+                if (uiState.step == FullTestStep.SELECT_EXAM) {
+                    Surface(color = SurfaceWhite, shadowElevation = 8.dp) {
+                        Box(modifier = Modifier.navigationBarsPadding().padding(20.dp)) {
+                            GradientButton(
+                                text = "Create Full Test",
+                                onClick = viewModel::startResearch,
+                                enabled = uiState.examName.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
             }
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // Was a bare `when` swap with zero animation — a hard, jarring cut between every
-                // step. AnimatedContent gives each step a soft fade + gentle upward slide instead,
-                // keyed on the step itself so it re-triggers on every transition (both forward
-                // progress and the CONFIGURE -> SELECT_EXAM back-navigation case).
-                AnimatedContent(
-                    targetState = uiState.step,
-                    transitionSpec = {
-                        (fadeIn(tween(280)) + slideInVertically(tween(280)) { height -> height / 6 }) togetherWith
-                            fadeOut(tween(180))
-                    },
-                    label = "fullTestStepTransition"
-                ) { step ->
-                    when (step) {
-                        FullTestStep.SELECT_EXAM -> SelectExamStep(uiState.examName, uiState.errorMessage, viewModel)
-                        FullTestStep.RESEARCHING -> LoadingStep(
-                            title = "Researching ${uiState.examName}",
-                            subtitle = "Looking up the real exam pattern — question count, marks, chapters, and difficulty."
-                        )
-                        FullTestStep.CONFIGURE -> ConfigureStep(uiState, viewModel)
-                        FullTestStep.GENERATING -> LoadingStep(
-                            title = "Generating your full test",
-                            subtitle = "This can take a minute or two for a large test — please keep this screen open."
-                        )
-                        FullTestStep.REVIEW -> ReviewStep(uiState, viewModel)
-                    }
+                when (uiState.step) {
+                    FullTestStep.SELECT_EXAM -> SelectExamStep(
+                        examName = uiState.examName,
+                        errorMessage = uiState.errorMessage,
+                        recentQuizzes = uiState.recentQuizzes,
+                        recentQuizQuestionCounts = uiState.recentQuizQuestionCounts,
+                        onOpenQuiz = onOpenQuiz,
+                        onViewAllQuizzes = onNavigateToQuizList,
+                        viewModel = viewModel
+                    )
+                    FullTestStep.RESEARCHING -> LoadingStep(
+                        title = "Researching ${uiState.examName}",
+                        subtitle = "Looking up the real exam pattern — question count, marks, chapters, and difficulty."
+                    )
+                    FullTestStep.CONFIGURE -> ConfigureStep(uiState, viewModel)
+                    FullTestStep.GENERATING -> LoadingStep(
+                        title = "Generating your full test",
+                        subtitle = "This can take a minute or two for a large test — please keep this screen open."
+                    )
+                    FullTestStep.REVIEW -> ReviewStep(uiState, viewModel)
                 }
             }
         }
@@ -246,8 +273,21 @@ private fun LoadingStep(title: String, subtitle: String) {
 }
 
 @Composable
-private fun SelectExamStep(examName: String, errorMessage: String?, viewModel: FullTestViewModel) {
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
+private fun SelectExamStep(
+    examName: String,
+    errorMessage: String?,
+    recentQuizzes: List<Quiz>,
+    recentQuizQuestionCounts: Map<String, Int>,
+    onOpenQuiz: (String) -> Unit,
+    onViewAllQuizzes: () -> Unit,
+    viewModel: FullTestViewModel
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 100.dp)
+    ) {
         Text("Which exam?", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextPrimary)
         Spacer(Modifier.height(4.dp))
         Text("Type an exam name, or tap a suggestion below", color = TextSecondary, fontSize = 13.sp)
@@ -261,39 +301,239 @@ private fun SelectExamStep(examName: String, errorMessage: String?, viewModel: F
         OutlinedTextField(
             value = examName,
             onValueChange = viewModel::onExamNameChange,
-            placeholder = { Text("e.g. NEET UG, SSC-CGL, JEE Main…") },
+            placeholder = { Text("Search for an exam…") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary) },
+            trailingIcon = {
+                if (examName.isNotEmpty()) {
+                    IconButton(onClick = { viewModel.onExamNameChange("") }) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = TextSecondary)
+                    }
+                }
+            },
             singleLine = true,
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(50),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = Color.Transparent,
+                focusedBorderColor = BrandIndigo,
+                unfocusedContainerColor = SurfaceWhite,
+                focusedContainerColor = SurfaceWhite
+            ),
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(24.dp))
 
+        if (recentQuizzes.isNotEmpty()) {
+            RecentQuizSection(
+                quizzes = recentQuizzes,
+                questionCounts = recentQuizQuestionCounts,
+                onOpenQuiz = onOpenQuiz,
+                onViewAll = onViewAllQuizzes
+            )
+            Spacer(Modifier.height(24.dp))
+        }
+
         ExamSuggestionRow("Exam Prep", ExamCategory.EXAM_PREP, viewModel)
         Spacer(Modifier.height(20.dp))
         ExamSuggestionRow("Job Prep", ExamCategory.JOB_PREP, viewModel)
-        Spacer(Modifier.height(28.dp))
-
-        GradientButton(
-            text = "Create Full Test",
-            onClick = viewModel::startResearch,
-            enabled = examName.isNotBlank(),
-            modifier = Modifier.fillMaxWidth()
-        )
         Spacer(Modifier.height(20.dp))
+        ExamSuggestionRow("Schools", ExamCategory.SCHOOLS, viewModel)
+    }
+}
+
+/** Up to RECENT_QUIZZES_LIMIT of the user's most recently created quizzes, shown right below the
+ *  search box — "View all" hands off to the same Quiz List screen the bottom nav tab opens. */
+@Composable
+private fun RecentQuizSection(
+    quizzes: List<Quiz>,
+    questionCounts: Map<String, Int>,
+    onOpenQuiz: (String) -> Unit,
+    onViewAll: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Recent Quiz", fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
+        TextButton(onClick = onViewAll) {
+            Text("View all", color = BrandIndigo, fontFamily = PoppinsFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        }
+    }
+    Spacer(Modifier.height(4.dp))
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(quizzes, key = { it.id }) { quiz ->
+            RecentQuizCard(
+                title = quiz.title,
+                questionCount = questionCounts[quiz.id],
+                onClick = { onOpenQuiz(quiz.id) }
+            )
+        }
     }
 }
 
 @Composable
+private fun RecentQuizCard(title: String, questionCount: Int?, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(140.dp)
+            .height(108.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceWhite)
+            .border(1.dp, BorderGray, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(12.dp)
+    ) {
+        Box(
+            modifier = Modifier.size(24.dp).clip(CircleShape).background(BrandIndigo.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.AutoMirrored.Filled.Article, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(13.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            title,
+            fontFamily = PoppinsFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            lineHeight = 14.sp,
+            color = TextPrimary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (questionCount != null) {
+            Spacer(Modifier.height(2.dp))
+            Text("$questionCount Qs", color = TextSecondary, fontSize = 10.sp)
+        }
+    }
+}
+
+/** Two visible rows (LazyHorizontalGrid, scrollable sideways) instead of the single long
+ *  horizontal-scroll row this used to be — "View all" opens a scrollable popup with the rest of
+ *  the category instead of making the user scroll an ever-longer single row. */
+@Composable
 private fun ExamSuggestionRow(label: String, category: ExamCategory, viewModel: FullTestViewModel) {
-    Text(label, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
-    Spacer(Modifier.height(8.dp))
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(viewModel.examSuggestions.filter { it.category == category }, key = { it.name }) { suggestion ->
+    var showAllDialog by remember { mutableStateOf(false) }
+    val suggestions = viewModel.examSuggestions.filter { it.category == category }
+    val theme = themeForExamCategory(category)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontFamily = PoppinsFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
+        TextButton(onClick = { showAllDialog = true }) {
+            Text("View all", color = BrandIndigo, fontFamily = PoppinsFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        }
+    }
+    Spacer(Modifier.height(4.dp))
+    LazyHorizontalGrid(
+        rows = GridCells.Fixed(2),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().height(186.dp)
+    ) {
+        items(suggestions, key = { it.name }) { suggestion ->
             ExamSuggestionCard(
                 name = suggestion.name,
-                theme = themeForExamCategory(suggestion.category),
+                theme = theme,
                 onClick = { viewModel.selectExamSuggestion(suggestion.name) }
             )
+        }
+    }
+
+    if (showAllDialog) {
+        ExamSuggestionAllDialog(
+            label = label,
+            suggestions = suggestions,
+            theme = theme,
+            onSelect = { name ->
+                viewModel.selectExamSuggestion(name)
+                showAllDialog = false
+            },
+            onDismiss = { showAllDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun ExamSuggestionAllDialog(
+    label: String,
+    suggestions: List<ExamSuggestion>,
+    theme: ExamCategoryTheme,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredSuggestions = remember(suggestions, searchQuery) {
+        if (searchQuery.isBlank()) suggestions
+        else suggestions.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(20.dp), color = SurfaceWhite, modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(vertical = 20.dp)) {
+                Text(
+                    label,
+                    fontFamily = PoppinsFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = TextPrimary,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search…") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = TextSecondary)
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(50),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedBorderColor = theme.start,
+                        unfocusedContainerColor = AppBackground,
+                        focusedContainerColor = AppBackground
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+                )
+                Spacer(Modifier.height(8.dp))
+                if (filteredSuggestions.isEmpty()) {
+                    Text(
+                        "No matches found",
+                        color = TextSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                    )
+                }
+                LazyColumn(modifier = Modifier.heightIn(max = 440.dp)) {
+                    items(filteredSuggestions, key = { it.name }) { suggestion ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(suggestion.name) }
+                                .padding(horizontal = 20.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier.size(32.dp).clip(CircleShape).background(theme.start.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(theme.icon, contentDescription = null, tint = theme.start, modifier = Modifier.size(16.dp))
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text(suggestion.name, fontFamily = PoppinsFamily, fontSize = 14.sp, color = TextPrimary)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -306,6 +546,7 @@ private data class ExamCategoryTheme(val icon: ImageVector, val start: Color, va
 private fun themeForExamCategory(category: ExamCategory): ExamCategoryTheme = when (category) {
     ExamCategory.EXAM_PREP -> ExamCategoryTheme(Icons.Default.School, Color(0xFF2563EB), Color(0xFF1D4ED8))
     ExamCategory.JOB_PREP -> ExamCategoryTheme(Icons.Default.Work, Color(0xFF0D9488), Color(0xFF115E59))
+    ExamCategory.SCHOOLS -> ExamCategoryTheme(Icons.Default.Book, Color(0xFFF59E0B), Color(0xFFB45309))
 }
 
 @Composable

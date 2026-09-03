@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -375,7 +376,15 @@ private fun QuestionCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (question.tags.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // FlowRow, not Row -- a long tag (e.g. "Probability & Statistics") next to
+                    // shorter ones used to get squeezed into whatever sliver of width was left in
+                    // a plain Row, wrapping its text into a tall, near-circular sliver instead of
+                    // just moving to a second line.
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f).padding(end = 8.dp)
+                    ) {
                         question.tags.forEach { OutlinedPill(text = it) }
                     }
                 } else {

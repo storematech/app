@@ -1,7 +1,7 @@
 package com.quizmaker.android.data.model
 
 /** Which section of the exam browser a suggestion belongs to — see FULL_TEST_EXAM_SUGGESTIONS. */
-enum class ExamCategory { EXAM_PREP, JOB_PREP }
+enum class ExamCategory { EXAM_PREP, JOB_PREP, SCHOOLS }
 
 /** One tappable exam suggestion on the Full Test entry screen — tapping pre-fills the exam-name
  *  field, mirroring how AiQuizScreen's own trending-template chips pre-fill its prompt field. */
@@ -68,7 +68,21 @@ val FULL_TEST_EXAM_SUGGESTIONS = listOf(
     ExamSuggestion("Indian Air Force X/Y", ExamCategory.JOB_PREP),
     ExamSuggestion("Delhi Police Constable", ExamCategory.JOB_PREP),
     ExamSuggestion("State PSC (General)", ExamCategory.JOB_PREP),
-    ExamSuggestion("Patwari / Revenue Clerk", ExamCategory.JOB_PREP)
+    ExamSuggestion("Patwari / Revenue Clerk", ExamCategory.JOB_PREP),
+
+    // Schools — grade-wise general practice, independent of any specific board exam
+    ExamSuggestion("Class 1", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 2", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 3", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 4", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 5", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 6", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 7", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 8", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 9", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 10", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 11", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 12", ExamCategory.SCHOOLS)
 )
 
 /** Question formats the AI can be asked to use — see FullTestConfig.formats. */

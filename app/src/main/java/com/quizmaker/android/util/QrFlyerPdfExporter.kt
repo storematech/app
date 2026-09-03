@@ -19,6 +19,18 @@ object QrFlyerPdfExporter {
     private const val HEADER_HEIGHT = 150f
 
     fun export(context: Context, quizTitle: String, shareUrl: String, qrBitmap: Bitmap, branding: PdfBranding = PdfBranding.NONE): Intent {
+        val file = renderFile(context, quizTitle, shareUrl, qrBitmap, branding)
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        return Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    /** Renders the flyer and returns the raw file — e.g. for handing straight to [PdfPrinter]
+     *  rather than a share-sheet Intent. */
+    fun renderFile(context: Context, quizTitle: String, shareUrl: String, qrBitmap: Bitmap, branding: PdfBranding = PdfBranding.NONE): File {
         val document = PdfDocument()
         val page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create())
         val canvas = page.canvas
@@ -124,11 +136,6 @@ object QrFlyerPdfExporter {
         FileOutputStream(file).use { document.writeTo(it) }
         document.close()
 
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        return Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
+        return file
     }
 }

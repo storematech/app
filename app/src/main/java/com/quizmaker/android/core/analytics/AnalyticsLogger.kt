@@ -265,6 +265,28 @@ class AnalyticsLogger @Inject constructor(
         )
     }
 
+    /** Outcome of the one-time, full-screen "what Yuno LMS can do" slide carousel shown to every
+     *  brand-new account right after phone collection / notification permission — see
+     *  SessionViewModel.resolvePostAuthGate() and AppIntroScreen. [reachedSlide] is 1-indexed. */
+    fun logAppIntroResult(skipped: Boolean, reachedSlide: Int, totalSlides: Int) {
+        firebaseAnalytics.logEvent(
+            "app_intro_result",
+            Bundle().apply {
+                putString("result", if (skipped) "skipped" else "completed")
+                putInt("reached_slide", reachedSlide)
+                putInt("total_slides", totalSlides)
+            }
+        )
+        PostHog.capture(
+            event = "app_intro_result",
+            properties = mapOf(
+                "result" to if (skipped) "skipped" else "completed",
+                "reached_slide" to reachedSlide,
+                "total_slides" to totalSlides
+            )
+        )
+    }
+
     /** Outcome of the one-time "what Tools can do" interstitial shown on first opening More → Tools — see ToolsIntroScreen. */
     fun logToolsIntroResult(used: Boolean) {
         firebaseAnalytics.logEvent(
@@ -301,7 +323,7 @@ class AnalyticsLogger @Inject constructor(
         )
     }
 
-    /** [channel] is "link" | "qr_code" | "pdf_flyer" — the three ways to distribute a quiz from the QuizCreated screen. */
+    /** [channel] is "link" | "qr_code" | "print" — the three ways to distribute a quiz from the QuizCreated screen. */
     fun logQuizShared(channel: String) {
         firebaseAnalytics.logEvent(
             FirebaseAnalytics.Event.SHARE,

@@ -302,11 +302,9 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch { featureTourBannerPrefs.incrementDismissCount(userId) }
     }
 
-    /** Gate for the quick-action "Create Quiz"/"AI" buttons — shows the paywall sheet instead of
-     *  navigating when the trial's expired, same rule QuizList/QuestionBank already enforce. */
+    /** Gate for the quick-action "Create Quiz"/"Scanner" buttons — shows the paywall sheet instead
+     *  of navigating when the trial's expired, same rule QuizList/QuestionBank already enforce. */
     fun onCreateQuizClick(onAllowed: () -> Unit) = gateOnTrial(onAllowed)
-
-    fun onOpenAiClick(onAllowed: () -> Unit) = gateOnTrial(onAllowed)
 
     private fun gateOnTrial(onAllowed: () -> Unit) {
         if (_uiState.value.trialStatus is TrialStatus.Expired) {

@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
+import com.quizmaker.android.core.prefs.AppIntroPrefs
 import com.quizmaker.android.core.prefs.NotificationPermissionPrefs
 import com.quizmaker.android.core.prefs.TrialPrefs
 import com.quizmaker.android.repository.AuthRepository
@@ -25,7 +26,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 /** Whether the initial nav graph should show the loading gate, the auth flow, the main app, or one of the one-time/recurring post-login interstitials. */
-enum class SessionGate { LOADING, LOGGED_OUT, LOGGED_IN, NEEDS_PHONE, NEEDS_NOTIFICATION_PERMISSION, TRIAL_JUST_STARTED, TRIAL_ENDED }
+enum class SessionGate { LOADING, LOGGED_OUT, LOGGED_IN, NEEDS_PHONE, NEEDS_NOTIFICATION_PERMISSION, NEEDS_APP_INTRO, TRIAL_JUST_STARTED, TRIAL_ENDED }
 
 /** A hung network call (bad connectivity, etc.) during cold-start gate resolution should never
  *  leave the "Y" loading screen spinning forever — past this, resolution fails open the same way
@@ -38,6 +39,7 @@ class SessionViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val trialPrefs: TrialPrefs,
     private val notificationPermissionPrefs: NotificationPermissionPrefs,
+    private val appIntroPrefs: AppIntroPrefs,
     private val analyticsLogger: AnalyticsLogger,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -64,9 +66,10 @@ class SessionViewModel @Inject constructor(
 
     /**
      * Single post-authentication gate check, reused for both the cold-start gate above and the
-     * nav graph's live sign-in transition. Priority: phone number, then trial state (premium
-     * accounts skip straight through). Fails open to LOGGED_IN on a profile-fetch error — a
-     * network hiccup should never lock a signed-in user out of the app.
+     * nav graph's live sign-in transition. Priority: phone number, then notification permission,
+     * then the one-time app intro carousel, then trial state (premium accounts skip straight
+     * through). Fails open to LOGGED_IN on a profile-fetch error — a network hiccup should never
+     * lock a signed-in user out of the app.
      */
     suspend fun resolvePostAuthGate(): SessionGate {
         // notifyOnError = false: this fires right after every sign-in/sign-up as an internal
@@ -85,6 +88,7 @@ class SessionViewModel @Inject constructor(
         analyticsLogger.setUserId(profile.id, profile.email)
         if (profile.phoneNumber.isBlank()) return SessionGate.NEEDS_PHONE
         if (needsNotificationPermissionPrompt(profile.id)) return SessionGate.NEEDS_NOTIFICATION_PERMISSION
+        if (!appIntroPrefs.hasShownIntro(profile.id)) return SessionGate.NEEDS_APP_INTRO
         return when (profile.trialStatus()) {
             TrialStatus.Premium -> SessionGate.LOGGED_IN
             TrialStatus.Expired -> SessionGate.TRIAL_ENDED

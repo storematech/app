@@ -14,9 +14,11 @@ import com.quizmaker.android.data.model.QuestionDifficulty
 import com.quizmaker.android.data.model.QuestionFormat
 import com.quizmaker.android.data.model.QuestionOption
 import com.quizmaker.android.data.model.QuestionType
+import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.repository.AiQuizRepository
 import com.quizmaker.android.repository.AuthRepository
 import com.quizmaker.android.repository.FullTestRepository
+import com.quizmaker.android.repository.QuizRepository
 import com.quizmaker.android.ui.dashboard.DashboardStateCache
 import com.quizmaker.android.util.TrialStatus
 import com.quizmaker.android.util.trialStatus
@@ -34,6 +36,10 @@ enum class FullTestStep { SELECT_EXAM, RESEARCHING, CONFIGURE, GENERATING, REVIE
  *  +/- controls from producing absurd single-chapter counts; the server enforces its own overall
  *  MAX_TOTAL_QUESTIONS/MAX_CHAPTERS caps independently regardless. */
 private const val MAX_CHAPTER_QUESTIONS = 30
+
+/** How many of the user's most recent quizzes the SELECT_EXAM step's "Recent Quiz" strip shows
+ *  before falling back to "View all" (Screen.QuizList). */
+private const val RECENT_QUIZZES_LIMIT = 5
 
 data class FullTestUiState(
     val step: FullTestStep = FullTestStep.SELECT_EXAM,
@@ -61,7 +67,12 @@ data class FullTestUiState(
 
     // Same trial gate every other AI entry point in the app enforces.
     val isCreationBlocked: Boolean = false,
-    val showTrialPaywall: Boolean = false
+    val showTrialPaywall: Boolean = false,
+
+    // Recent Quiz strip on the SELECT_EXAM step — up to 5 of the user's most recently created
+    // quizzes (any source, not just Full Test, since the quizzes table doesn't distinguish origin).
+    val recentQuizzes: List<Quiz> = emptyList(),
+    val recentQuizQuestionCounts: Map<String, Int> = emptyMap()
 ) {
     val totalQuestions: Int get() = chapters.sumOf { it.questionCount }
     val canResearch: Boolean get() = examName.isNotBlank()
@@ -86,6 +97,7 @@ class FullTestViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val fullTestRepository: FullTestRepository,
     private val aiQuizRepository: AiQuizRepository,
+    private val quizRepository: QuizRepository,
     private val analyticsLogger: AnalyticsLogger,
     private val dashboardStateCache: DashboardStateCache
 ) : ViewModel() {
@@ -97,6 +109,19 @@ class FullTestViewModel @Inject constructor(
 
     init {
         loadTrialGate()
+        loadRecentQuizzes()
+    }
+
+    private fun loadRecentQuizzes() {
+        val userId = authRepository.currentUserId() ?: return
+        viewModelScope.launch {
+            val quizzes = (quizRepository.getQuizzesPage(userId, offset = 0, limit = RECENT_QUIZZES_LIMIT) as? AppResult.Success)?.data.orEmpty()
+            _uiState.value = _uiState.value.copy(recentQuizzes = quizzes)
+            if (quizzes.isNotEmpty()) {
+                val counts = (quizRepository.getQuestionCountsForQuizzes(quizzes.map { it.id }) as? AppResult.Success)?.data.orEmpty()
+                _uiState.value = _uiState.value.copy(recentQuizQuestionCounts = counts)
+            }
+        }
     }
 
     private fun loadTrialGate() {
@@ -114,10 +139,13 @@ class FullTestViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(examName = value, errorMessage = null)
     }
 
-    /** Tapping a suggestion chip just fills the field — same "pre-fill, don't auto-submit" pattern
-     *  as every other tap-to-fill chip in this app, so the user can still edit it first. */
+    /** Tapping a suggestion chip/card goes straight to researching that exam — unlike a plain
+     *  tap-to-fill chip, showing the name land in the search box first and then requiring a
+     *  separate "Create Full Test" tap was an extra, confusing step for something the user already
+     *  committed to by tapping a specific exam. */
     fun selectExamSuggestion(name: String) {
         _uiState.value = _uiState.value.copy(examName = name, errorMessage = null)
+        startResearch()
     }
 
     fun startResearch() {
@@ -273,10 +301,12 @@ class FullTestViewModel @Inject constructor(
     }
 
     /** [format]/"mcq"|"numerical"|"descriptive" maps onto the same Question shape the rest of the
-     *  app already understands — numerical/descriptive both become FREE_TEXT (no auto-grading
-     *  pipeline exists for free text anywhere in this app today, so both are marked ungraded for
-     *  manual review after submission, same treatment QuestionBankViewModel already gives any
-     *  free-text question). */
+     *  app already understands — numerical/descriptive both become FREE_TEXT. isUngraded defaults
+     *  to false (gradable) here, same as every other question-creation path (AiQuizRepository,
+     *  QuestionBankViewModel's NewQuestionDraft) — a submission still can't be auto-graded, but a
+     *  gradable free-text question is what makes it show up in QuizDetailScreen's Manual Marking
+     *  card at all. This used to hardcode `true` for every non-mcq question, which silently kept
+     *  every Full Test free-text question permanently ungraded with no way to enable marking. */
     private fun FullTestGeneratedQuestion.toQuestion(index: Int): Question {
         val correctCount = options.count { it.second }
         val isMcq = format == "mcq" && options.size >= 2 && correctCount >= 1
@@ -306,7 +336,7 @@ class FullTestViewModel @Inject constructor(
             points = 1.0,
             negativePoints = 0.0,
             imageUrl = null,
-            isUngraded = !isMcq,
+            isUngraded = false,
             createdAt = null
         )
     }

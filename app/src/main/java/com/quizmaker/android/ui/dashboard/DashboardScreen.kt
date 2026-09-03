@@ -1,6 +1,10 @@
 package com.quizmaker.android.ui.dashboard
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +43,7 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
@@ -65,12 +70,14 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AppBackground
@@ -113,6 +120,7 @@ import com.quizmaker.android.ui.common.TrialEndedBanner
 import com.quizmaker.android.ui.common.TrialExtendedBanner
 import com.quizmaker.android.ui.common.TrialPaywallSheet
 import com.quizmaker.android.ui.common.elevatedSurface
+import com.quizmaker.android.util.AiAttachmentUtils
 import com.quizmaker.android.util.TrialStatus
 import com.quizmaker.android.util.formatShortDate
 import kotlin.time.Duration.Companion.days
@@ -124,7 +132,6 @@ fun DashboardScreen(
     onOpenQuizzes: () -> Unit,
     onOpenQuiz: (String) -> Unit,
     onCreateQuiz: () -> Unit,
-    onOpenAi: () -> Unit,
     onOpenTools: () -> Unit,
     onOpenClasses: () -> Unit,
     onOpenQuestions: () -> Unit,
@@ -136,6 +143,32 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // Scanner quick action: reuses the same camera-capture plumbing as AiQuizScreen's "Click
+    // Photo" (see AiAttachmentUtils.createCaptureUri) but the photo itself isn't wired to
+    // anything yet — a successful capture just gates through the same trial check as "Create
+    // Quiz" and lands on that screen, same as tapping it directly.
+    val context = LocalContext.current
+
+    val scanCameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) viewModel.onCreateQuizClick(onCreateQuiz)
+    }
+
+    fun startScan() {
+        scanCameraLauncher.launch(AiAttachmentUtils.createCaptureUri(context))
+    }
+
+    val scanCameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startScan()
+    }
+
+    fun onScannerTapped() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            startScan()
+        } else {
+            scanCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
 
     // Fires every time this screen (re)enters composition — including navigating back to the
     // Dashboard tab after creating a quiz/question/learner elsewhere — but only actually re-fetches
@@ -202,19 +235,19 @@ fun DashboardScreen(
                         Spacer(Modifier.height(10.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                             QuickActionButton(
+                                icon = Icons.Default.QrCodeScanner,
+                                label = "Scanner",
+                                iconBg = StatPurpleBg,
+                                iconTint = StatPurpleIcon,
+                                onClick = { onScannerTapped() },
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickActionButton(
                                 icon = Icons.Default.NoteAdd,
                                 label = "Create Quiz",
                                 iconBg = BrandIndigoLight,
                                 iconTint = BrandIndigo,
                                 onClick = { viewModel.onCreateQuizClick(onCreateQuiz) },
-                                modifier = Modifier.weight(1f)
-                            )
-                            QuickActionButton(
-                                icon = Icons.Default.AutoAwesome,
-                                label = "AI",
-                                iconBg = StatPurpleBg,
-                                iconTint = StatPurpleIcon,
-                                onClick = { viewModel.onOpenAiClick(onOpenAi) },
                                 modifier = Modifier.weight(1f)
                             )
                             QuickActionButton(

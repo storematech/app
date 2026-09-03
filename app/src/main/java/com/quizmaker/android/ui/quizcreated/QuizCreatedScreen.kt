@@ -21,7 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -60,6 +60,7 @@ import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.MasterPaperMode
 import com.quizmaker.android.util.MasterPaperPdfExporter
 import com.quizmaker.android.util.PdfBranding
+import com.quizmaker.android.util.PdfPrinter
 import com.quizmaker.android.util.QrCodeGenerator
 import com.quizmaker.android.util.QrFlyerPdfExporter
 import kotlinx.coroutines.launch
@@ -170,18 +171,18 @@ private fun QuizCreatedContent(
                 }
                 OutlinedButton(
                     onClick = {
-                        onShared("pdf_flyer")
+                        onShared("print")
                         scope.launch {
                             val branding = getPdfBranding()
-                            val intent = QrFlyerPdfExporter.export(context, quiz.title, quiz.shareUrl, qrBitmap, branding)
-                            context.startActivity(Intent.createChooser(intent, "Download Flyer"))
+                            val file = QrFlyerPdfExporter.renderFile(context, quiz.title, quiz.shareUrl, qrBitmap, branding)
+                            PdfPrinter.print(context, quiz.title, file)
                         }
                     },
                     modifier = Modifier.weight(1f).height(46.dp)
                 ) {
-                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("PDF Flyer")
+                    Text("Print")
                 }
             }
             Spacer(Modifier.height(10.dp))

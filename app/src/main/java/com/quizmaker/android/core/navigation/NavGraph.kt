@@ -62,6 +62,7 @@ import com.quizmaker.android.core.theme.BrandIndigoLight
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.aiquiz.AiQuizScreen
+import com.quizmaker.android.ui.appintro.AppIntroScreen
 import com.quizmaker.android.ui.fulltest.FullTestScreen
 import com.quizmaker.android.ui.auth.CollectPhoneScreen
 import com.quizmaker.android.ui.auth.ForgotPasswordScreen
@@ -127,11 +128,12 @@ import kotlinx.coroutines.launch
 private val authRoutes = setOf(Screen.Login.route, Screen.ForgotPassword.route)
 
 /** Where a resolved post-auth gate lands. Only ever called with LOGGED_IN/NEEDS_PHONE/
- *  TRIAL_JUST_STARTED/TRIAL_ENDED in practice — LOADING/LOGGED_OUT are handled separately by
- *  their callers. */
+ *  NEEDS_NOTIFICATION_PERMISSION/NEEDS_APP_INTRO/TRIAL_JUST_STARTED/TRIAL_ENDED in practice —
+ *  LOADING/LOGGED_OUT are handled separately by their callers. */
 private fun SessionGate.toRoute(): String = when (this) {
     SessionGate.NEEDS_PHONE -> Screen.CollectPhone.route
     SessionGate.NEEDS_NOTIFICATION_PERMISSION -> Screen.NotificationPermission.route
+    SessionGate.NEEDS_APP_INTRO -> Screen.AppIntro.route
     // No more standalone congrats screen — routes straight into the app on AiQuiz, same
     // destination that screen's "Start Journey" button used to send a brand-new user to.
     SessionGate.TRIAL_JUST_STARTED -> Screen.AiQuiz.createRoute()
@@ -311,6 +313,20 @@ fun QuizMakerNavGraph(
                     }
                 )
             }
+            composable(Screen.AppIntro.route) {
+                val scope = rememberCoroutineScope()
+                AppIntroScreen(
+                    onFinished = {
+                        // Same "re-run the gate check" pattern as CollectPhone/NotificationPermission
+                        // — lands on TrialEnded/AiQuiz/Dashboard, whichever actually applies next.
+                        scope.launch {
+                            navController.navigate(sessionViewModel.resolvePostAuthGate().toRoute()) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            }
             composable(Screen.TrialEnded.route) {
                 TrialEndedScreen(
                     onViewPlans = { navController.navigate(Screen.Pricing.route) },
@@ -341,7 +357,9 @@ fun QuizMakerNavGraph(
                         navController.navigate(Screen.CreateQuiz.createRoute(ids, title))
                     },
                     onNavigateBack = { navController.popBackStack() },
-                    onOpenPricing = { navController.navigate(Screen.Pricing.route) }
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) },
+                    onNavigateToQuizList = { navController.navigate(Screen.QuizList.route) },
+                    onOpenQuiz = { quizId -> navController.navigate(Screen.QuizDetailView.createRoute(quizId)) }
                 )
             }
             composable(Screen.Dashboard.route) {
@@ -360,7 +378,6 @@ fun QuizMakerNavGraph(
                     },
                     onOpenQuiz = { quizId -> navController.navigate(Screen.QuizDetailView.createRoute(quizId)) },
                     onCreateQuiz = { navController.navigate(Screen.CreateQuiz.createRoute()) },
-                    onOpenAi = { navController.navigate(Screen.AiQuiz.createRoute(source = "dashboard")) },
                     onOpenTools = {
                         scope.launch {
                             val destination = if (toolsIntroViewModel.shouldShowIntro()) Screen.ToolsIntro.route else Screen.Tools.route
