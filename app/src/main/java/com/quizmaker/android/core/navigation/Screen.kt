@@ -20,11 +20,29 @@ sealed class Screen(val route: String) {
     data object FullTest : Screen("full_test")
     data object Dashboard : Screen("dashboard")
     data object QuizList : Screen("quiz_list")
+    /** "Offline Exam" list — a real `quizzes` row flagged `is_offline_exam = true`, listed
+     *  separately from the main Quiz List. Screen itself is built in a follow-up pass; only the
+     *  route is wired up here (see NavGraph.kt's placeholder composable). */
+    data object OfflineExamList : Screen("offline_exam_list")
+
+    /** [editQuizId] absent/blank = create mode; present = editing that existing Offline Exam.
+     *  Same optional-query-param shape as CreateQuiz's preselectedIds/prefilledTitle above. */
+    data object CreateOfflineExam : Screen("create_offline_exam?editQuizId={editQuizId}") {
+        fun createRoute(editQuizId: String? = null): String = "create_offline_exam?editQuizId=${editQuizId.orEmpty()}"
+    }
+    /** Live, editable paper preview shown before an Offline Exam's PDF is downloaded — lets the
+     *  user tweak the letterhead (business name/address/subtitle/logo) and see it reflected on the
+     *  actual paper before saving that letterhead and sharing the PDF. */
+    data object OfflineExamPaperPreview : Screen("offline_exam_paper_preview/{quizId}") {
+        fun createRoute(quizId: String): String = "offline_exam_paper_preview/$quizId"
+    }
     data object Questions : Screen("questions")
     data object More : Screen("more")
     data object Profile : Screen("profile")
     data object Settings : Screen("settings")
     data object ReportDesign : Screen("report_design")
+    data object CertificateDesigner : Screen("certificate_designer")
+    data object BusinessCard : Screen("business_card")
 
     data object QuizDetail : Screen("quiz_detail/{quizId}") {
         fun createRoute(quizId: String) = "quiz_detail/$quizId"
@@ -54,6 +72,12 @@ sealed class Screen(val route: String) {
 
     data object MasterPaper : Screen("master_paper/{quizId}") {
         fun createRoute(quizId: String) = "master_paper/$quizId"
+    }
+
+    /** Offline OMR ("bubble sheet") answer-sheet capture/review flow for a quiz — see
+     *  util/omr/OmrGradingEngine.kt and ui/omr/OmrScanScreen.kt. */
+    data object OmrScan : Screen("omr_scan/{quizId}") {
+        fun createRoute(quizId: String) = "omr_scan/$quizId"
     }
 
     data object QuizAnalysis : Screen("quiz_analysis/{quizId}") {

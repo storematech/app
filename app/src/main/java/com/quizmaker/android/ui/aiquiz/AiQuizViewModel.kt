@@ -170,9 +170,24 @@ class AiQuizViewModel @Inject constructor(
         runGeneration(source = "images") { aiQuizRepository.generateQuestionsFromImages(state.prompt.trim(), images, state.questionCount) }
     }
 
+    /**
+     * Same session-not-ready guard `confirmSelection()` already applies before its own Supabase
+     * call. Without this, a tap right after app launch (before the SDK finishes restoring/
+     * refreshing the session) sent generate-quiz-ai a request with no valid token — Supabase
+     * rejected it with 401 in under a second, well before it would have reached an AI provider,
+     * and the user saw the exact same "We're facing high demand" text a real provider outage
+     * would show (see GENERIC_API_ERROR_MESSAGE's KDoc), even though this had nothing to do with
+     * AI capacity. Confirmed via the edge function's own invocation logs: the 401s completed in
+     * 135-900ms while successful calls took ~9s, and none of them were the 502 a real all-
+     * providers-failed case would return.
+     */
     private fun runGeneration(source: String, block: suspend () -> AppResult<AiGeneratedQuiz>) {
         if (_uiState.value.isCreationBlocked) {
             _uiState.value = _uiState.value.copy(showTrialPaywall = true)
+            return
+        }
+        if (authRepository.currentUserId() == null) {
+            _uiState.value = _uiState.value.copy(errorMessage = "You're not signed in yet — please try again in a moment.")
             return
         }
         viewModelScope.launch {

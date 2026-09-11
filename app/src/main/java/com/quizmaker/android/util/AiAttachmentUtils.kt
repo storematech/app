@@ -23,6 +23,13 @@ object AiAttachmentUtils {
     private const val IMAGE_MAX_DIMENSION = 1600
     private const val IMAGE_JPEG_QUALITY = 80
 
+    // OmrGradingEngine's working space is ~1653x2339px (A4 at its 200dpi WORKING_DPI constant) --
+    // IMAGE_MAX_DIMENSION above (1600) was tuned for keeping chat-attachment base64 payloads small,
+    // not for classical-CV bubble sampling accuracy, and would downsample a capture to just under
+    // that working resolution before the perspective warp even runs. Bubble-sheet photos get their
+    // own, higher cap instead of reusing that constant -- see [decodeCapturedPhotoForOmr].
+    private const val OMR_IMAGE_MAX_DIMENSION = 2400
+
     sealed class AttachmentResult {
         data class Success(val base64: String) : AttachmentResult()
         data class Error(val message: String) : AttachmentResult()
@@ -72,14 +79,22 @@ object AiAttachmentUtils {
         return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
 
-    private fun decodeSampledBitmap(context: Context, uri: Uri): Bitmap? {
+    /** Decodes+EXIF-rotates a captured photo at [OMR_IMAGE_MAX_DIMENSION] rather than the smaller
+     *  chat-attachment [IMAGE_MAX_DIMENSION] cap -- see that constant's KDoc for why. Used by the
+     *  OMR answer-sheet scanning flow (OmrGradingEngine.scan) instead of [compressImageAsBase64]. */
+    fun decodeCapturedPhotoForOmr(context: Context, uri: Uri): Bitmap? {
+        val decoded = decodeSampledBitmap(context, uri, OMR_IMAGE_MAX_DIMENSION) ?: return null
+        return applyExifRotation(context, uri, decoded)
+    }
+
+    private fun decodeSampledBitmap(context: Context, uri: Uri, maxDimension: Int = IMAGE_MAX_DIMENSION): Bitmap? {
         val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, boundsOptions) }
         if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) return null
 
         var sampleSize = 1
-        while (boundsOptions.outWidth / (sampleSize * 2) >= IMAGE_MAX_DIMENSION &&
-            boundsOptions.outHeight / (sampleSize * 2) >= IMAGE_MAX_DIMENSION
+        while (boundsOptions.outWidth / (sampleSize * 2) >= maxDimension &&
+            boundsOptions.outHeight / (sampleSize * 2) >= maxDimension
         ) {
             sampleSize *= 2
         }
@@ -87,8 +102,8 @@ object AiAttachmentUtils {
         val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) }
             ?: return null
 
-        if (decoded.width <= IMAGE_MAX_DIMENSION && decoded.height <= IMAGE_MAX_DIMENSION) return decoded
-        val scale = IMAGE_MAX_DIMENSION.toFloat() / maxOf(decoded.width, decoded.height)
+        if (decoded.width <= maxDimension && decoded.height <= maxDimension) return decoded
+        val scale = maxDimension.toFloat() / maxOf(decoded.width, decoded.height)
         val scaled = Bitmap.createScaledBitmap(decoded, (decoded.width * scale).toInt(), (decoded.height * scale).toInt(), true)
         if (scaled !== decoded) decoded.recycle()
         return scaled

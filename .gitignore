@@ -81,6 +81,8 @@ memory/test_credentials.md
 # Mobile development
 android-sdk/
 local.properties
+# Signed release bundle output (app/release/app-release.aab) — large binary build artifact.
+/app/release/
 .env
 .env.*
 *.env

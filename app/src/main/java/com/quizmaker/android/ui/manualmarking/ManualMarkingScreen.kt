@@ -93,7 +93,7 @@ fun ManualMarkingScreen(
                 EmptyState(
                     icon = Icons.Default.Edit,
                     title = "Nothing to mark yet",
-                    subtitle = "Free-text answers show up here once participants submit this quiz."
+                    subtitle = "Free-text / fill-in-the-blank answers show up here once participants submit this quiz."
                 )
             }
             else -> LazyColumn(

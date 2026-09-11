@@ -63,6 +63,8 @@ import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextSecondary
 import com.quizmaker.android.ui.aiquiz.AiQuizScreen
 import com.quizmaker.android.ui.appintro.AppIntroScreen
+import com.quizmaker.android.ui.businesscard.BusinessCardScreen
+import com.quizmaker.android.ui.certificate.CertificateDesignerScreen
 import com.quizmaker.android.ui.fulltest.FullTestScreen
 import com.quizmaker.android.ui.auth.CollectPhoneScreen
 import com.quizmaker.android.ui.auth.ForgotPasswordScreen
@@ -104,7 +106,11 @@ import com.quizmaker.android.ui.leaderboard.LeaderboardScreen
 import com.quizmaker.android.ui.manualmarking.ManualMarkingScreen
 import com.quizmaker.android.ui.masterpaper.MasterPaperScreen
 import com.quizmaker.android.ui.more.MoreScreen
+import com.quizmaker.android.ui.omr.OmrScanScreen
 import com.quizmaker.android.ui.notifications.NotificationPermissionScreen
+import com.quizmaker.android.ui.offlineexam.CreateOfflineExamScreen
+import com.quizmaker.android.ui.offlineexam.OfflineExamListScreen
+import com.quizmaker.android.ui.offlineexam.OfflineExamPaperPreviewScreen
 import com.quizmaker.android.ui.pricing.PricingScreen
 import com.quizmaker.android.ui.profile.ProfileScreen
 import com.quizmaker.android.ui.questionbank.QuestionBankScreen
@@ -406,7 +412,11 @@ fun QuizMakerNavGraph(
                         }
                     },
                     onOpenPricing = { navController.navigate(Screen.Pricing.route) },
-                    onOpenFeatureTour = { navController.navigate(Screen.FeatureTour.route) }
+                    onOpenFeatureTour = { navController.navigate(Screen.FeatureTour.route) },
+                    onOpenOmrScan = { quizId -> navController.navigate(Screen.OmrScan.createRoute(quizId)) },
+                    onOpenOfflineExamList = { navController.navigate(Screen.OfflineExamList.route) },
+                    onOpenCertificateDesigner = { navController.navigate(Screen.CertificateDesigner.route) },
+                    onOpenImportQuestions = { navController.navigate(Screen.ImportQuestions.route) }
                 )
             }
             composable(Screen.Responses.route) {
@@ -469,7 +479,8 @@ fun QuizMakerNavGraph(
                             navController.navigate(destination)
                         }
                     },
-                    onOpenSettings = { navController.navigate(Screen.Settings.route) }
+                    onOpenSettings = { navController.navigate(Screen.Settings.route) },
+                    onOpenCertificateDesigner = { navController.navigate(Screen.CertificateDesigner.route) }
                 )
             }
             composable(Screen.Revision.route) {
@@ -717,7 +728,10 @@ fun QuizMakerNavGraph(
                 )
             }
             composable(Screen.Profile.route) {
-                ProfileScreen(onNavigateBack = { navController.popBackStack() })
+                ProfileScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenBusinessCard = { navController.navigate(Screen.BusinessCard.route) }
+                )
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(
@@ -727,6 +741,36 @@ fun QuizMakerNavGraph(
             }
             composable(Screen.ReportDesign.route) {
                 ReportDesignScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.CertificateDesigner.route) {
+                CertificateDesignerScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.OfflineExamList.route) {
+                OfflineExamListScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onCreateNew = { navController.navigate(Screen.CreateOfflineExam.createRoute()) },
+                    onOpenExam = { quizId -> navController.navigate(Screen.CreateOfflineExam.createRoute(quizId)) },
+                    onOpenPaperPreview = { quizId -> navController.navigate(Screen.OfflineExamPaperPreview.createRoute(quizId)) }
+                )
+            }
+            composable(
+                route = Screen.CreateOfflineExam.route,
+                arguments = listOf(navArgument("editQuizId") { type = NavType.StringType; defaultValue = "" })
+            ) {
+                CreateOfflineExamScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenPricing = { navController.navigate(Screen.Pricing.route) },
+                    onOpenPaperPreview = { quizId -> navController.navigate(Screen.OfflineExamPaperPreview.createRoute(quizId)) }
+                )
+            }
+            composable(
+                route = Screen.OfflineExamPaperPreview.route,
+                arguments = listOf(navArgument("quizId") { type = NavType.StringType })
+            ) {
+                OfflineExamPaperPreviewScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.BusinessCard.route) {
+                BusinessCardScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(
                 route = Screen.QuizDetail.route,
@@ -756,7 +800,16 @@ fun QuizMakerNavGraph(
                 route = Screen.MasterPaper.route,
                 arguments = listOf(navArgument("quizId") { type = NavType.StringType })
             ) {
-                MasterPaperScreen(onNavigateBack = { navController.popBackStack() })
+                MasterPaperScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenOmrScan = { quizId -> navController.navigate(Screen.OmrScan.createRoute(quizId)) }
+                )
+            }
+            composable(
+                route = Screen.OmrScan.route,
+                arguments = listOf(navArgument("quizId") { type = NavType.StringType })
+            ) {
+                OmrScanScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(
                 route = Screen.QuizAnalysis.route,

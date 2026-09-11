@@ -271,6 +271,14 @@ class FullTestViewModel @Inject constructor(
             _uiState.value = state.copy(showTrialPaywall = true)
             return
         }
+        // Same session-not-ready guard as AiQuizViewModel.runGeneration() — without it, a tap
+        // before the Supabase SDK finishes restoring/refreshing the session sends the edge
+        // function a request with no valid token, which 401s in under a second and surfaces to
+        // the user as the same generic "high demand" text a real AI outage would show.
+        if (authRepository.currentUserId() == null) {
+            _uiState.value = state.copy(errorMessage = "You're not signed in yet — please try again in a moment.")
+            return
+        }
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(step = FullTestStep.GENERATING, errorMessage = null)

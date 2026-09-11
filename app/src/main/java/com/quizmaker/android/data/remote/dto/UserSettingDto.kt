@@ -26,3 +26,7 @@ data class ReportDesignJson(val template: String = "modern", val colorHex: Strin
  *  the auto_create_learner_if_enabled() Postgres function (see supabase/sql/learner_auto_create.sql). */
 @Serializable
 data class LearnerAutoCreateJson(val enabled: Boolean = false)
+
+/** The "business_card_template" setting_value shape: {"template": "classic"|"modern"|"minimal"|"bold"|"corporate"}. */
+@Serializable
+data class BusinessCardTemplateJson(val template: String = "classic")

@@ -1,0 +1,7 @@
+- New: Scanner — snap a photo of any paper and turn it into a quiz in seconds
+- Math now renders properly — square roots, exponents, and formulas display correctly in questions, Full Test, and printed Master Papers
+- Manual Marking now works correctly for Full Test's free-text questions
+- Quiz Created: print your flyer directly instead of sharing a PDF
+- Smarter phone number validation
+- New welcome screens for first-time users
+- Various UI polish and bug fixes

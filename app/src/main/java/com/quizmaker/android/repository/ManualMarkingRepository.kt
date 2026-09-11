@@ -13,25 +13,32 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Free-text answers can't be auto-graded, so any Free Text question that isn't explicitly marked
- * "Ungraded" (see the checkbox next to Points in QuestionEditSheet/CreateQuizScreen) needs a human
- * to award points after the fact. This repository finds every such answer across a quiz's
- * responses, and lets the teacher submit a mark for one.
+ * Free-text and fill-in-the-blank answers can't be auto-graded, so any such question that isn't
+ * explicitly marked "Ungraded" (see the checkbox next to Points in QuestionEditSheet/CreateQuizScreen)
+ * needs a human to award points after the fact. This repository finds every such answer across a
+ * quiz's responses, and lets the teacher submit a mark for one.
  */
 @Singleton
 class ManualMarkingRepository @Inject constructor(
     private val supabase: SupabaseClient,
     private val quizRepository: QuizRepository
 ) {
-    /** Every free-text answer needing (or already carrying) a manual mark, across every completed
-     *  response to [quizId] — empty if the quiz has no graded Free Text questions at all, or no
-     *  completed responses yet. Pending ones (never marked) sort first. */
+    /** Every free-text/fill-in-the-blank answer needing (or already carrying) a manual mark, across
+     *  every completed response to [quizId] — empty if the quiz has no graded questions of either
+     *  type at all, or no completed responses yet. Pending ones (never marked) sort first. */
     suspend fun getMarkingItems(quizId: String): AppResult<List<MarkingItem>> = safeCall {
         val questions = when (val result = quizRepository.getQuestionsForQuiz(quizId)) {
             is AppResult.Success -> result.data
             is AppResult.Error -> error(result.message)
         }
-        val gradedFreeText = questions.filter { it.type == QuestionType.FREE_TEXT && !it.isUngraded }
+        // Widened from FREE_TEXT-only: FILL_IN_BLANK answers can't be auto-graded either (only
+        // SINGLE_CHOICE/MULTI_CHOICE grade themselves via options[].isCorrect), and previously never
+        // surfaced here at all — a confirmed dead end for any quiz relying on that question type,
+        // including scanned OMR papers (see OmrRepository), where a fill-in-the-blank question always
+        // has no bubbles and needs the exact same manual-marking flow as a Free Text one.
+        val gradedFreeText = questions.filter {
+            (it.type == QuestionType.FREE_TEXT || it.type == QuestionType.FILL_IN_BLANK) && !it.isUngraded
+        }
         if (gradedFreeText.isEmpty()) return@safeCall emptyList()
 
         val maxPointsByQuestion = gradedFreeText.associate { it.id to it.points }

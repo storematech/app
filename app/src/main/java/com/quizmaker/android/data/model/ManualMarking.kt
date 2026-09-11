@@ -1,9 +1,10 @@
 package com.quizmaker.android.data.model
 
 /**
- * One free-text answer that needs (or has already received) a human-assigned score — only ever
- * built for questions where `type == FREE_TEXT` and `isUngraded == false`; anything auto-graded or
- * explicitly marked "Ungraded" never becomes one of these. See ManualMarkingRepository.
+ * One free-text or fill-in-the-blank answer that needs (or has already received) a human-assigned
+ * score — only ever built for questions where `type == FREE_TEXT` or `type == FILL_IN_BLANK` and
+ * `isUngraded == false`; anything auto-graded or explicitly marked "Ungraded" never becomes one of
+ * these. See ManualMarkingRepository.
  */
 data class MarkingItem(
     val answerDetailId: String,

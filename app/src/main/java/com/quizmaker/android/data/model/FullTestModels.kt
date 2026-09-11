@@ -81,8 +81,14 @@ val FULL_TEST_EXAM_SUGGESTIONS = listOf(
     ExamSuggestion("Class 8", ExamCategory.SCHOOLS),
     ExamSuggestion("Class 9", ExamCategory.SCHOOLS),
     ExamSuggestion("Class 10", ExamCategory.SCHOOLS),
-    ExamSuggestion("Class 11", ExamCategory.SCHOOLS),
-    ExamSuggestion("Class 12", ExamCategory.SCHOOLS)
+    // Class 11/12 split by stream — CBSE has almost no shared curriculum across streams at this
+    // grade, so a single "Class 11"/"Class 12" chip can't map onto one curated exam_patterns row.
+    ExamSuggestion("Class 11 Science", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 11 Commerce", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 11 Arts", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 12 Science", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 12 Commerce", ExamCategory.SCHOOLS),
+    ExamSuggestion("Class 12 Arts", ExamCategory.SCHOOLS)
 )
 
 /** Question formats the AI can be asked to use — see FullTestConfig.formats. */

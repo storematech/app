@@ -8,6 +8,8 @@ import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionType
 import com.quizmaker.android.data.model.QuizForTaking
+import com.quizmaker.android.data.remote.dto.CertificateDesignDto
+import com.quizmaker.android.repository.CertificateRepository
 import com.quizmaker.android.repository.GradedAnswer
 import com.quizmaker.android.repository.QuizTakingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,7 +49,10 @@ data class TakeQuizUiState(
     val overallSecondsRemaining: Int? = null,
     val perQuestionSecondsRemaining: Int? = null,
 
-    val finalScore: Double = 0.0
+    val finalScore: Double = 0.0,
+    /** Only set when this quiz issues certificates AND the taker's score met the pass threshold —
+     *  see TakeQuizViewModel.submitQuiz(). Null otherwise, including while the fetch is in flight. */
+    val certificateDesign: CertificateDesignDto? = null
 ) {
     val currentQuestion: Question? get() = quizForTaking?.questions?.getOrNull(currentQuestionIndex)
     val isLastQuestion: Boolean get() = quizForTaking?.let { currentQuestionIndex == it.questions.lastIndex } ?: true
@@ -60,6 +65,7 @@ data class TakeQuizUiState(
 @HiltViewModel
 class TakeQuizViewModel @Inject constructor(
     private val repository: QuizTakingRepository,
+    private val certificateRepository: CertificateRepository,
     private val analyticsLogger: AnalyticsLogger,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -289,6 +295,14 @@ class TakeQuizViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(phase = TakeQuizPhase.RESULT, finalScore = result.data)
                     val scorePercent = if (state.maxPoints == 0.0) 0 else (result.data * 100 / state.maxPoints).roundToInt().coerceAtLeast(0)
                     analyticsLogger.logQuizSubmitted(quizForTaking.quiz.id, scorePercent)
+
+                    val quiz = quizForTaking.quiz
+                    if (quiz.issueCertificate && scorePercent >= (quiz.certificatePassScore ?: 0)) {
+                        when (val designResult = certificateRepository.getDesign(quiz.createdBy)) {
+                            is AppResult.Success -> _uiState.value = _uiState.value.copy(certificateDesign = designResult.data)
+                            is AppResult.Error -> Unit // No certificate design saved (or a fetch failure) just means no download button — not worth surfacing as an error.
+                        }
+                    }
                 }
                 is AppResult.Error -> _uiState.value =
                     _uiState.value.copy(phase = TakeQuizPhase.QUESTIONS, errorMessage = result.message)

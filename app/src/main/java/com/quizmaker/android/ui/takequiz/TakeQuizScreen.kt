@@ -1,5 +1,6 @@
 package com.quizmaker.android.ui.takequiz
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
@@ -26,17 +28,28 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionType
+import com.quizmaker.android.ui.certificate.CertificateRenderData
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.MathText
+import com.quizmaker.android.util.CertificatePdfExporter
 import com.quizmaker.android.util.formatPoints
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun TakeQuizScreen(
@@ -305,6 +318,9 @@ private fun OptionRow(text: String, selected: Boolean, multi: Boolean, onClick: 
 @Composable
 private fun ResultContent(uiState: TakeQuizUiState, onViewLeaderboard: (String) -> Unit, onFinished: () -> Unit) {
     val quiz = uiState.quizForTaking?.quiz
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isExportingCertificate by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -330,6 +346,44 @@ private fun ResultContent(uiState: TakeQuizUiState, onViewLeaderboard: (String) 
         if (quiz?.showLeaderboard == true) {
             Button(onClick = { onViewLeaderboard(quiz.id) }, modifier = Modifier.fillMaxWidth()) {
                 Text("View leaderboard")
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+        val design = uiState.certificateDesign
+        if (design != null) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        isExportingCertificate = true
+                        val issueDateText = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date())
+                        val intent = CertificatePdfExporter.export(
+                            context = context,
+                            template = design.template,
+                            data = CertificateRenderData(
+                                title = design.title,
+                                bodyText = design.bodyText,
+                                companyName = design.companyName,
+                                signerName = design.signerName,
+                                signerRole = design.signerRole,
+                                recipientName = uiState.name.trim().ifBlank { "Participant" },
+                                issueDateLabel = design.issueDateLabel,
+                                issueDateText = issueDateText
+                            ),
+                            logoUrl = design.logoUrl,
+                            signatureUrl = design.signatureUrl
+                        )
+                        isExportingCertificate = false
+                        context.startActivity(Intent.createChooser(intent, "Share certificate"))
+                    }
+                },
+                enabled = !isExportingCertificate,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isExportingCertificate) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Download Your Certificate")
+                }
             }
             Spacer(Modifier.height(12.dp))
         }

@@ -151,6 +151,7 @@ fun AiQuizScreen(
     var localError by remember { mutableStateOf<String?>(null) }
     var isPreparing by remember { mutableStateOf(false) }
     var showCameraRationale by remember { mutableStateOf(false) }
+    var showTemplatesExplorer by remember { mutableStateOf(false) }
 
     // Full Test's entry transition: a colorful circle expands from wherever the "Full Test" tab
     // sits, covering the whole screen, before the actual navigation fires underneath it — see
@@ -479,7 +480,8 @@ fun AiQuizScreen(
                 Spacer(Modifier.height(24.dp))
                 TrendingTemplatesCarousel(
                     templates = uiState.trendingTemplates,
-                    onSelect = { template -> viewModel.onPromptChange(template.prompt) }
+                    onSelect = { template -> viewModel.onPromptChange(template.prompt) },
+                    onViewAll = { showTemplatesExplorer = true }
                 )
             }
 
@@ -532,6 +534,20 @@ fun AiQuizScreen(
             onAllow = {
                 showCameraRationale = false
                 cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        )
+    }
+
+    if (showTemplatesExplorer) {
+        AiTemplatesExplorerSheet(
+            onDismiss = { showTemplatesExplorer = false },
+            onSelectTopic = { topic ->
+                viewModel.onPromptChange("Create a quiz on $topic")
+                showTemplatesExplorer = false
+            },
+            onSelectCustom = {
+                viewModel.onPromptChange("Create a quiz on ")
+                showTemplatesExplorer = false
             }
         )
     }
@@ -671,16 +687,28 @@ private fun ReviewSection(
 /** Half-width cards with the next one peeking off the trailing edge — that partial crop is the
  *  "scroll for more" hint, no separate text needed. Only shown before anything's been generated. */
 @Composable
-private fun TrendingTemplatesCarousel(templates: List<AiPromptTemplate>, onSelect: (AiPromptTemplate) -> Unit) {
+private fun TrendingTemplatesCarousel(templates: List<AiPromptTemplate>, onSelect: (AiPromptTemplate) -> Unit, onViewAll: () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            "Trending Templates",
-            fontFamily = PoppinsFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp,
-            color = TextPrimary,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Trending Templates",
+                fontFamily = PoppinsFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = TextPrimary,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                "View All",
+                color = BrandIndigo,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                modifier = Modifier.clickable(onClick = onViewAll)
+            )
+        }
         Spacer(Modifier.height(8.dp))
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),

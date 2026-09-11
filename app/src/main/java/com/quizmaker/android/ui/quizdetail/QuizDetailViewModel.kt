@@ -70,11 +70,15 @@ class QuizDetailViewModel @Inject constructor(
                 is AppResult.Error -> 0
             }
 
-            // Only worth the extra queries when the quiz actually has a Free Text question that
-            // isn't marked "Ungraded" — the common case (no manual marking needed at all) skips
-            // straight past this.
+            // Only worth the extra queries when the quiz actually has a Free Text or Fill in the
+            // Blank question that isn't marked "Ungraded" — the common case (no manual marking
+            // needed at all) skips straight past this. (Property/param names below still say
+            // "FreeText" to keep this diff minimal, but both question types gate the same way now —
+            // see ManualMarkingRepository.getMarkingItems, which was widened to match.)
             val questions = (quizRepository.getQuestionsForQuiz(quizId) as? AppResult.Success)?.data.orEmpty()
-            val hasGradedFreeText = questions.any { it.type == QuestionType.FREE_TEXT && !it.isUngraded }
+            val hasGradedFreeText = questions.any {
+                (it.type == QuestionType.FREE_TEXT || it.type == QuestionType.FILL_IN_BLANK) && !it.isUngraded
+            }
             val pendingMarkingCount = if (hasGradedFreeText) {
                 (manualMarkingRepository.getMarkingItems(quizId) as? AppResult.Success)?.data?.count { it.isPending } ?: 0
             } else {

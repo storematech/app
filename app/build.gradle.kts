@@ -38,8 +38,8 @@ android {
         applicationId = "com.quizmakeronline.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 11
-        versionName = "15.31.2"
+        versionCode = 12
+        versionName = "15.31.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -51,6 +51,14 @@ android {
         buildConfigField("String", "POSTHOG_API_KEY", "\"$posthogApiKey\"")
         buildConfigField("String", "POSTHOG_HOST", "\"https://us.i.posthog.com\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
+
+        // Offline OMR answer-sheet scanning (see util/OmrSheetPdfExporter.kt / repository/OmrRepository.kt)
+        // needs OpenCV's native libs. Originally restricted to arm64-v8a/x86_64 to save APK size, but
+        // that broke installs on real 32-bit test devices/emulators (x86, armeabi-v7a) — OpenCV's AAR
+        // ships all four modern ABIs, so list them all rather than guessing which ones are safe to drop.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+        }
     }
 
     buildTypes {
@@ -153,4 +161,10 @@ dependencies {
     // both collide with it (same org.scilab.forge.jlatexmath.* classes, duplicate-class build failure).
     implementation(libs.markwon.core)
     implementation(libs.markwon.ext.latex)
+
+    // Offline OMR answer-sheet scanning (see util/OmrSheetPdfExporter.kt / repository/OmrRepository.kt)
+    // — classical (non-ML) image processing for fiducial-marker detection, perspective correction,
+    // and bubble-fill detection. Only the part-2 scanning/grading engine (a later pass) actually
+    // calls into this; this pass only wires the dependency + NDK abiFilters above.
+    implementation(libs.opencv)
 }

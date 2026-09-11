@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.CardMembership
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Construction
@@ -112,6 +113,7 @@ fun MoreScreen(
     onOpenLearners: () -> Unit,
     onOpenTools: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenCertificateDesigner: () -> Unit,
     viewModel: MoreViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -183,6 +185,14 @@ fun MoreScreen(
                 MoreRow(icon = Icons.Default.Construction, label = "Tools", onClick = onOpenTools, iconBg = StatAmberBg, iconTint = StatAmberIcon)
                 RowDivider()
                 MoreRow(icon = Icons.Default.Settings, label = "Settings", onClick = onOpenSettings)
+                RowDivider()
+                MoreRow(
+                    icon = Icons.Default.CardMembership,
+                    label = "Certificate Design",
+                    onClick = onOpenCertificateDesigner,
+                    iconBg = StatPurpleBg,
+                    iconTint = StatPurpleIcon
+                )
                 RowDivider()
                 MoreRow(icon = Icons.Default.FileDownload, label = "Import Questions", onClick = onOpenImportQuestions, iconBg = StatBlueBg, iconTint = StatBlueIcon)
                 RowDivider()

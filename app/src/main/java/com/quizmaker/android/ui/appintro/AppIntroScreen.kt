@@ -1,9 +1,11 @@
 package com.quizmaker.android.ui.appintro
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Description
@@ -45,12 +48,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import kotlin.math.absoluteValue
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.quizmaker.android.core.theme.AiGradientEnd
 import com.quizmaker.android.core.theme.AiGradientMid
@@ -252,71 +258,122 @@ private fun AppIntroSlides(
         onFinished()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AppBackground)
-            .windowInsetsPadding(WindowInsets.systemBars)
-    ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.End) {
-            Text(
-                "Skip",
-                color = TextSecondary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                modifier = Modifier.clickable { finish(skipped = true) }
+    // Ties the whole screen to the current slide's color — the glow wash below and the step dots
+    // both cross-fade to it as you swipe, so the carousel doesn't feel like a flat white form.
+    val currentAccent by animateColorAsState(
+        targetValue = slides[pagerState.currentPage.coerceIn(slides.indices)].accent,
+        animationSpec = tween(450),
+        label = "introAccent"
+    )
+
+    Box(modifier = Modifier.fillMaxSize().background(AppBackground)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(420.dp)
+                .align(Alignment.TopCenter)
+                .blur(120.dp)
+                .background(
+                    Brush.radialGradient(colors = listOf(currentAccent.copy(alpha = 0.24f), Color.Transparent))
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.systemBars)
+        ) {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.End) {
+                Text(
+                    "Skip",
+                    color = TextSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .clickable { finish(skipped = true) }
+                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                )
+            }
+
+            HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxWidth()) { page ->
+                val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                AppIntroSlideContent(slides[page], pageOffset)
+            }
+
+            OnboardingStepIndicator(
+                currentStep = pagerState.currentPage + 1,
+                totalSteps = slides.size,
+                activeColor = currentAccent,
+                inactiveColor = TextSecondary.copy(alpha = 0.22f),
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
+            Spacer(Modifier.height(24.dp))
+
+            val isLastSlide = pagerState.currentPage == slides.lastIndex
+            GradientButton(
+                text = if (isLastSlide) "Get Started" else "Next",
+                onClick = {
+                    if (isLastSlide) {
+                        finish(skipped = false)
+                    } else {
+                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp)
+            )
+            Spacer(Modifier.height(28.dp))
         }
-
-        HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxWidth()) { page ->
-            AppIntroSlideContent(slides[page])
-        }
-
-        OnboardingStepIndicator(
-            currentStep = pagerState.currentPage + 1,
-            totalSteps = slides.size,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-        Spacer(Modifier.height(24.dp))
-
-        val isLastSlide = pagerState.currentPage == slides.lastIndex
-        GradientButton(
-            text = if (isLastSlide) "Get Started" else "Next",
-            onClick = {
-                if (isLastSlide) {
-                    finish(skipped = false)
-                } else {
-                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp)
-        )
-        Spacer(Modifier.height(28.dp))
     }
 }
 
+/** [pageOffset] is 0 for the fully-centered page, ±1 for a fully-adjacent one — drives a subtle
+ *  scale/fade so the carousel has depth as you drag between slides instead of a hard cut. */
 @Composable
-private fun AppIntroSlideContent(slide: AppIntroSlide) {
+private fun AppIntroSlideContent(slide: AppIntroSlide, pageOffset: Float) {
+    val focus = 1f - pageOffset.absoluteValue.coerceIn(0f, 1f)
+    val scale = lerp(0.88f, 1f, focus)
+    val fade = lerp(0.4f, 1f, focus)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .graphicsLayer(scaleX = scale, scaleY = scale, alpha = fade)
             .padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Box(
-            modifier = Modifier.size(120.dp).clip(CircleShape).background(slide.accentBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(slide.icon, contentDescription = null, tint = slide.accent, modifier = Modifier.size(52.dp))
+        Box(contentAlignment = Alignment.Center) {
+            // Soft blurred glow sitting behind the icon tile — same "premium aura" language as the
+            // welcome beat's WelcomeAuraBlob, just quieter and tied to this slide's own accent.
+            Box(
+                modifier = Modifier
+                    .size(156.dp)
+                    .blur(56.dp)
+                    .background(
+                        Brush.radialGradient(colors = listOf(slide.accent.copy(alpha = 0.38f), Color.Transparent)),
+                        shape = CircleShape
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .size(112.dp)
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(Brush.linearGradient(colors = listOf(slide.accent.copy(alpha = 0.24f), slide.accentBg)))
+                    .border(1.dp, slide.accent.copy(alpha = 0.3f), RoundedCornerShape(32.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(slide.icon, contentDescription = null, tint = slide.accent, modifier = Modifier.size(48.dp))
+            }
         }
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(36.dp))
         Text(
             slide.title,
             textAlign = TextAlign.Center,
             fontFamily = PoppinsFamily,
             fontWeight = FontWeight.ExtraBold,
-            fontSize = 24.sp,
+            fontSize = 25.sp,
+            lineHeight = 31.sp,
             color = TextPrimary
         )
         Spacer(Modifier.height(14.dp))
@@ -324,8 +381,8 @@ private fun AppIntroSlideContent(slide: AppIntroSlide) {
             slide.description,
             textAlign = TextAlign.Center,
             color = TextSecondary,
-            fontSize = 14.sp,
-            lineHeight = 20.sp
+            fontSize = 14.5.sp,
+            lineHeight = 21.sp
         )
     }
 }

@@ -2,11 +2,15 @@ package com.quizmaker.android.util
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.drawable.Drawable
 import android.graphics.pdf.PdfDocument
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
 import androidx.core.content.FileProvider
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.data.model.QuestionType
@@ -37,8 +41,10 @@ private fun MixedWord.totalWidth(): Float = sumOf { it.width.toDouble() }.toFloa
 /** Renders a quiz's questions as a paginated PDF — with/without an answer key, or a blank offline exam paper. */
 object MasterPaperPdfExporter {
 
-    private const val PAGE_WIDTH = 595 // A4 at 72dpi
-    private const val PAGE_HEIGHT = 842
+    // Not private: OfflineExamPaperPreviewScreen's live preview box uses this exact aspect ratio
+    // so the on-screen preview is never a different shape than the actual exported page.
+    const val PAGE_WIDTH = 595 // A4 at 72dpi
+    const val PAGE_HEIGHT = 842
     private const val MARGIN = 36f
     private const val CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN
 
@@ -191,13 +197,17 @@ object MasterPaperPdfExporter {
         return y + lineHeight
     }
 
-    fun export(
+    /** Builds the PDF and writes it to a cache file, shared by [export] (wraps it in a share Intent)
+     *  and [renderPreviewBitmap] (rasterizes page 1 for an on-screen live preview) — both need the
+     *  exact same drawing code so the preview is never able to drift out of sync with the real
+     *  download. */
+    private fun buildPdfFile(
         context: Context,
         quizTitle: String,
         questions: List<Question>,
         mode: MasterPaperMode,
-        branding: PdfBranding = PdfBranding.NONE
-    ): Intent {
+        branding: PdfBranding
+    ): File {
         val document = PdfDocument()
         val template = branding.template
         val badgeFilled = template == ReportTemplate.MODERN || template == ReportTemplate.BOLD
@@ -396,7 +406,17 @@ object MasterPaperPdfExporter {
         val file = File(exportsDir, "${safeName}_$suffix.pdf")
         FileOutputStream(file).use { document.writeTo(it) }
         document.close()
+        return file
+    }
 
+    fun export(
+        context: Context,
+        quizTitle: String,
+        questions: List<Question>,
+        mode: MasterPaperMode,
+        branding: PdfBranding = PdfBranding.NONE
+    ): Intent {
+        val file = buildPdfFile(context, quizTitle, questions, mode, branding)
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         return Intent(Intent.ACTION_SEND).apply {
             type = "application/pdf"
@@ -404,6 +424,38 @@ object MasterPaperPdfExporter {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }
+
+    /**
+     * Renders page 1 of the exact same PDF [export] would produce, rasterized to a [Bitmap] for an
+     * on-screen live preview — since it's built from the identical [buildPdfFile] drawing code, the
+     * preview can never drift out of sync with what Download actually produces. Runs real file I/O
+     * and PDF rendering, so callers must invoke this off the main thread. Returns null (never
+     * throws) if generation/rendering fails, so a preview glitch never blocks the real download.
+     */
+    fun renderPreviewBitmap(
+        context: Context,
+        quizTitle: String,
+        questions: List<Question>,
+        mode: MasterPaperMode,
+        branding: PdfBranding,
+        widthPx: Int
+    ): Bitmap? = runCatching {
+        val file = buildPdfFile(context, quizTitle, questions, mode, branding)
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfRenderer(pfd).use { renderer ->
+                if (renderer.pageCount == 0) return@runCatching null
+                renderer.openPage(0).use { page ->
+                    val scale = widthPx.toFloat() / page.width
+                    val heightPx = (page.height * scale).toInt().coerceAtLeast(1)
+                    val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+                    bitmap.eraseColor(Color.WHITE)
+                    val matrix = Matrix().apply { setScale(scale, scale) }
+                    page.render(bitmap, null, matrix, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    bitmap
+                }
+            }
+        }
+    }.getOrNull()
 
     private fun answerSummary(q: Question): String = when (q.type) {
         QuestionType.SINGLE_CHOICE -> {

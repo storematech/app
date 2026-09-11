@@ -112,6 +112,8 @@ data class CreateQuizUiState(
     val sendResultEmail: Boolean = true,
     val allowResultPdf: Boolean = true,
     val showLeaderboard: Boolean = false,
+    val issueCertificate: Boolean = false,
+    val certificatePassScore: Int = 70,
     val showContactDetails: Boolean = false,
     val instructions: String = "",
     val quizColor: String = QUIZ_COLOR_SWATCHES.first(),
@@ -308,6 +310,8 @@ class CreateQuizViewModel @Inject constructor(
                         sendResultEmail = quiz.sendResultEmail,
                         allowResultPdf = quiz.allowResultPdf,
                         showLeaderboard = quiz.showLeaderboard,
+                        issueCertificate = quiz.issueCertificate,
+                        certificatePassScore = quiz.certificatePassScore ?: _uiState.value.certificatePassScore,
                         showContactDetails = quiz.showContactDetails,
                         instructions = quiz.instructions.orEmpty(),
                         quizColor = quiz.quizColor,
@@ -484,6 +488,8 @@ class CreateQuizViewModel @Inject constructor(
     fun onSendResultEmailChange(value: Boolean) { _uiState.value = _uiState.value.copy(sendResultEmail = value) }
     fun onAllowResultPdfChange(value: Boolean) { _uiState.value = _uiState.value.copy(allowResultPdf = value) }
     fun onShowLeaderboardChange(value: Boolean) { _uiState.value = _uiState.value.copy(showLeaderboard = value) }
+    fun onIssueCertificateChange(value: Boolean) { _uiState.value = _uiState.value.copy(issueCertificate = value) }
+    fun onCertificatePassScoreChange(value: Int) { _uiState.value = _uiState.value.copy(certificatePassScore = value) }
     fun onShowContactDetailsChange(value: Boolean) { _uiState.value = _uiState.value.copy(showContactDetails = value) }
     fun onInstructionsChange(value: String) { _uiState.value = _uiState.value.copy(instructions = value) }
     fun onQuizColorChange(value: String) { _uiState.value = _uiState.value.copy(quizColor = value) }
@@ -509,6 +515,8 @@ class CreateQuizViewModel @Inject constructor(
                 sendResultEmail = state.sendResultEmail,
                 allowResultPdf = state.allowResultPdf,
                 showLeaderboard = state.showLeaderboard,
+                issueCertificate = state.issueCertificate,
+                certificatePassScore = if (state.issueCertificate) state.certificatePassScore else null,
                 showContactDetails = state.showContactDetails,
                 instructions = state.instructions.trim().ifBlank { null },
                 quizColor = state.quizColor,

@@ -41,6 +41,12 @@ googleId = "1.2.0"
 # io.noties:jlatexmath-android explicitly — both collide with that transitive dependency
 # (identical org.scilab.forge.jlatexmath.* classes, duplicate-class build failure).
 markwon = "4.6.2"
+# OpenCV for Android — classical (non-ML) image processing for offline OMR answer-sheet scanning
+# (fiducial-marker detection, perspective correction, bubble-fill detection). Verified against
+# Maven Central's org.opencv:opencv artifact (the official OpenCV 4.10.0 Android release) on
+# 2026-09-10. Only part 2 of this feature (the scanning/grading engine, built in a later pass)
+# actually calls into it — this pass only wires the dependency + NDK abiFilters so that pass can.
+opencv = "4.10.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -100,6 +106,8 @@ google-id = { group = "com.google.android.libraries.identity.googleid", name = "
 
 markwon-core = { group = "io.noties.markwon", name = "core", version.ref = "markwon" }
 markwon-ext-latex = { group = "io.noties.markwon", name = "ext-latex", version.ref = "markwon" }
+
+opencv = { group = "org.opencv", name = "opencv", version.ref = "opencv" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

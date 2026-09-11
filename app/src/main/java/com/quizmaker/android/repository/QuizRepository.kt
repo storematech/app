@@ -50,11 +50,17 @@ class QuizRepository @Inject constructor(
             .map { it.toDomain() }
     }
 
-    /** One page of this user's quizzes, newest first — used by the Quiz List screen's infinite scroll. */
+    /**
+     * One page of this user's quizzes, newest first — used by the Quiz List screen's infinite scroll.
+     *
+     * Excludes Offline Exams (`is_offline_exam = true`) — those are listed separately via
+     * [getOfflineExams] — so the migration backfills every pre-existing row to `false`, making this
+     * plain equality filter safe (no `null` rows can exist post-migration).
+     */
     suspend fun getQuizzesPage(userId: String, offset: Int, limit: Int = PAGE_SIZE): AppResult<List<Quiz>> = safeCall {
         supabase.from("quizzes")
             .select {
-                filter { eq("created_by", userId) }
+                filter { eq("created_by", userId); eq("is_offline_exam", false) }
                 order("created_at", Order.DESCENDING)
                 range(offset.toLong(), (offset + limit - 1).toLong())
             }
@@ -62,13 +68,28 @@ class QuizRepository @Inject constructor(
             .map { it.toDomain() }
     }
 
-    /** Server-side title search, capped rather than paginated — search result sets are small in practice. */
+    /**
+     * Server-side title search, capped rather than paginated — search result sets are small in
+     * practice. Excludes Offline Exams for the same reason as [getQuizzesPage] — this backs the
+     * same Quiz List screen's search box.
+     */
     suspend fun searchQuizzesForUser(userId: String, query: String, limit: Int = 50): AppResult<List<Quiz>> = safeCall {
         supabase.from("quizzes")
             .select {
-                filter { eq("created_by", userId); ilike("title", "%$query%") }
+                filter { eq("created_by", userId); eq("is_offline_exam", false); ilike("title", "%$query%") }
                 order("created_at", Order.DESCENDING)
                 limit(limit.toLong())
+            }
+            .decodeList<QuizDto>()
+            .map { it.toDomain() }
+    }
+
+    /** This user's Offline Exams — `quizzes` rows flagged `is_offline_exam = true` — newest first. */
+    suspend fun getOfflineExams(userId: String): AppResult<List<Quiz>> = safeCall {
+        supabase.from("quizzes")
+            .select {
+                filter { eq("created_by", userId); eq("is_offline_exam", true) }
+                order("created_at", Order.DESCENDING)
             }
             .decodeList<QuizDto>()
             .map { it.toDomain() }
@@ -189,6 +210,9 @@ class QuizRepository @Inject constructor(
                     sendResultEmail = spec.sendResultEmail,
                     allowResultPdf = spec.allowResultPdf,
                     showLeaderboard = spec.showLeaderboard,
+                    issueCertificate = spec.issueCertificate,
+                    certificatePassScore = spec.certificatePassScore,
+                    isOfflineExam = spec.isOfflineExam,
                     showContactDetails = spec.showContactDetails,
                     instructions = spec.instructions,
                     theme = "standard",
@@ -249,6 +273,9 @@ class QuizRepository @Inject constructor(
                     sendResultEmail = spec.sendResultEmail,
                     allowResultPdf = spec.allowResultPdf,
                     showLeaderboard = spec.showLeaderboard,
+                    issueCertificate = spec.issueCertificate,
+                    certificatePassScore = spec.certificatePassScore,
+                    isOfflineExam = spec.isOfflineExam,
                     showContactDetails = spec.showContactDetails,
                     instructions = spec.instructions,
                     theme = existing.theme ?: "standard",
@@ -291,6 +318,49 @@ class QuizRepository @Inject constructor(
             .toDomain()
     }
 
+    /**
+     * Builds the [NewQuizSpec] an Offline Exam uses under the hood — every setting besides title/
+     * description/questions is fixed to the exact same default CreateQuizUiState seeds a brand-new
+     * quiz with (see CreateQuizViewModel.kt), since an Offline Exam's own creation screen only ever
+     * collects a title and questions. "#8b5cf6" mirrors QUIZ_COLOR_SWATCHES.first() there — inlined
+     * rather than imported to avoid this repository depending on a ui.quizcreate constant.
+     */
+    private fun offlineExamSpec(title: String, description: String?): NewQuizSpec = NewQuizSpec(
+        title = title.trim(),
+        description = description,
+        timeLimit = 10,
+        timeLimitType = "overall",
+        timePerQuestion = null,
+        shuffleQuestions = false,
+        showResults = true,
+        sendResultEmail = true,
+        allowResultPdf = true,
+        showLeaderboard = false,
+        issueCertificate = false,
+        certificatePassScore = null,
+        isOfflineExam = true,
+        showContactDetails = false,
+        instructions = null,
+        quizColor = "#8b5cf6",
+        collectEmail = true,
+        collectAddress = false,
+        collectPhone = false,
+        requireOtpVerification = false,
+        allowMultipleAttempts = false,
+        negativeMarkingMode = "none",
+        negativeMarkingValue = 1.0
+    )
+
+    /** Creates an Offline Exam — a real `quizzes` row flagged `is_offline_exam = true`, reusing
+     *  [createQuiz] under the hood. See [offlineExamSpec] for the fixed settings this always uses. */
+    suspend fun createOfflineExam(userId: String, title: String, description: String?, questionIds: List<String>): AppResult<Quiz> =
+        createQuiz(userId, offlineExamSpec(title, description), questionIds)
+
+    /** Updates an Offline Exam's title/description/questions, reusing [updateQuiz] under the hood.
+     *  See [offlineExamSpec] for the fixed settings this always resets to on every save. */
+    suspend fun updateOfflineExam(quizId: String, title: String, description: String?, questionIds: List<String>): AppResult<Quiz> =
+        updateQuiz(quizId, offlineExamSpec(title, description), questionIds)
+
     /** Copies a quiz's settings and linked questions into a new quiz owned by the same creator. */
     suspend fun duplicateQuiz(quizId: String): AppResult<Quiz> = safeCall {
         val original = supabase.from("quizzes")
@@ -313,6 +383,9 @@ class QuizRepository @Inject constructor(
                     sendResultEmail = original.sendResultEmail ?: false,
                     allowResultPdf = original.allowResultPdf ?: false,
                     showLeaderboard = original.showLeaderboard ?: true,
+                    issueCertificate = original.issueCertificate ?: false,
+                    certificatePassScore = original.certificatePassScore,
+                    isOfflineExam = original.isOfflineExam ?: false,
                     showContactDetails = original.showContactDetails ?: false,
                     instructions = original.instructions,
                     theme = original.theme ?: "standard",

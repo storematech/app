@@ -35,24 +35,29 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CardMembership
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Construction
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -96,6 +101,8 @@ import com.quizmaker.android.core.theme.StatPurpleBg
 import com.quizmaker.android.core.theme.StatPurpleIcon
 import com.quizmaker.android.core.theme.StatRedBg
 import com.quizmaker.android.core.theme.StatRedIcon
+import com.quizmaker.android.core.theme.StatRoseBg
+import com.quizmaker.android.core.theme.StatRoseIcon
 import com.quizmaker.android.core.theme.StatTealBg
 import com.quizmaker.android.core.theme.StatTealIcon
 import com.quizmaker.android.core.theme.SuccessGreen
@@ -120,7 +127,6 @@ import com.quizmaker.android.ui.common.TrialEndedBanner
 import com.quizmaker.android.ui.common.TrialExtendedBanner
 import com.quizmaker.android.ui.common.TrialPaywallSheet
 import com.quizmaker.android.ui.common.elevatedSurface
-import com.quizmaker.android.util.AiAttachmentUtils
 import com.quizmaker.android.util.TrialStatus
 import com.quizmaker.android.util.formatShortDate
 import kotlin.time.Duration.Companion.days
@@ -140,34 +146,42 @@ fun DashboardScreen(
     onOpenLearners: () -> Unit,
     onOpenPricing: () -> Unit,
     onOpenFeatureTour: () -> Unit,
+    onOpenOmrScan: (String) -> Unit,
+    onOpenOfflineExamList: () -> Unit,
+    onOpenCertificateDesigner: () -> Unit,
+    onOpenImportQuestions: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Scanner quick action: reuses the same camera-capture plumbing as AiQuizScreen's "Click
-    // Photo" (see AiAttachmentUtils.createCaptureUri) but the photo itself isn't wired to
-    // anything yet — a successful capture just gates through the same trial check as "Create
-    // Quiz" and lands on that screen, same as tapping it directly.
+    // Scanner quick action: gates on the same CAMERA runtime permission it always has (the actual
+    // photo capture now happens inside OmrScanScreen itself, not here) -- a granted permission opens
+    // a lightweight "which quiz is this for" picker, then hands off to the OMR scan/review flow for
+    // that quiz. See OmrScanScreen/OmrScanViewModel.
     val context = LocalContext.current
-
-    val scanCameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success) viewModel.onCreateQuizClick(onCreateQuiz)
-    }
-
-    fun startScan() {
-        scanCameraLauncher.launch(AiAttachmentUtils.createCaptureUri(context))
-    }
+    var showOmrQuizPicker by remember { mutableStateOf(false) }
 
     val scanCameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) startScan()
+        if (granted) showOmrQuizPicker = true
     }
 
     fun onScannerTapped() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-            startScan()
+            showOmrQuizPicker = true
         } else {
             scanCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
+    }
+
+    if (showOmrQuizPicker) {
+        OmrQuizPickerDialog(
+            quizzes = uiState.quizzes,
+            onDismiss = { showOmrQuizPicker = false },
+            onQuizSelected = { quizId ->
+                showOmrQuizPicker = false
+                onOpenOmrScan(quizId)
+            }
+        )
     }
 
     // Fires every time this screen (re)enters composition — including navigating back to the
@@ -264,6 +278,41 @@ fun DashboardScreen(
                                 iconBg = StatTealBg,
                                 iconTint = StatTealIcon,
                                 onClick = onOpenClasses,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                            QuickActionButton(
+                                icon = Icons.Default.Print,
+                                label = "Offline Exam",
+                                iconBg = StatRoseBg,
+                                iconTint = StatRoseIcon,
+                                onClick = onOpenOfflineExamList,
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickActionButton(
+                                icon = Icons.Default.CardMembership,
+                                label = "Certificate Design",
+                                iconBg = StatBlueBg,
+                                iconTint = StatBlueIcon,
+                                onClick = onOpenCertificateDesigner,
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickActionButton(
+                                icon = Icons.Default.Group,
+                                label = "Learners",
+                                iconBg = StatGreenBg,
+                                iconTint = StatGreenIcon,
+                                onClick = onOpenLearners,
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickActionButton(
+                                icon = Icons.Default.FileDownload,
+                                label = "Import Questions",
+                                iconBg = StatRedBg,
+                                iconTint = StatRedIcon,
+                                onClick = onOpenImportQuestions,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -693,6 +742,40 @@ private fun WelcomeFeature(icon: ImageVector, label: String, modifier: Modifier 
             maxLines = 2
         )
     }
+}
+
+/** Minimal "which quiz is this scan for" picker for the Scanner quick action -- a plain list, not a
+ *  full search/filter UI, since a teacher's quiz list here is expected to be short enough to just
+ *  scroll (mirrors CreateGroupDialog's plain-AlertDialog style rather than inventing a new sheet). */
+@Composable
+private fun OmrQuizPickerDialog(quizzes: List<Quiz>, onDismiss: () -> Unit, onQuizSelected: (String) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Scan Answer Sheets For…") },
+        text = {
+            if (quizzes.isEmpty()) {
+                Text("Create a quiz first to scan answer sheets for it.", color = TextSecondary)
+            } else {
+                LazyColumn(modifier = Modifier.height(320.dp)) {
+                    items(quizzes, key = { it.id }) { quiz ->
+                        Text(
+                            quiz.title,
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onQuizSelected(quiz.id) }
+                                .padding(vertical = 12.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

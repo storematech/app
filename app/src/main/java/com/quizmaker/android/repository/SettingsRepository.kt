@@ -2,6 +2,7 @@ package com.quizmaker.android.repository
 
 import com.quizmaker.android.core.network.AppResult
 import com.quizmaker.android.core.network.safeCall
+import com.quizmaker.android.data.remote.dto.BusinessCardTemplateJson
 import com.quizmaker.android.data.remote.dto.LearnerAutoCreateJson
 import com.quizmaker.android.data.remote.dto.ReportDesignJson
 import com.quizmaker.android.data.remote.dto.UserSettingInsertDto
@@ -22,6 +23,7 @@ import javax.inject.Singleton
 
 private const val REPORT_DESIGN_KEY = "report_design"
 private const val LEARNER_AUTO_CREATE_KEY = "learner_auto_create"
+private const val BUSINESS_CARD_TEMPLATE_KEY = "business_card_template"
 
 /**
  * Generic per-account settings store — one reusable `user_settings(user_id, setting_key,
@@ -97,4 +99,19 @@ class SettingsRepository @Inject constructor(
 
     suspend fun saveLearnerAutoCreate(userId: String, enabled: Boolean): AppResult<Unit> =
         upsertSetting(userId, LEARNER_AUTO_CREATE_KEY, json.encodeToJsonElement(LearnerAutoCreateJson(enabled)).jsonObject)
+
+    /** Returns the raw stored value (e.g. "classic") rather than a `ui`-layer enum — this
+     *  repository layer stays decoupled from BusinessCardTemplate (ui/businesscard); the caller
+     *  maps the string to/from that enum, same separation SettingsRepository already keeps from
+     *  ReportTemplate (that one just happens to live in util/ instead of ui/). */
+    suspend fun getBusinessCardTemplate(userId: String): AppResult<String> =
+        when (val result = getSetting(userId, BUSINESS_CARD_TEMPLATE_KEY)) {
+            is AppResult.Success -> AppResult.Success(
+                result.data?.let { runCatching { json.decodeFromJsonElement<BusinessCardTemplateJson>(it).template }.getOrNull() } ?: "classic"
+            )
+            is AppResult.Error -> result
+        }
+
+    suspend fun saveBusinessCardTemplate(userId: String, template: String): AppResult<Unit> =
+        upsertSetting(userId, BUSINESS_CARD_TEMPLATE_KEY, json.encodeToJsonElement(BusinessCardTemplateJson(template)).jsonObject)
 }

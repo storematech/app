@@ -13,6 +13,11 @@ data class Quiz(
     val shareId: String,
     val isClosed: Boolean,
     val showLeaderboard: Boolean,
+    val issueCertificate: Boolean = false,
+    val certificatePassScore: Int? = null,
+    /** True for a real exam row in `quizzes` flagged as an "Offline Exam" — same table/columns as
+     *  any other quiz, just listed separately (see QuizRepository.getOfflineExams()). */
+    val isOfflineExam: Boolean = false,
     val allowMultipleAttempts: Boolean,
     val requireOtpVerification: Boolean,
     val timeLimit: Int?,
@@ -50,6 +55,11 @@ data class NewQuizSpec(
     val sendResultEmail: Boolean,
     val allowResultPdf: Boolean,
     val showLeaderboard: Boolean,
+    val issueCertificate: Boolean,
+    val certificatePassScore: Int?,
+    /** Defaults to false for a regular quiz built through the Create Quiz wizard — set true only
+     *  via QuizRepository.createOfflineExam()/updateOfflineExam(). */
+    val isOfflineExam: Boolean = false,
     val showContactDetails: Boolean,
     val instructions: String?,
     val quizColor: String,
@@ -70,6 +80,9 @@ fun QuizDto.toDomain(): Quiz = Quiz(
     shareId = shareId.orEmpty(),
     isClosed = isClosed ?: false,
     showLeaderboard = showLeaderboard ?: false,
+    issueCertificate = issueCertificate ?: false,
+    certificatePassScore = certificatePassScore,
+    isOfflineExam = isOfflineExam ?: false,
     allowMultipleAttempts = allowMultipleAttempts ?: true,
     requireOtpVerification = requireOtpVerification ?: false,
     timeLimit = timeLimit,

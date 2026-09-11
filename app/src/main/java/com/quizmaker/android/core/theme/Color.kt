@@ -37,6 +37,7 @@ val StatGreenIcon = Color(0xFF16A34A)
 val StatAmberIcon = Color(0xFFF59E0B)
 val StatRedIcon = Color(0xFFEF4444)
 val StatTealIcon = Color(0xFF0D9488)
+val StatRoseIcon = Color(0xFFE11D48)
 
 // Score pill colors used on the Leaderboard (green/orange/red bands) — always white text on top,
 // kept constant across themes.
@@ -105,6 +106,8 @@ val StatRedBg: Color
     @Composable get() = if (LocalDarkTheme.current) Color(0xFF3A1414) else Color(0xFFFBDFDF)
 val StatTealBg: Color
     @Composable get() = if (LocalDarkTheme.current) Color(0xFF102E2B) else Color(0xFFD9F2EF)
+val StatRoseBg: Color
+    @Composable get() = if (LocalDarkTheme.current) Color(0xFF3A1424) else Color(0xFFFCE1EA)
 
 // Light lavender tint + border for the "AI Summary" card's text/typing content — a full loud
 // gradient fill read as too much for a block of text people are meant to actually read.

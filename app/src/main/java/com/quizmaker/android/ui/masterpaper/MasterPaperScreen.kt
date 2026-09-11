@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
@@ -57,6 +58,7 @@ import com.quizmaker.android.ui.common.OutlinedPill
 import com.quizmaker.android.ui.common.elevatedSurface
 import com.quizmaker.android.util.MasterPaperMode
 import com.quizmaker.android.util.MasterPaperPdfExporter
+import com.quizmaker.android.util.OmrSheetPdfExporter
 import com.quizmaker.android.util.formatPoints
 import kotlinx.coroutines.launch
 
@@ -64,6 +66,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun MasterPaperScreen(
     onNavigateBack: () -> Unit,
+    onOpenOmrScan: (String) -> Unit,
     viewModel: MasterPaperViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -75,6 +78,15 @@ fun MasterPaperScreen(
             val branding = viewModel.getPdfBranding()
             val intent = MasterPaperPdfExporter.export(context, uiState.quizTitle, uiState.questions, mode, branding)
             context.startActivity(Intent.createChooser(intent, "Export Master Paper"))
+        }
+    }
+
+    fun exportOmrSheet() {
+        scope.launch {
+            val branding = viewModel.getPdfBranding()
+            val result = OmrSheetPdfExporter.export(context, uiState.quizTitle, uiState.questions, branding)
+            viewModel.saveOmrLayout(result.layout)
+            context.startActivity(Intent.createChooser(result.shareIntent, "Print Answer Sheet"))
         }
     }
 
@@ -156,6 +168,29 @@ fun MasterPaperScreen(
                             Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("Offline Exam Paper")
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        if (uiState.omrErrorMessage != null) {
+                            ErrorBanner(message = uiState.omrErrorMessage!!)
+                            Spacer(Modifier.height(10.dp))
+                        }
+                        OutlinedButton(
+                            onClick = { exportOmrSheet() },
+                            enabled = !uiState.isSavingOmrLayout,
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (uiState.isSavingOmrLayout) "Generating…" else "Generate OMR Answer Sheet")
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(
+                            onClick = { onOpenOmrScan(uiState.quizId) },
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Scan Answer Sheets")
                         }
                     }
                 }

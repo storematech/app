@@ -1121,7 +1121,18 @@ private fun SettingsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewMo
         SwitchSettingsRow("Show results after submission", uiState.showResults, viewModel::onShowResultsChange)
         SwitchSettingsRow("Email results to participant", uiState.sendResultEmail, viewModel::onSendResultEmailChange)
         SwitchSettingsRow("Allow downloading result as PDF", uiState.allowResultPdf, viewModel::onAllowResultPdfChange)
-        SwitchSettingsRow("Show leaderboard", uiState.showLeaderboard, viewModel::onShowLeaderboardChange, isLast = true)
+        SwitchSettingsRow("Show leaderboard", uiState.showLeaderboard, viewModel::onShowLeaderboardChange)
+        SwitchSettingsRow("Issue certificate on completion", uiState.issueCertificate, viewModel::onIssueCertificateChange, isLast = uiState.issueCertificate == false)
+        if (uiState.issueCertificate) {
+            SettingsRow(label = "Minimum score to issue (%)") {
+                IntStepper(
+                    value = uiState.certificatePassScore,
+                    onValueChange = viewModel::onCertificatePassScoreChange,
+                    minValue = 0,
+                    maxValue = 100
+                )
+            }
+        }
     }
 
     SectionCard(title = "Participant Details") {
