@@ -1,0 +1,158 @@
+-- supabase/sql/exam_question_bank_class11_arts_set1.sql
+--
+-- First curated question-bank batch for 'Class 11 Arts' (see exam_patterns_class11_arts.sql for
+-- the exam's structure). Same exam_question_bank table/schema as the other sets -- no migration
+-- needed.
+--
+-- Every row here is format='mcq' with a single isCorrect:true option, matching this exam's
+-- MCQ-only, no-negative-marking pattern. 8 chapters (2 per subject x 4 subjects: History,
+-- Political Science, Geography, English) each get 4 questions -- one easy, one medium, two hard --
+-- reflecting the senior-secondary hard share in exam_patterns_class11_arts.sql.
+--
+-- Run this once in the Supabase SQL Editor, after exam_patterns_class11_arts.sql.
+
+insert into exam_question_bank (exam_name, subject, chapter, difficulty, format, text, options, numerical_answer, explanation) values
+
+-- History: Early Societies and The Roman Empire (World History)
+('Class 11 Arts', 'History', 'Early Societies and The Roman Empire (World History)', 'easy', 'mcq',
+ 'The Roman Empire was famously divided into which two parts?',
+ '[{"text":"Northern and Southern","isCorrect":false},{"text":"Western and Eastern","isCorrect":true},{"text":"Upper and Lower","isCorrect":false},{"text":"Old and New","isCorrect":false}]'::jsonb,
+ null, 'The Roman Empire was eventually divided into the Western Roman Empire and the Eastern Roman (Byzantine) Empire.'),
+('Class 11 Arts', 'History', 'Early Societies and The Roman Empire (World History)', 'medium', 'mcq',
+ 'Early human societies that depended on hunting animals and gathering wild plants for food are called:',
+ '[{"text":"Agricultural societies","isCorrect":false},{"text":"Hunter-gatherer societies","isCorrect":true},{"text":"Industrial societies","isCorrect":false},{"text":"Urban societies","isCorrect":false}]'::jsonb,
+ null, 'Hunter-gatherer societies survived by hunting animals and gathering wild plants rather than farming.'),
+('Class 11 Arts', 'History', 'Early Societies and The Roman Empire (World History)', 'hard', 'mcq',
+ 'The Roman system of government before it became an empire, where power was shared among elected officials and the Senate, was called a:',
+ '[{"text":"Monarchy","isCorrect":false},{"text":"Republic","isCorrect":true},{"text":"Theocracy","isCorrect":false},{"text":"Oligarchy of priests","isCorrect":false}]'::jsonb,
+ null, 'Before becoming an empire, Rome was a republic, where elected officials and the Senate shared governing power.'),
+('Class 11 Arts', 'History', 'Early Societies and The Roman Empire (World History)', 'hard', 'mcq',
+ 'The transition from Neolithic hunting-gathering to settled farming is most closely associated with which development?',
+ '[{"text":"Domestication of plants and animals","isCorrect":true},{"text":"Invention of writing","isCorrect":false},{"text":"Discovery of fire","isCorrect":false},{"text":"Invention of the printing press","isCorrect":false}]'::jsonb,
+ null, 'The domestication of plants and animals allowed humans to shift from hunting-gathering to settled agricultural life.'),
+
+-- History: Central Islamic Lands and Changing Cultural Traditions
+('Class 11 Arts', 'History', 'Central Islamic Lands and Changing Cultural Traditions', 'easy', 'mcq',
+ 'The holy city considered the birthplace of Islam is:',
+ '[{"text":"Medina","isCorrect":false},{"text":"Mecca","isCorrect":true},{"text":"Baghdad","isCorrect":false},{"text":"Damascus","isCorrect":false}]'::jsonb,
+ null, 'Mecca is regarded as the birthplace of Islam and the birthplace of the Prophet Muhammad.'),
+('Class 11 Arts', 'History', 'Central Islamic Lands and Changing Cultural Traditions', 'medium', 'mcq',
+ 'The period in Europe marked by a renewed interest in classical art, literature, and learning is called the:',
+ '[{"text":"Dark Ages","isCorrect":false},{"text":"Renaissance","isCorrect":true},{"text":"Industrial Revolution","isCorrect":false},{"text":"Enlightenment only","isCorrect":false}]'::jsonb,
+ null, 'The Renaissance was a period of renewed interest in classical art, literature, and learning in Europe.'),
+('Class 11 Arts', 'History', 'Central Islamic Lands and Changing Cultural Traditions', 'hard', 'mcq',
+ 'The Abbasid Caliphate, a major Islamic empire, established its capital at which city, which became a center of learning?',
+ '[{"text":"Cairo","isCorrect":false},{"text":"Baghdad","isCorrect":true},{"text":"Istanbul","isCorrect":false},{"text":"Cordoba","isCorrect":false}]'::jsonb,
+ null, 'The Abbasid Caliphate made Baghdad its capital, and the city became a renowned center of learning and culture.'),
+('Class 11 Arts', 'History', 'Central Islamic Lands and Changing Cultural Traditions', 'hard', 'mcq',
+ 'The invention of the printing press by Johannes Gutenberg is most significant historically because it:',
+ '[{"text":"Made books more expensive","isCorrect":false},{"text":"Allowed mass production and wider spread of knowledge","isCorrect":true},{"text":"Ended all handwritten manuscripts immediately","isCorrect":false},{"text":"Was used only for religious texts","isCorrect":false}]'::jsonb,
+ null, 'The printing press allowed books to be mass-produced, dramatically widening the spread of knowledge and ideas.'),
+
+-- Political Science: Constitution: Why and How, and Rights in the Indian Constitution
+('Class 11 Arts', 'Political Science', 'Constitution: Why and How, and Rights in the Indian Constitution', 'easy', 'mcq',
+ 'The body that drafted the Constitution of India was called the:',
+ '[{"text":"Parliament","isCorrect":false},{"text":"Constituent Assembly","isCorrect":true},{"text":"Supreme Court","isCorrect":false},{"text":"Cabinet","isCorrect":false}]'::jsonb,
+ null, 'The Constituent Assembly was the body responsible for drafting the Constitution of India.'),
+('Class 11 Arts', 'Political Science', 'Constitution: Why and How, and Rights in the Indian Constitution', 'medium', 'mcq',
+ 'A constitution primarily serves to:',
+ '[{"text":"Limit and organize the exercise of government power","isCorrect":true},{"text":"Give unlimited power to one leader","isCorrect":false},{"text":"Abolish all forms of government","isCorrect":false},{"text":"Replace the need for laws","isCorrect":false}]'::jsonb,
+ null, 'A constitution establishes the framework and limits within which government power is organized and exercised.'),
+('Class 11 Arts', 'Political Science', 'Constitution: Why and How, and Rights in the Indian Constitution', 'hard', 'mcq',
+ 'Which fundamental right abolished untouchability in India?',
+ '[{"text":"Right to Equality","isCorrect":true},{"text":"Right to Freedom","isCorrect":false},{"text":"Right against Exploitation","isCorrect":false},{"text":"Cultural and Educational Rights","isCorrect":false}]'::jsonb,
+ null, 'The Right to Equality (Article 17) abolishes untouchability and forbids its practice in any form.'),
+('Class 11 Arts', 'Political Science', 'Constitution: Why and How, and Rights in the Indian Constitution', 'hard', 'mcq',
+ 'The Indian Constitution is often described as both rigid and flexible because:',
+ '[{"text":"It cannot be amended at all","isCorrect":false},{"text":"Some provisions need a special majority to amend while others need a simple majority","isCorrect":true},{"text":"Only the Supreme Court can amend it","isCorrect":false},{"text":"It has never been amended","isCorrect":false}]'::jsonb,
+ null, 'The Indian Constitution has a mix of amendment procedures -- some provisions require a special majority (rigid), while others can be changed by a simple majority (flexible).'),
+
+-- Political Science: Elections, Legislature, Executive and Judiciary
+('Class 11 Arts', 'Political Science', 'Elections, Legislature, Executive and Judiciary', 'easy', 'mcq',
+ 'The body responsible for conducting free and fair elections in India is the:',
+ '[{"text":"Supreme Court","isCorrect":false},{"text":"Election Commission of India","isCorrect":true},{"text":"Parliament","isCorrect":false},{"text":"Reserve Bank of India","isCorrect":false}]'::jsonb,
+ null, 'The Election Commission of India is the independent constitutional body responsible for conducting free and fair elections.'),
+('Class 11 Arts', 'Political Science', 'Elections, Legislature, Executive and Judiciary', 'medium', 'mcq',
+ 'The lower house of India''s Parliament, whose members are directly elected by the people, is called the:',
+ '[{"text":"Rajya Sabha","isCorrect":false},{"text":"Lok Sabha","isCorrect":true},{"text":"Vidhan Sabha","isCorrect":false},{"text":"Vidhan Parishad","isCorrect":false}]'::jsonb,
+ null, 'The Lok Sabha is the lower house of Parliament, with members directly elected by the people.'),
+('Class 11 Arts', 'Political Science', 'Elections, Legislature, Executive and Judiciary', 'hard', 'mcq',
+ 'The principle of "separation of powers" mainly ensures that:',
+ '[{"text":"One organ of government controls all others","isCorrect":false},{"text":"Legislative, executive, and judicial functions are exercised by separate bodies","isCorrect":true},{"text":"Only the judiciary makes laws","isCorrect":false},{"text":"Elections are no longer needed","isCorrect":false}]'::jsonb,
+ null, 'Separation of powers ensures that the legislative, executive, and judicial functions are carried out by distinct, independent bodies to prevent concentration of power.'),
+('Class 11 Arts', 'Political Science', 'Elections, Legislature, Executive and Judiciary', 'hard', 'mcq',
+ 'The system of "first-past-the-post" used in Indian elections means a candidate wins by:',
+ '[{"text":"Getting more than 50% of votes always","isCorrect":false},{"text":"Securing the highest number of votes in their constituency","isCorrect":true},{"text":"Being nominated by the President","isCorrect":false},{"text":"A random lottery","isCorrect":false}]'::jsonb,
+ null, 'In first-past-the-post, the candidate with the highest number of votes in their constituency wins, even without an absolute majority.'),
+
+-- Geography: Geography as a Discipline and The Earth's Interior-Landforms
+('Class 11 Arts', 'Geography', 'Geography as a Discipline and The Earth''s Interior-Landforms', 'easy', 'mcq',
+ 'The innermost layer of the Earth is called the:',
+ '[{"text":"Crust","isCorrect":false},{"text":"Mantle","isCorrect":false},{"text":"Core","isCorrect":true},{"text":"Lithosphere","isCorrect":false}]'::jsonb,
+ null, 'The core is the innermost layer of the Earth, consisting mainly of iron and nickel.'),
+('Class 11 Arts', 'Geography', 'Geography as a Discipline and The Earth''s Interior-Landforms', 'medium', 'mcq',
+ 'Landforms created by the erosion and deposition of rivers, such as floodplains and deltas, fall under which branch of geography?',
+ '[{"text":"Geomorphology","isCorrect":true},{"text":"Climatology","isCorrect":false},{"text":"Oceanography","isCorrect":false},{"text":"Biogeography","isCorrect":false}]'::jsonb,
+ null, 'Geomorphology is the study of landforms and the processes, like river erosion and deposition, that shape them.'),
+('Class 11 Arts', 'Geography', 'Geography as a Discipline and The Earth''s Interior-Landforms', 'hard', 'mcq',
+ 'The theory that explains the movement of large plates that make up the Earth''s lithosphere is called:',
+ '[{"text":"Continental drift theory only","isCorrect":false},{"text":"Plate tectonics theory","isCorrect":true},{"text":"Big Bang theory","isCorrect":false},{"text":"Nebular theory","isCorrect":false}]'::jsonb,
+ null, 'Plate tectonics theory explains the movement of the large plates making up the Earth''s lithosphere, building on the earlier continental drift theory.'),
+('Class 11 Arts', 'Geography', 'Geography as a Discipline and The Earth''s Interior-Landforms', 'hard', 'mcq',
+ 'The layer of the Earth located between the crust and the core, making up the largest portion of Earth''s volume, is the:',
+ '[{"text":"Mantle","isCorrect":true},{"text":"Lithosphere only","isCorrect":false},{"text":"Asthenosphere only","isCorrect":false},{"text":"Outer core","isCorrect":false}]'::jsonb,
+ null, 'The mantle lies between the crust and the core and makes up the largest portion of the Earth''s total volume.'),
+
+-- Geography: Climate, Water (Oceans) and Life on Earth
+('Class 11 Arts', 'Geography', 'Climate, Water (Oceans) and Life on Earth', 'easy', 'mcq',
+ 'The layer of gases surrounding the Earth is called the:',
+ '[{"text":"Hydrosphere","isCorrect":false},{"text":"Atmosphere","isCorrect":true},{"text":"Lithosphere","isCorrect":false},{"text":"Biosphere","isCorrect":false}]'::jsonb,
+ null, 'The atmosphere is the layer of gases that surrounds the Earth.'),
+('Class 11 Arts', 'Geography', 'Climate, Water (Oceans) and Life on Earth', 'medium', 'mcq',
+ 'Ocean currents that are warmer than the surrounding water and flow from the equator toward the poles are called:',
+ '[{"text":"Cold currents","isCorrect":false},{"text":"Warm currents","isCorrect":true},{"text":"Tidal currents only","isCorrect":false},{"text":"Rip currents","isCorrect":false}]'::jsonb,
+ null, 'Warm ocean currents originate near the equator and carry warmer water toward the poles.'),
+('Class 11 Arts', 'Geography', 'Climate, Water (Oceans) and Life on Earth', 'hard', 'mcq',
+ 'The zone of the ocean that receives sunlight and supports photosynthesis by marine plants is called the:',
+ '[{"text":"Abyssal zone","isCorrect":false},{"text":"Photic (euphotic) zone","isCorrect":true},{"text":"Benthic zone only","isCorrect":false},{"text":"Hadal zone","isCorrect":false}]'::jsonb,
+ null, 'The photic (or euphotic) zone is the upper layer of the ocean that receives sunlight, allowing photosynthesis to occur.'),
+('Class 11 Arts', 'Geography', 'Climate, Water (Oceans) and Life on Earth', 'hard', 'mcq',
+ 'The greenhouse effect, which keeps the Earth warm enough to sustain life, is primarily caused by:',
+ '[{"text":"Atmospheric gases trapping outgoing heat radiation","isCorrect":true},{"text":"Direct sunlight reflecting off oceans","isCorrect":false},{"text":"Volcanic eruptions only","isCorrect":false},{"text":"The Earth''s rotation","isCorrect":false}]'::jsonb,
+ null, 'The greenhouse effect occurs when gases in the atmosphere trap outgoing heat radiation, keeping the Earth warm enough to sustain life.'),
+
+-- English: Grammar (Determiners, Advanced Tenses) and Note-Making
+('Class 11 Arts', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'easy', 'mcq',
+ 'Choose the correct determiner: "She has read ___ books on this subject."',
+ '[{"text":"much","isCorrect":false},{"text":"many","isCorrect":true},{"text":"little","isCorrect":false},{"text":"a little","isCorrect":false}]'::jsonb,
+ null, '''Many'' is used with countable plural nouns like ''books''.'),
+('Class 11 Arts', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'medium', 'mcq',
+ 'Choose the sentence in the future continuous tense.',
+ '[{"text":"She will be attending the seminar tomorrow.","isCorrect":true},{"text":"She will attend the seminar tomorrow.","isCorrect":false},{"text":"She attends the seminar.","isCorrect":false},{"text":"She has attended the seminar.","isCorrect":false}]'::jsonb,
+ null, 'The future continuous tense (''will be'' + verb-ing) describes an action that will be ongoing at a specific point in the future.'),
+('Class 11 Arts', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'hard', 'mcq',
+ 'In note-making, the abbreviation typically used for "that is" is:',
+ '[{"text":"i.e.","isCorrect":true},{"text":"e.g.","isCorrect":false},{"text":"etc.","isCorrect":false},{"text":"n.b.","isCorrect":false}]'::jsonb,
+ null, '"i.e." is the standard abbreviation for "that is" used in note-making.'),
+('Class 11 Arts', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'hard', 'mcq',
+ 'Choose the sentence that correctly uses a determiner with an uncountable noun.',
+ '[{"text":"He gave us a lot of advice.","isCorrect":true},{"text":"He gave us many advices.","isCorrect":false},{"text":"He gave us a few advice.","isCorrect":false},{"text":"He gave us an advice.","isCorrect":false}]'::jsonb,
+ null, '''Advice'' is an uncountable noun, so it takes ''a lot of'' rather than ''many'' or an indefinite article.'),
+
+-- English: Reading Comprehension and Vocabulary
+('Class 11 Arts', 'English', 'Reading Comprehension and Vocabulary', 'easy', 'mcq',
+ 'Read: "The archaeologists were astonished to unearth a perfectly preserved mosaic beneath the ruins." What did the archaeologists find?',
+ '[{"text":"A perfectly preserved mosaic","isCorrect":true},{"text":"An empty chamber","isCorrect":false},{"text":"Modern artifacts","isCorrect":false},{"text":"Nothing of interest","isCorrect":false}]'::jsonb,
+ null, 'The passage says the archaeologists unearthed a perfectly preserved mosaic beneath the ruins.'),
+('Class 11 Arts', 'English', 'Reading Comprehension and Vocabulary', 'medium', 'mcq',
+ 'A word that means the same as ''eloquent'' is:',
+ '[{"text":"Fluent and persuasive in speech","isCorrect":true},{"text":"Silent","isCorrect":false},{"text":"Confused","isCorrect":false},{"text":"Rude","isCorrect":false}]'::jsonb,
+ null, '''Eloquent'' means fluent and persuasive in speaking or writing.'),
+('Class 11 Arts', 'English', 'Reading Comprehension and Vocabulary', 'hard', 'mcq',
+ 'A word that means the opposite of ''benevolent'' is:',
+ '[{"text":"Kind","isCorrect":false},{"text":"Malevolent","isCorrect":true},{"text":"Generous","isCorrect":false},{"text":"Charitable","isCorrect":false}]'::jsonb,
+ null, '''Benevolent'' means well-meaning and kind; its opposite is ''malevolent'', meaning having harmful intent.'),
+('Class 11 Arts', 'English', 'Reading Comprehension and Vocabulary', 'hard', 'mcq',
+ 'Read: "The historian''s account, while meticulously researched, was criticized for its overt bias toward one faction of the conflict." What was the historian''s account criticized for?',
+ '[{"text":"Being too short","isCorrect":false},{"text":"Showing clear bias toward one side","isCorrect":true},{"text":"Lacking any research","isCorrect":false},{"text":"Being written in poor language","isCorrect":false}]'::jsonb,
+ null, 'The passage says the account was criticized for its overt bias toward one faction, despite being well researched.');

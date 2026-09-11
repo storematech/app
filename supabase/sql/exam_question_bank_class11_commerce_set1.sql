@@ -1,0 +1,158 @@
+-- supabase/sql/exam_question_bank_class11_commerce_set1.sql
+--
+-- First curated question-bank batch for 'Class 11 Commerce' (see
+-- exam_patterns_class11_commerce.sql for the exam's structure). Same exam_question_bank
+-- table/schema as the other sets -- no migration needed.
+--
+-- Every row here is format='mcq' with a single isCorrect:true option, matching this exam's
+-- MCQ-only, no-negative-marking pattern. 8 chapters (2 per subject x 4 subjects: Accountancy,
+-- Business Studies, Economics, English) each get 4 questions -- one easy, one medium, two hard --
+-- reflecting the senior-secondary hard share in exam_patterns_class11_commerce.sql.
+--
+-- Run this once in the Supabase SQL Editor, after exam_patterns_class11_commerce.sql.
+
+insert into exam_question_bank (exam_name, subject, chapter, difficulty, format, text, options, numerical_answer, explanation) values
+
+-- Accountancy: Basic Accounting Concepts and Journal-Ledger
+('Class 11 Commerce', 'Accountancy', 'Basic Accounting Concepts and Journal-Ledger', 'easy', 'mcq',
+ 'The book in which transactions are first recorded in chronological order is called the:',
+ '[{"text":"Ledger","isCorrect":false},{"text":"Journal","isCorrect":true},{"text":"Trial Balance","isCorrect":false},{"text":"Balance Sheet","isCorrect":false}]'::jsonb,
+ null, 'The journal is the book of original entry where transactions are first recorded in chronological order.'),
+('Class 11 Commerce', 'Accountancy', 'Basic Accounting Concepts and Journal-Ledger', 'medium', 'mcq',
+ 'According to the dual aspect concept, every transaction affects:',
+ '[{"text":"Only one account","isCorrect":false},{"text":"At least two accounts","isCorrect":true},{"text":"No accounts","isCorrect":false},{"text":"Only the cash account","isCorrect":false}]'::jsonb,
+ null, 'The dual aspect concept states that every transaction has two effects -- a debit and a corresponding credit -- affecting at least two accounts.'),
+('Class 11 Commerce', 'Accountancy', 'Basic Accounting Concepts and Journal-Ledger', 'hard', 'mcq',
+ 'The process of transferring entries from the journal to individual accounts in the ledger is called:',
+ '[{"text":"Journalizing","isCorrect":false},{"text":"Posting","isCorrect":true},{"text":"Balancing","isCorrect":false},{"text":"Casting","isCorrect":false}]'::jsonb,
+ null, 'Posting is the process of transferring journal entries into their respective ledger accounts.'),
+('Class 11 Commerce', 'Accountancy', 'Basic Accounting Concepts and Journal-Ledger', 'hard', 'mcq',
+ 'Under the accrual concept of accounting, revenue is recognized when it is:',
+ '[{"text":"Received in cash","isCorrect":false},{"text":"Earned, regardless of when cash is received","isCorrect":true},{"text":"Budgeted for","isCorrect":false},{"text":"Never recognized until year-end","isCorrect":false}]'::jsonb,
+ null, 'The accrual concept recognizes revenue when it is earned, not necessarily when cash is actually received.'),
+
+-- Accountancy: Trial Balance, Bank Reconciliation and Depreciation
+('Class 11 Commerce', 'Accountancy', 'Trial Balance, Bank Reconciliation and Depreciation', 'easy', 'mcq',
+ 'A trial balance is prepared to check the:',
+ '[{"text":"Profitability of a business","isCorrect":false},{"text":"Arithmetical accuracy of ledger accounts","isCorrect":true},{"text":"Cash balance only","isCorrect":false},{"text":"Tax liability","isCorrect":false}]'::jsonb,
+ null, 'A trial balance checks the arithmetical accuracy of the ledger by comparing total debits and total credits.'),
+('Class 11 Commerce', 'Accountancy', 'Trial Balance, Bank Reconciliation and Depreciation', 'medium', 'mcq',
+ 'A bank reconciliation statement is prepared to reconcile the difference between the:',
+ '[{"text":"Cash book balance and passbook balance","isCorrect":true},{"text":"Trial balance and balance sheet","isCorrect":false},{"text":"Profit and loss account figures","isCorrect":false},{"text":"Opening and closing stock","isCorrect":false}]'::jsonb,
+ null, 'A bank reconciliation statement reconciles the difference between the cash book balance (as per the business''s records) and the passbook balance (as per the bank).'),
+('Class 11 Commerce', 'Accountancy', 'Trial Balance, Bank Reconciliation and Depreciation', 'hard', 'mcq',
+ 'The straight-line method of depreciation charges depreciation:',
+ '[{"text":"At a decreasing rate each year","isCorrect":false},{"text":"Equally over each year of the asset''s life","isCorrect":true},{"text":"Only in the final year","isCorrect":false},{"text":"Randomly across years","isCorrect":false}]'::jsonb,
+ null, 'The straight-line method spreads depreciation equally across each year of an asset''s useful life.'),
+('Class 11 Commerce', 'Accountancy', 'Trial Balance, Bank Reconciliation and Depreciation', 'hard', 'mcq',
+ 'A cheque issued by a business but not yet presented for payment at the bank is called a(n):',
+ '[{"text":"Outstanding cheque","isCorrect":true},{"text":"Dishonoured cheque","isCorrect":false},{"text":"Cancelled cheque","isCorrect":false},{"text":"Post-dated cheque","isCorrect":false}]'::jsonb,
+ null, 'An outstanding cheque has been issued and recorded by the business but has not yet been presented to the bank for payment.'),
+
+-- Business Studies: Nature of Business and Forms of Business Organisation
+('Class 11 Commerce', 'Business Studies', 'Nature of Business and Forms of Business Organisation', 'easy', 'mcq',
+ 'A business owned and managed by a single person is called a:',
+ '[{"text":"Partnership","isCorrect":false},{"text":"Sole proprietorship","isCorrect":true},{"text":"Company","isCorrect":false},{"text":"Cooperative society","isCorrect":false}]'::jsonb,
+ null, 'A sole proprietorship is a business owned, managed, and controlled by a single person.'),
+('Class 11 Commerce', 'Business Studies', 'Nature of Business and Forms of Business Organisation', 'medium', 'mcq',
+ 'The liability of partners in a general partnership firm is:',
+ '[{"text":"Limited to their capital contribution","isCorrect":false},{"text":"Unlimited","isCorrect":true},{"text":"Zero","isCorrect":false},{"text":"Limited only to profits earned","isCorrect":false}]'::jsonb,
+ null, 'In a general partnership, partners have unlimited liability, meaning their personal assets can be used to pay off business debts.'),
+('Class 11 Commerce', 'Business Studies', 'Nature of Business and Forms of Business Organisation', 'hard', 'mcq',
+ 'A company in which the liability of shareholders is limited to the amount unpaid on their shares is called a company limited by:',
+ '[{"text":"Guarantee","isCorrect":false},{"text":"Shares","isCorrect":true},{"text":"Unlimited liability","isCorrect":false},{"text":"Bonds","isCorrect":false}]'::jsonb,
+ null, 'In a company limited by shares, a shareholder''s liability is limited to the unpaid amount on the shares they hold.'),
+('Class 11 Commerce', 'Business Studies', 'Nature of Business and Forms of Business Organisation', 'hard', 'mcq',
+ 'Which feature distinguishes a Hindu Undivided Family (HUF) business from a partnership?',
+ '[{"text":"Membership arises by birth into the family, not by agreement","isCorrect":true},{"text":"It requires a formal partnership deed","isCorrect":false},{"text":"It has no head or Karta","isCorrect":false},{"text":"It cannot carry on any business","isCorrect":false}]'::jsonb,
+ null, 'In an HUF business, membership is determined by birth into the family rather than by mutual agreement, unlike a partnership.'),
+
+-- Business Studies: Business Services, Finance Sources and Small Business
+('Class 11 Commerce', 'Business Studies', 'Business Services, Finance Sources and Small Business', 'easy', 'mcq',
+ 'Which of these is an example of a business service rather than a good?',
+ '[{"text":"A television","isCorrect":false},{"text":"Banking","isCorrect":true},{"text":"A chair","isCorrect":false},{"text":"A car","isCorrect":false}]'::jsonb,
+ null, 'Banking is a service -- intangible and consumed at the point of delivery -- unlike physical goods such as a television, chair, or car.'),
+('Class 11 Commerce', 'Business Studies', 'Business Services, Finance Sources and Small Business', 'medium', 'mcq',
+ 'Retained earnings, used by a company to finance its operations, are an example of:',
+ '[{"text":"External source of finance","isCorrect":false},{"text":"Internal source of finance","isCorrect":true},{"text":"Borrowed capital only","isCorrect":false},{"text":"Government grant","isCorrect":false}]'::jsonb,
+ null, 'Retained earnings are profits kept within the business rather than distributed, making them an internal source of finance.'),
+('Class 11 Commerce', 'Business Studies', 'Business Services, Finance Sources and Small Business', 'hard', 'mcq',
+ 'A small-scale industry classification in India is primarily based on:',
+ '[{"text":"Number of employees only","isCorrect":false},{"text":"Investment in plant and machinery/equipment","isCorrect":true},{"text":"Annual profit only","isCorrect":false},{"text":"Location of the business","isCorrect":false}]'::jsonb,
+ null, 'Small-scale industry classification in India is primarily based on the investment made in plant, machinery, or equipment.'),
+('Class 11 Commerce', 'Business Studies', 'Business Services, Finance Sources and Small Business', 'hard', 'mcq',
+ 'Insurance is based on which fundamental principle, where many people contribute to a common fund to cover the losses of a few?',
+ '[{"text":"Principle of indemnity only","isCorrect":false},{"text":"Principle of cooperation and risk-sharing","isCorrect":true},{"text":"Principle of profit maximization","isCorrect":false},{"text":"Principle of monopoly","isCorrect":false}]'::jsonb,
+ null, 'Insurance works on the principle of cooperation, where many people contribute to a common fund to compensate the losses of a few.'),
+
+-- Economics: Introduction to Economics and Statistics for Economics
+('Class 11 Commerce', 'Economics', 'Introduction to Economics and Statistics for Economics', 'easy', 'mcq',
+ 'Economics is broadly divided into which two branches?',
+ '[{"text":"Microeconomics and Macroeconomics","isCorrect":true},{"text":"Trade and Finance","isCorrect":false},{"text":"Domestic and International economics","isCorrect":false},{"text":"Public and Private economics","isCorrect":false}]'::jsonb,
+ null, 'Economics is broadly divided into microeconomics (individual units) and macroeconomics (the economy as a whole).'),
+('Class 11 Commerce', 'Economics', 'Introduction to Economics and Statistics for Economics', 'medium', 'mcq',
+ 'The branch of statistics dealing with the collection, presentation, and summary of data is called:',
+ '[{"text":"Inferential statistics","isCorrect":false},{"text":"Descriptive statistics","isCorrect":true},{"text":"Predictive statistics","isCorrect":false},{"text":"Applied statistics only","isCorrect":false}]'::jsonb,
+ null, 'Descriptive statistics deals with organizing, summarizing, and presenting data.'),
+('Class 11 Commerce', 'Economics', 'Introduction to Economics and Statistics for Economics', 'hard', 'mcq',
+ 'The basic economic problem of scarcity arises because:',
+ '[{"text":"Human wants are unlimited but resources are limited","isCorrect":true},{"text":"Resources are unlimited","isCorrect":false},{"text":"Human wants are limited","isCorrect":false},{"text":"Governments print too much money","isCorrect":false}]'::jsonb,
+ null, 'Scarcity arises because human wants are unlimited while the resources available to satisfy them are limited.'),
+('Class 11 Commerce', 'Economics', 'Introduction to Economics and Statistics for Economics', 'hard', 'mcq',
+ 'The curve that shows the maximum possible combinations of two goods an economy can produce with given resources is called the:',
+ '[{"text":"Demand curve","isCorrect":false},{"text":"Production possibility curve","isCorrect":true},{"text":"Supply curve","isCorrect":false},{"text":"Indifference curve","isCorrect":false}]'::jsonb,
+ null, 'The production possibility curve shows the maximum combinations of two goods an economy can produce given its limited resources.'),
+
+-- Economics: Collection, Organisation and Presentation of Data
+('Class 11 Commerce', 'Economics', 'Collection, Organisation and Presentation of Data', 'easy', 'mcq',
+ 'Data collected directly from the original source by the investigator is called:',
+ '[{"text":"Secondary data","isCorrect":false},{"text":"Primary data","isCorrect":true},{"text":"Tertiary data","isCorrect":false},{"text":"Published data","isCorrect":false}]'::jsonb,
+ null, 'Primary data is collected firsthand by the investigator directly from the original source.'),
+('Class 11 Commerce', 'Economics', 'Collection, Organisation and Presentation of Data', 'medium', 'mcq',
+ 'Arranging data into groups or classes based on ranges of values is called:',
+ '[{"text":"Tabulation","isCorrect":false},{"text":"Classification","isCorrect":true},{"text":"Sampling","isCorrect":false},{"text":"Editing","isCorrect":false}]'::jsonb,
+ null, 'Classification is the process of arranging data into groups or classes based on shared characteristics or value ranges.'),
+('Class 11 Commerce', 'Economics', 'Collection, Organisation and Presentation of Data', 'hard', 'mcq',
+ 'A diagram in which data is represented using bars of varying height proportional to the value they represent is called a:',
+ '[{"text":"Pie chart","isCorrect":false},{"text":"Bar diagram","isCorrect":true},{"text":"Histogram only","isCorrect":false},{"text":"Ogive","isCorrect":false}]'::jsonb,
+ null, 'A bar diagram represents data using bars whose height (or length) is proportional to the value represented.'),
+('Class 11 Commerce', 'Economics', 'Collection, Organisation and Presentation of Data', 'hard', 'mcq',
+ 'When data is collected periodically from the same source over time (e.g., published by the government), it is best described as:',
+ '[{"text":"Primary data collected via questionnaire","isCorrect":false},{"text":"Secondary data from published sources","isCorrect":true},{"text":"Sample data collected once","isCorrect":false},{"text":"Random noise","isCorrect":false}]'::jsonb,
+ null, 'Data already collected by someone else and published, such as by the government, is classified as secondary data.'),
+
+-- English: Grammar (Determiners, Advanced Tenses) and Note-Making
+('Class 11 Commerce', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'easy', 'mcq',
+ 'Choose the correct determiner: "___ of the applicants had relevant experience."',
+ '[{"text":"Few","isCorrect":true},{"text":"Little","isCorrect":false},{"text":"Much","isCorrect":false},{"text":"A little","isCorrect":false}]'::jsonb,
+ null, '''Few'' is used with countable nouns like ''applicants'' to indicate a small number.'),
+('Class 11 Commerce', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'medium', 'mcq',
+ 'Choose the sentence in the past perfect continuous tense.',
+ '[{"text":"She had been working there for five years before she resigned.","isCorrect":true},{"text":"She has been working there for five years.","isCorrect":false},{"text":"She worked there for five years.","isCorrect":false},{"text":"She will have worked there for five years.","isCorrect":false}]'::jsonb,
+ null, 'The past perfect continuous (''had been'' + verb-ing) shows an action that was ongoing before another past action.'),
+('Class 11 Commerce', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'hard', 'mcq',
+ 'In note-making, the abbreviation typically used for "for example" is:',
+ '[{"text":"e.g.","isCorrect":true},{"text":"i.e.","isCorrect":false},{"text":"etc.","isCorrect":false},{"text":"viz.","isCorrect":false}]'::jsonb,
+ null, '"e.g." is the standard abbreviation for "for example" used in note-making.'),
+('Class 11 Commerce', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'hard', 'mcq',
+ 'Choose the sentence that correctly uses a determiner with a countable plural noun.',
+ '[{"text":"There are many opportunities in this field.","isCorrect":true},{"text":"There is many opportunity in this field.","isCorrect":false},{"text":"There are much opportunities in this field.","isCorrect":false},{"text":"There is much opportunities in this field.","isCorrect":false}]'::jsonb,
+ null, '''Many'' correctly pairs with the countable plural noun ''opportunities'', and the verb ''are'' agrees with the plural subject.'),
+
+-- English: Reading Comprehension and Vocabulary
+('Class 11 Commerce', 'English', 'Reading Comprehension and Vocabulary', 'easy', 'mcq',
+ 'Read: "The startup''s rapid growth attracted significant investor interest within its first year." What attracted investor interest?',
+ '[{"text":"The startup''s rapid growth","isCorrect":true},{"text":"The startup''s failure","isCorrect":false},{"text":"A change in leadership","isCorrect":false},{"text":"A price drop","isCorrect":false}]'::jsonb,
+ null, 'The passage says the startup''s rapid growth attracted significant investor interest.'),
+('Class 11 Commerce', 'English', 'Reading Comprehension and Vocabulary', 'medium', 'mcq',
+ 'A word that means the same as ''prudent'' is:',
+ '[{"text":"Reckless","isCorrect":false},{"text":"Wise and cautious","isCorrect":true},{"text":"Careless","isCorrect":false},{"text":"Aggressive","isCorrect":false}]'::jsonb,
+ null, '''Prudent'' means acting with care and good judgment, matching ''wise and cautious''.'),
+('Class 11 Commerce', 'English', 'Reading Comprehension and Vocabulary', 'hard', 'mcq',
+ 'A word that means the opposite of ''solvent'' (in a financial context) is:',
+ '[{"text":"Profitable","isCorrect":false},{"text":"Insolvent","isCorrect":true},{"text":"Wealthy","isCorrect":false},{"text":"Liquid","isCorrect":false}]'::jsonb,
+ null, '''Solvent'' means able to pay one''s debts; its opposite, ''insolvent'', means unable to do so.'),
+('Class 11 Commerce', 'English', 'Reading Comprehension and Vocabulary', 'hard', 'mcq',
+ 'Read: "Despite the merger''s promise of synergy, integrating the two companies'' cultures proved far more contentious than anticipated." What proved more difficult than expected?',
+ '[{"text":"Integrating the companies'' cultures","isCorrect":true},{"text":"Raising capital","isCorrect":false},{"text":"Hiring new staff","isCorrect":false},{"text":"Marketing the merger","isCorrect":false}]'::jsonb,
+ null, 'The passage says integrating the two companies'' cultures proved far more contentious than anticipated.');

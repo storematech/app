@@ -1,0 +1,158 @@
+-- supabase/sql/exam_question_bank_class11_science_set1.sql
+--
+-- First curated question-bank batch for 'Class 11 Science' (see exam_patterns_class11_science.sql
+-- for the exam's structure). Same exam_question_bank table/schema as the other sets -- no
+-- migration needed.
+--
+-- Every row here is format='mcq' with a single isCorrect:true option, matching this exam's
+-- MCQ-only, no-negative-marking pattern. 8 chapters (2 per subject x 4 subjects: Physics,
+-- Chemistry, Mathematics, English) each get 4 questions -- one easy, one medium, two hard --
+-- reflecting the senior-secondary hard share in exam_patterns_class11_science.sql.
+--
+-- Run this once in the Supabase SQL Editor, after exam_patterns_class11_science.sql.
+
+insert into exam_question_bank (exam_name, subject, chapter, difficulty, format, text, options, numerical_answer, explanation) values
+
+-- Physics: Units, Measurements and Kinematics
+('Class 11 Science', 'Physics', 'Units, Measurements and Kinematics', 'easy', 'mcq',
+ 'The SI unit of time is the:',
+ '[{"text":"Minute","isCorrect":false},{"text":"Second","isCorrect":true},{"text":"Hour","isCorrect":false},{"text":"Day","isCorrect":false}]'::jsonb,
+ null, 'The SI base unit of time is the second (s).'),
+('Class 11 Science', 'Physics', 'Units, Measurements and Kinematics', 'medium', 'mcq',
+ 'A car accelerates uniformly from rest to 20 m/s in 5 seconds. What is its acceleration?',
+ '[{"text":"2 m/s^2","isCorrect":false},{"text":"4 m/s^2","isCorrect":true},{"text":"5 m/s^2","isCorrect":false},{"text":"100 m/s^2","isCorrect":false}]'::jsonb,
+ null, 'Acceleration = change in velocity / time = (20 - 0) / 5 = 4 m/s^2.'),
+('Class 11 Science', 'Physics', 'Units, Measurements and Kinematics', 'hard', 'mcq',
+ 'The dimensional formula for force is:',
+ '[{"text":"[MLT^-1]","isCorrect":false},{"text":"[MLT^-2]","isCorrect":true},{"text":"[ML^2T^-2]","isCorrect":false},{"text":"[ML^-1T^-2]","isCorrect":false}]'::jsonb,
+ null, 'Force = mass x acceleration, and acceleration has dimensions [LT^-2], so force has dimensions [MLT^-2].'),
+('Class 11 Science', 'Physics', 'Units, Measurements and Kinematics', 'hard', 'mcq',
+ 'A ball is thrown vertically upward with an initial velocity of 20 m/s. Taking g = 10 m/s^2, how long does it take to reach its maximum height?',
+ '[{"text":"1 second","isCorrect":false},{"text":"2 seconds","isCorrect":true},{"text":"3 seconds","isCorrect":false},{"text":"4 seconds","isCorrect":false}]'::jsonb,
+ null, 'At maximum height, final velocity = 0. Using v = u - gt: 0 = 20 - 10t, so t = 2 seconds.'),
+
+-- Physics: Laws of Motion, Work-Energy and Gravitation
+('Class 11 Science', 'Physics', 'Laws of Motion, Work-Energy and Gravitation', 'easy', 'mcq',
+ 'Newton''s first law of motion is also known as the law of:',
+ '[{"text":"Inertia","isCorrect":true},{"text":"Action and reaction","isCorrect":false},{"text":"Conservation of momentum","isCorrect":false},{"text":"Gravitation","isCorrect":false}]'::jsonb,
+ null, 'Newton''s first law states that a body remains at rest or in uniform motion unless acted upon by a force, which is the law of inertia.'),
+('Class 11 Science', 'Physics', 'Laws of Motion, Work-Energy and Gravitation', 'medium', 'mcq',
+ 'A force of 10 N displaces an object by 5 m in the direction of the force. What is the work done?',
+ '[{"text":"2 J","isCorrect":false},{"text":"15 J","isCorrect":false},{"text":"50 J","isCorrect":true},{"text":"5 J","isCorrect":false}]'::jsonb,
+ null, 'Work done = force x displacement = 10 x 5 = 50 J.'),
+('Class 11 Science', 'Physics', 'Laws of Motion, Work-Energy and Gravitation', 'hard', 'mcq',
+ 'A body of mass 2 kg moving at 3 m/s collides with a stationary body of mass 1 kg and they stick together. What is their common velocity after collision?',
+ '[{"text":"1 m/s","isCorrect":false},{"text":"2 m/s","isCorrect":true},{"text":"3 m/s","isCorrect":false},{"text":"6 m/s","isCorrect":false}]'::jsonb,
+ null, 'By conservation of momentum: (2 x 3) + (1 x 0) = (2+1) x v, so 6 = 3v, giving v = 2 m/s.'),
+('Class 11 Science', 'Physics', 'Laws of Motion, Work-Energy and Gravitation', 'hard', 'mcq',
+ 'According to Newton''s law of gravitation, if the distance between two masses is doubled, the gravitational force between them becomes:',
+ '[{"text":"Half","isCorrect":false},{"text":"Double","isCorrect":false},{"text":"One-fourth","isCorrect":true},{"text":"Four times","isCorrect":false}]'::jsonb,
+ null, 'Gravitational force is inversely proportional to the square of the distance, so doubling distance reduces force to 1/4.'),
+
+-- Chemistry: Atomic Structure, Periodic Table and Chemical Bonding
+('Class 11 Science', 'Chemistry', 'Atomic Structure, Periodic Table and Chemical Bonding', 'easy', 'mcq',
+ 'The number of protons in an atom is called its:',
+ '[{"text":"Mass number","isCorrect":false},{"text":"Atomic number","isCorrect":true},{"text":"Isotope number","isCorrect":false},{"text":"Valency","isCorrect":false}]'::jsonb,
+ null, 'The atomic number of an atom equals the number of protons in its nucleus.'),
+('Class 11 Science', 'Chemistry', 'Atomic Structure, Periodic Table and Chemical Bonding', 'medium', 'mcq',
+ 'Elements in the same group of the periodic table have similar:',
+ '[{"text":"Atomic mass","isCorrect":false},{"text":"Number of valence electrons","isCorrect":true},{"text":"Number of neutrons","isCorrect":false},{"text":"Number of shells","isCorrect":false}]'::jsonb,
+ null, 'Elements in the same group have the same number of valence electrons, giving them similar chemical properties.'),
+('Class 11 Science', 'Chemistry', 'Atomic Structure, Periodic Table and Chemical Bonding', 'hard', 'mcq',
+ 'According to VSEPR theory, the shape of a methane (CH4) molecule is:',
+ '[{"text":"Linear","isCorrect":false},{"text":"Trigonal planar","isCorrect":false},{"text":"Tetrahedral","isCorrect":true},{"text":"Bent","isCorrect":false}]'::jsonb,
+ null, 'Methane has four bond pairs and no lone pairs around carbon, giving it a tetrahedral shape.'),
+('Class 11 Science', 'Chemistry', 'Atomic Structure, Periodic Table and Chemical Bonding', 'hard', 'mcq',
+ 'The electronic configuration of an element is 2, 8, 7. To which group does it most likely belong?',
+ '[{"text":"Group 1 (Alkali metals)","isCorrect":false},{"text":"Group 17 (Halogens)","isCorrect":true},{"text":"Group 18 (Noble gases)","isCorrect":false},{"text":"Group 2 (Alkaline earth metals)","isCorrect":false}]'::jsonb,
+ null, 'With 7 electrons in its outermost shell, the element needs one more electron to complete its octet, characteristic of halogens (Group 17).'),
+
+-- Chemistry: States of Matter, Thermodynamics and Equilibrium
+('Class 11 Science', 'Chemistry', 'States of Matter, Thermodynamics and Equilibrium', 'easy', 'mcq',
+ 'The SI unit of pressure is the:',
+ '[{"text":"Newton","isCorrect":false},{"text":"Pascal","isCorrect":true},{"text":"Joule","isCorrect":false},{"text":"Watt","isCorrect":false}]'::jsonb,
+ null, 'The SI unit of pressure is the Pascal (Pa).'),
+('Class 11 Science', 'Chemistry', 'States of Matter, Thermodynamics and Equilibrium', 'medium', 'mcq',
+ 'According to the ideal gas equation PV = nRT, if temperature and moles are held constant, pressure and volume are:',
+ '[{"text":"Directly proportional","isCorrect":false},{"text":"Inversely proportional","isCorrect":true},{"text":"Unrelated","isCorrect":false},{"text":"Equal","isCorrect":false}]'::jsonb,
+ null, 'At constant T and n, PV = constant, so pressure and volume are inversely proportional -- this is Boyle''s Law.'),
+('Class 11 Science', 'Chemistry', 'States of Matter, Thermodynamics and Equilibrium', 'hard', 'mcq',
+ 'A process occurring at constant temperature is called:',
+ '[{"text":"Isochoric","isCorrect":false},{"text":"Isobaric","isCorrect":false},{"text":"Isothermal","isCorrect":true},{"text":"Adiabatic","isCorrect":false}]'::jsonb,
+ null, 'An isothermal process occurs at constant temperature.'),
+('Class 11 Science', 'Chemistry', 'States of Matter, Thermodynamics and Equilibrium', 'hard', 'mcq',
+ 'For a reaction at equilibrium, increasing the pressure by decreasing volume shifts the equilibrium toward the side with:',
+ '[{"text":"Fewer moles of gas","isCorrect":true},{"text":"More moles of gas","isCorrect":false},{"text":"Equal moles of gas only","isCorrect":false},{"text":"No effect on equilibrium","isCorrect":false}]'::jsonb,
+ null, 'By Le Chatelier''s principle, increasing pressure shifts equilibrium toward the side with fewer moles of gas to reduce pressure.'),
+
+-- Mathematics: Sets, Relations-Functions and Trigonometry
+('Class 11 Science', 'Mathematics', 'Sets, Relations-Functions and Trigonometry', 'easy', 'mcq',
+ 'If A = {1, 2, 3} and B = {2, 3, 4}, what is A intersection B?',
+ '[{"text":"{1, 2, 3, 4}","isCorrect":false},{"text":"{2, 3}","isCorrect":true},{"text":"{1, 4}","isCorrect":false},{"text":"{}","isCorrect":false}]'::jsonb,
+ null, 'The intersection contains elements common to both sets: {2, 3}.'),
+('Class 11 Science', 'Mathematics', 'Sets, Relations-Functions and Trigonometry', 'medium', 'mcq',
+ 'If f(x) = 2x + 3, what is f(4)?',
+ '[{"text":"8","isCorrect":false},{"text":"11","isCorrect":true},{"text":"14","isCorrect":false},{"text":"7","isCorrect":false}]'::jsonb,
+ null, 'f(4) = 2(4) + 3 = 8 + 3 = 11.'),
+('Class 11 Science', 'Mathematics', 'Sets, Relations-Functions and Trigonometry', 'hard', 'mcq',
+ 'What is the value of sin(60 degrees) + cos(60 degrees)?',
+ '[{"text":"1","isCorrect":false},{"text":"(square root of 3 + 1)/2","isCorrect":true},{"text":"square root of 3","isCorrect":false},{"text":"1/2","isCorrect":false}]'::jsonb,
+ null, 'sin(60) = (square root of 3)/2 and cos(60) = 1/2, so their sum is (square root of 3 + 1)/2.'),
+('Class 11 Science', 'Mathematics', 'Sets, Relations-Functions and Trigonometry', 'hard', 'mcq',
+ 'If a relation R on set A = {1, 2, 3} is defined as R = {(1,1), (2,2), (3,3)}, what property does R satisfy?',
+ '[{"text":"Symmetric only","isCorrect":false},{"text":"Reflexive","isCorrect":true},{"text":"Transitive only","isCorrect":false},{"text":"None of these","isCorrect":false}]'::jsonb,
+ null, 'A relation is reflexive if every element is related to itself, which holds here since (1,1), (2,2), (3,3) are all present.'),
+
+-- Mathematics: Complex Numbers, Sequences-Series and Straight Lines
+('Class 11 Science', 'Mathematics', 'Complex Numbers, Sequences-Series and Straight Lines', 'easy', 'mcq',
+ 'What is the value of i^2 (where i is the imaginary unit)?',
+ '[{"text":"1","isCorrect":false},{"text":"-1","isCorrect":true},{"text":"i","isCorrect":false},{"text":"-i","isCorrect":false}]'::jsonb,
+ null, 'By definition, i^2 = -1.'),
+('Class 11 Science', 'Mathematics', 'Complex Numbers, Sequences-Series and Straight Lines', 'medium', 'mcq',
+ 'What is the 5th term of the arithmetic progression 2, 5, 8, 11, ...?',
+ '[{"text":"13","isCorrect":false},{"text":"14","isCorrect":true},{"text":"15","isCorrect":false},{"text":"17","isCorrect":false}]'::jsonb,
+ null, 'The common difference is 3. The 5th term = 2 + (5-1) x 3 = 2 + 12 = 14.'),
+('Class 11 Science', 'Mathematics', 'Complex Numbers, Sequences-Series and Straight Lines', 'hard', 'mcq',
+ 'What is the slope of the line passing through the points (2, 3) and (4, 7)?',
+ '[{"text":"1","isCorrect":false},{"text":"2","isCorrect":true},{"text":"3","isCorrect":false},{"text":"4","isCorrect":false}]'::jsonb,
+ null, 'Slope = (y2-y1)/(x2-x1) = (7-3)/(4-2) = 4/2 = 2.'),
+('Class 11 Science', 'Mathematics', 'Complex Numbers, Sequences-Series and Straight Lines', 'hard', 'mcq',
+ 'What is the sum of the first 10 terms of the arithmetic progression 3, 6, 9, 12, ...?',
+ '[{"text":"150","isCorrect":false},{"text":"165","isCorrect":true},{"text":"180","isCorrect":false},{"text":"175","isCorrect":false}]'::jsonb,
+ null, 'Sum = n/2 x [2a + (n-1)d] = 10/2 x [2(3) + 9(3)] = 5 x [6+27] = 5 x 33 = 165.'),
+
+-- English: Grammar (Determiners, Advanced Tenses) and Note-Making
+('Class 11 Science', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'easy', 'mcq',
+ 'Choose the correct determiner: "___ of the students passed the exam."',
+ '[{"text":"Most","isCorrect":true},{"text":"Much","isCorrect":false},{"text":"Little","isCorrect":false},{"text":"Any one","isCorrect":false}]'::jsonb,
+ null, '''Most'' is used with countable nouns like ''students'' to indicate a majority.'),
+('Class 11 Science', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'medium', 'mcq',
+ 'Choose the sentence in the future perfect tense.',
+ '[{"text":"She will have finished the report by Friday.","isCorrect":true},{"text":"She will finish the report by Friday.","isCorrect":false},{"text":"She has finished the report.","isCorrect":false},{"text":"She finished the report.","isCorrect":false}]'::jsonb,
+ null, 'The future perfect tense (''will have'' + past participle) shows an action that will be completed before a future point in time.'),
+('Class 11 Science', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'hard', 'mcq',
+ 'In note-making, the abbreviation used for "with reference to" is typically:',
+ '[{"text":"w.r.t.","isCorrect":true},{"text":"r.t.w.","isCorrect":false},{"text":"ref.","isCorrect":false},{"text":"w/ref","isCorrect":false}]'::jsonb,
+ null, '"w.r.t." is the standard, widely recognized abbreviation for "with reference to" used in note-making.'),
+('Class 11 Science', 'English', 'Grammar (Determiners, Advanced Tenses) and Note-Making', 'hard', 'mcq',
+ 'Choose the sentence that correctly uses a determiner with an uncountable noun.',
+ '[{"text":"There is little information available.","isCorrect":true},{"text":"There is a few information available.","isCorrect":false},{"text":"There is many information available.","isCorrect":false},{"text":"There are little informations available.","isCorrect":false}]'::jsonb,
+ null, '''Information'' is uncountable, so it takes ''little'' (not ''few'' or ''many'') and no plural form.'),
+
+-- English: Reading Comprehension and Vocabulary
+('Class 11 Science', 'English', 'Reading Comprehension and Vocabulary', 'easy', 'mcq',
+ 'Read: "The committee''s recommendations were largely symbolic, lacking any real enforcement mechanism." What is implied about the recommendations?',
+ '[{"text":"They were strongly enforced","isCorrect":false},{"text":"They had little practical effect","isCorrect":true},{"text":"They were ignored entirely","isCorrect":false},{"text":"They were legally binding","isCorrect":false}]'::jsonb,
+ null, 'The passage says the recommendations were symbolic and lacked enforcement, implying they had little practical effect.'),
+('Class 11 Science', 'English', 'Reading Comprehension and Vocabulary', 'medium', 'mcq',
+ 'A word that means the same as ''ubiquitous'' is:',
+ '[{"text":"Rare","isCorrect":false},{"text":"Present everywhere","isCorrect":true},{"text":"Hidden","isCorrect":false},{"text":"Temporary","isCorrect":false}]'::jsonb,
+ null, '''Ubiquitous'' means found everywhere, matching ''present everywhere''.'),
+('Class 11 Science', 'English', 'Reading Comprehension and Vocabulary', 'hard', 'mcq',
+ 'A word that means the opposite of ''candid'' is:',
+ '[{"text":"Honest","isCorrect":false},{"text":"Evasive","isCorrect":true},{"text":"Direct","isCorrect":false},{"text":"Frank","isCorrect":false}]'::jsonb,
+ null, '''Candid'' means open and honest; its opposite is ''evasive'', meaning avoiding direct answers.'),
+('Class 11 Science', 'English', 'Reading Comprehension and Vocabulary', 'hard', 'mcq',
+ 'Read: "The report''s conclusions were couched in such cautious language that critics accused the author of equivocation." What did critics accuse the author of?',
+ '[{"text":"Being too direct","isCorrect":false},{"text":"Deliberately avoiding a clear stance","isCorrect":true},{"text":"Making false claims","isCorrect":false},{"text":"Plagiarism","isCorrect":false}]'::jsonb,
+ null, '''Equivocation'' means using ambiguous language to avoid committing to a clear position, which is what critics accused the author of.');
