@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -41,12 +42,16 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -77,11 +82,13 @@ import com.quizmaker.android.core.theme.AppBackground
 import com.quizmaker.android.core.theme.BorderGray
 import com.quizmaker.android.core.theme.BrandIndigo
 import com.quizmaker.android.core.theme.BrandIndigoLight
+import com.quizmaker.android.core.theme.ErrorRed
 import com.quizmaker.android.core.theme.PoppinsFamily
 import com.quizmaker.android.core.theme.StatGreenIcon
 import com.quizmaker.android.core.theme.SurfaceWhite
 import com.quizmaker.android.core.theme.TextPrimary
 import com.quizmaker.android.core.theme.TextSecondary
+import com.quizmaker.android.data.model.Group
 import com.quizmaker.android.data.model.Question
 import com.quizmaker.android.util.formatPoints
 import com.quizmaker.android.data.model.QuestionDifficulty
@@ -90,6 +97,7 @@ import com.quizmaker.android.data.model.QuizNameSuggestion
 import com.quizmaker.android.ui.aiquiz.MAX_AI_QUESTION_COUNT
 import com.quizmaker.android.ui.aiquiz.MIN_AI_QUESTION_COUNT
 import com.quizmaker.android.ui.common.BlurBehindDialog
+import com.quizmaker.android.ui.common.DateTimePickerField
 import com.quizmaker.android.ui.common.EmptyState
 import com.quizmaker.android.ui.common.ErrorBanner
 import com.quizmaker.android.ui.common.FilledPill
@@ -1135,6 +1143,61 @@ private fun SettingsStep(uiState: CreateQuizUiState, viewModel: CreateQuizViewMo
         }
     }
 
+    SectionCard(title = "Schedule") {
+        Text(
+            "Leave either date blank for no restriction.",
+            color = TextSecondary,
+            fontSize = 12.sp
+        )
+        Spacer(Modifier.height(12.dp))
+        DateTimePickerField(label = "Opens at", value = uiState.startsAt, onChange = viewModel::onStartsAtChange)
+        Spacer(Modifier.height(16.dp))
+        DateTimePickerField(label = "Closes at", value = uiState.endsAt, onChange = viewModel::onEndsAtChange)
+        uiState.scheduleError?.let { error ->
+            Spacer(Modifier.height(10.dp))
+            Text(error, color = ErrorRed, fontSize = 12.sp)
+        }
+    }
+
+    SectionCard(title = "Who Can Take This Quiz") {
+        AudienceOptionRow(
+            title = "Anyone with the link",
+            subtitle = "The default — no sign-in or roster check.",
+            selected = uiState.visibilityType == "public",
+            onClick = { viewModel.onVisibilityTypeChange("public") }
+        )
+        Spacer(Modifier.height(10.dp))
+        AudienceOptionRow(
+            title = "All my learners",
+            subtitle = "Only people on your Learners roster.",
+            selected = uiState.visibilityType == "all_learners",
+            onClick = { viewModel.onVisibilityTypeChange("all_learners") }
+        )
+        Spacer(Modifier.height(10.dp))
+        AudienceOptionRow(
+            title = "Specific group",
+            subtitle = "Restrict to one group from your Learners section.",
+            selected = uiState.visibilityType == "group",
+            onClick = { viewModel.onVisibilityTypeChange("group") }
+        )
+        if (uiState.visibilityType == "group") {
+            Spacer(Modifier.height(10.dp))
+            if (uiState.groups.isEmpty() && !uiState.isLoadingGroups) {
+                Text(
+                    "Create groups in the Learners section to restrict access.",
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+            } else {
+                GroupDropdown(
+                    groups = uiState.groups,
+                    selectedGroupId = uiState.selectedGroupId,
+                    onSelect = viewModel::onSelectedGroupIdChange
+                )
+            }
+        }
+    }
+
     SectionCard(title = "Participant Details") {
         SwitchSettingsRow("Collect email", uiState.collectEmail, viewModel::onCollectEmailChange)
         SwitchSettingsRow("Collect phone number", uiState.collectPhone, viewModel::onCollectPhoneChange)
@@ -1415,6 +1478,63 @@ private fun SwitchSettingsRow(label: String, checked: Boolean, onCheckedChange: 
         }
         if (!isLast) {
             androidx.compose.material3.HorizontalDivider(color = BorderGray, thickness = 1.dp)
+        }
+    }
+}
+
+/** A card-style radio row — mirrors the web app's CreateQuiz.tsx visibility picker (same three
+ *  options/copy), used instead of SegmentedToggle since these labels are too long for a 3-way
+ *  segmented control to read well. */
+@Composable
+private fun AudienceOptionRow(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (selected) BrandIndigoLight else Color.Transparent)
+            .border(1.dp, if (selected) BrandIndigo else BorderGray, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(selectedColor = BrandIndigo)
+        )
+        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+            Text(title, color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(subtitle, color = TextSecondary, fontSize = 12.sp)
+        }
+    }
+}
+
+/** Plain Box + DropdownMenu (not ExposedDropdownMenuBox) — same pattern as LearnerFormDialog's own
+ *  GroupDropdown, minus the "No group" sentinel entry (that case is the "Anyone"/"All learners"
+ *  radio options above, not a choice inside this dropdown). */
+@Composable
+private fun GroupDropdown(groups: List<Group>, selectedGroupId: String?, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = groups.find { it.id == selectedGroupId }?.name ?: "Choose a group..."
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, BorderGray, RoundedCornerShape(14.dp))
+                .clickable { expanded = true }
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(selectedLabel, color = TextPrimary, fontSize = 14.sp)
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = TextSecondary)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            groups.forEach { group ->
+                DropdownMenuItem(text = { Text(group.name) }, onClick = { onSelect(group.id); expanded = false })
+            }
         }
     }
 }

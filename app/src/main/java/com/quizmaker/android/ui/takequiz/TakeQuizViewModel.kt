@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.roundToInt
+import kotlin.time.Clock
+import com.quizmaker.android.util.formatDateTime
 
 enum class TakeQuizPhase { LOADING, NOT_FOUND, ALREADY_COMPLETED, REGISTRATION, OTP, QUESTIONS, SUBMITTING, RESULT }
 
@@ -86,16 +88,25 @@ class TakeQuizViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(phase = TakeQuizPhase.LOADING)
             when (val result = repository.getQuizByShareId(shareId)) {
                 is AppResult.Success -> {
-                    if (result.data.quiz.isClosed) {
-                        _uiState.value = _uiState.value.copy(
+                    val quiz = result.data.quiz
+                    val now = Clock.System.now()
+                    when {
+                        quiz.isClosed -> _uiState.value = _uiState.value.copy(
                             phase = TakeQuizPhase.NOT_FOUND,
                             errorMessage = "This quiz is closed and no longer accepting responses."
                         )
-                    } else {
-                        _uiState.value = _uiState.value.copy(
+                        quiz.startsAt != null && now < quiz.startsAt -> _uiState.value = _uiState.value.copy(
+                            phase = TakeQuizPhase.NOT_FOUND,
+                            errorMessage = "This quiz opens on ${formatDateTime(quiz.startsAt)}."
+                        )
+                        quiz.endsAt != null && now > quiz.endsAt -> _uiState.value = _uiState.value.copy(
+                            phase = TakeQuizPhase.NOT_FOUND,
+                            errorMessage = "This quiz closed on ${formatDateTime(quiz.endsAt)} and is no longer accepting responses."
+                        )
+                        else -> _uiState.value = _uiState.value.copy(
                             phase = TakeQuizPhase.REGISTRATION,
                             quizForTaking = result.data,
-                            overallSecondsRemaining = result.data.quiz.timeLimit?.let { it * 60 }
+                            overallSecondsRemaining = quiz.timeLimit?.let { it * 60 }
                         )
                     }
                 }
@@ -125,6 +136,26 @@ class TakeQuizViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(errorMessage = null)
+
+            // Non-public quizzes (all_learners/group) are gated by the shared verify-quiz-access
+            // Edge Function — same check the web app already runs at this exact point in its own
+            // registration flow (TakeQuiz.tsx). Public quizzes skip this call entirely.
+            if (quiz.visibilityType != "public") {
+                when (val access = repository.verifyQuizAccess(quiz.id, email)) {
+                    is AppResult.Success -> if (!access.data.allowed) {
+                        _uiState.value = _uiState.value.copy(
+                            errorMessage = "You don't have access to this quiz. Ask your teacher to add you to the right group."
+                        )
+                        return@launch
+                    }
+                    is AppResult.Error -> {
+                        _uiState.value = _uiState.value.copy(
+                            errorMessage = "Couldn't verify access right now. Please try again."
+                        )
+                        return@launch
+                    }
+                }
+            }
 
             if (!quiz.allowMultipleAttempts && email.isNotBlank()) {
                 val completed = repository.hasCompletedQuiz(quiz.id, email)

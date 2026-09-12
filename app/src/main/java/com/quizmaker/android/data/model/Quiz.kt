@@ -38,7 +38,15 @@ data class Quiz(
      *  metadata only; grading always reads each question's own negative_points. */
     val negativeMarkingMode: String,
     val negativeMarkingValue: Double,
-    val createdAt: Instant?
+    val createdAt: Instant?,
+    /** Optional attempt window — null means no restriction, matching every quiz created before
+     *  this field existed. See TakeQuizViewModel.loadQuiz() for how these gate access. */
+    val startsAt: Instant? = null,
+    val endsAt: Instant? = null,
+    /** 'public' | 'all_learners' | 'group' — mirrors the web app's CreateQuiz.tsx visibilityType.
+     *  'public' (the default) is today's only behavior: anyone with the share link can take it. */
+    val visibilityType: String = "public",
+    val assignedGroupId: String? = null
 ) {
     val shareUrl: String get() = "${BuildConfig.SHARE_BASE_URL}/take-quiz/$shareId"
 }
@@ -69,7 +77,11 @@ data class NewQuizSpec(
     val requireOtpVerification: Boolean,
     val allowMultipleAttempts: Boolean,
     val negativeMarkingMode: String,
-    val negativeMarkingValue: Double
+    val negativeMarkingValue: Double,
+    val startsAt: Instant? = null,
+    val endsAt: Instant? = null,
+    val visibilityType: String = "public",
+    val assignedGroupId: String? = null
 )
 
 fun QuizDto.toDomain(): Quiz = Quiz(
@@ -101,5 +113,9 @@ fun QuizDto.toDomain(): Quiz = Quiz(
     maxPoints = maxPoints ?: 0.0,
     negativeMarkingMode = negativeMarkingMode ?: "none",
     negativeMarkingValue = negativeMarkingValue ?: 1.0,
-    createdAt = createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
+    createdAt = createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
+    startsAt = startsAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
+    endsAt = endsAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
+    visibilityType = visibilityType ?: "public",
+    assignedGroupId = assignedGroupId
 )

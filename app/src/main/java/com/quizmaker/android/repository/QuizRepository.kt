@@ -190,8 +190,10 @@ class QuizRepository @Inject constructor(
 
     /**
      * Creates a quiz and links the selected question bank questions to it, mirroring
-     * createQuiz()/addQuestionsToQuiz() in the web app's supabaseService.ts. Public
-     * shareable-link quizzes only (Phase 1 scope — no learner/group visibility).
+     * createQuiz()/addQuestionsToQuiz() in the web app's supabaseService.ts. Visibility mirrors
+     * the web app's CreateQuiz.tsx: `spec.visibilityType == "public"` (the default) is a public
+     * shareable-link quiz; "all_learners"/"group" are enforced server-side by the verify-quiz-access
+     * Edge Function at registration time (see TakeQuizViewModel).
      */
     suspend fun createQuiz(userId: String, spec: NewQuizSpec, questionIds: List<String>): AppResult<Quiz> = safeCall {
         val created = supabase.from("quizzes")
@@ -200,8 +202,11 @@ class QuizRepository @Inject constructor(
                     title = spec.title,
                     description = spec.description,
                     createdBy = userId,
-                    isPublic = true,
-                    visibilityType = "public",
+                    isPublic = spec.visibilityType == "public",
+                    visibilityType = spec.visibilityType,
+                    assignedGroupId = spec.assignedGroupId,
+                    startsAt = spec.startsAt?.toString(),
+                    endsAt = spec.endsAt?.toString(),
                     timeLimit = spec.timeLimit,
                     timeLimitType = spec.timeLimitType,
                     timePerQuestion = spec.timePerQuestion,
@@ -263,8 +268,11 @@ class QuizRepository @Inject constructor(
                     title = spec.title,
                     description = spec.description,
                     createdBy = existing.createdBy ?: "",
-                    isPublic = existing.isPublic ?: true,
-                    visibilityType = existing.visibilityType ?: "public",
+                    isPublic = spec.visibilityType == "public",
+                    visibilityType = spec.visibilityType,
+                    assignedGroupId = spec.assignedGroupId,
+                    startsAt = spec.startsAt?.toString(),
+                    endsAt = spec.endsAt?.toString(),
                     timeLimit = spec.timeLimit,
                     timeLimitType = spec.timeLimitType,
                     timePerQuestion = spec.timePerQuestion,
@@ -375,6 +383,11 @@ class QuizRepository @Inject constructor(
                     createdBy = original.createdBy ?: "",
                     isPublic = original.isPublic ?: true,
                     visibilityType = original.visibilityType ?: "public",
+                    assignedGroupId = original.assignedGroupId,
+                    // A duplicate starts unscheduled even if the original had a window — the
+                    // original's dates likely no longer make sense for a fresh copy.
+                    startsAt = null,
+                    endsAt = null,
                     timeLimit = original.timeLimit,
                     timeLimitType = original.timeLimitType ?: "total",
                     timePerQuestion = original.timePerQuestion,

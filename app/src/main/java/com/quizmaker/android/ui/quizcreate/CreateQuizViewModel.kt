@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.quizmaker.android.core.alert.AlertBus
 import com.quizmaker.android.core.analytics.AnalyticsLogger
 import com.quizmaker.android.core.network.AppResult
+import com.quizmaker.android.data.model.Group
 import com.quizmaker.android.data.model.NewQuizSpec
 import com.quizmaker.android.data.model.QUIZ_NAME_SUGGESTIONS
 import com.quizmaker.android.data.model.Question
@@ -16,6 +17,7 @@ import com.quizmaker.android.data.model.Quiz
 import com.quizmaker.android.data.model.QuizNameSuggestion
 import com.quizmaker.android.repository.AiQuizRepository
 import com.quizmaker.android.repository.AuthRepository
+import com.quizmaker.android.repository.LearnersRepository
 import com.quizmaker.android.repository.QuestionRepository
 import com.quizmaker.android.repository.QuizRepository
 import com.quizmaker.android.ui.aiquiz.MAX_AI_QUESTION_COUNT
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Instant
 import javax.inject.Inject
 
 private const val QUIZ_NAME_SUGGESTION_COUNT = 5
@@ -122,6 +125,14 @@ data class CreateQuizUiState(
     val collectPhone: Boolean = false,
     val requireOtpVerification: Boolean = false,
     val allowMultipleAttempts: Boolean = false,
+    /** Optional attempt window — null means no restriction (today's only behavior). */
+    val startsAt: Instant? = null,
+    val endsAt: Instant? = null,
+    /** 'public' | 'all_learners' | 'group' — see NewQuizSpec's own doc comment. */
+    val visibilityType: String = "public",
+    val selectedGroupId: String? = null,
+    val groups: List<Group> = emptyList(),
+    val isLoadingGroups: Boolean = false,
 
     // Step 4: review/create
     val isSubmitting: Boolean = false,
@@ -130,6 +141,13 @@ data class CreateQuizUiState(
     val selectedQuestions: List<Question> get() = questionBank.filter { it.id in selectedQuestionIds }
     val canGoNextFromDetails: Boolean get() = title.isNotBlank()
     val canGoNextFromQuestions: Boolean get() = selectedQuestionIds.isNotEmpty()
+
+    /** Shown next to the schedule fields when the picked window is backwards — doesn't block
+     *  typing, only submit (mirrors DashboardDateRangeSheet's from<=to gating). */
+    val scheduleError: String?
+        get() = if (startsAt != null && endsAt != null && endsAt <= startsAt) {
+            "Closing time must be after the opening time."
+        } else null
 
     val availableTags: List<String> get() = questionBank.flatMap { it.tags }.distinct().sorted()
 
@@ -149,6 +167,7 @@ class CreateQuizViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val questionRepository: QuestionRepository,
     private val quizRepository: QuizRepository,
+    private val learnersRepository: LearnersRepository,
     private val aiQuizRepository: AiQuizRepository,
     private val analyticsLogger: AnalyticsLogger,
     private val dashboardStateCache: DashboardStateCache,
@@ -193,6 +212,22 @@ class CreateQuizViewModel @Inject constructor(
         }
         loadQuestionBank()
         loadTrialGate()
+        loadGroups()
+    }
+
+    /** Populates the "Specific group" dropdown in the Settings step's audience picker — loaded
+     *  eagerly like the question bank rather than only when that radio option is picked, so the
+     *  dropdown has no separate loading flicker the first time it's opened. */
+    private fun loadGroups() {
+        val userId = authRepository.currentUserId() ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingGroups = true)
+            when (val result = learnersRepository.getGroups(userId)) {
+                is AppResult.Success -> _uiState.value =
+                    _uiState.value.copy(isLoadingGroups = false, groups = result.data)
+                is AppResult.Error -> _uiState.value = _uiState.value.copy(isLoadingGroups = false)
+            }
+        }
     }
 
     /** A fresh random 5-of-50 every time this is called — the Details step's own shuffle button,
@@ -319,7 +354,11 @@ class CreateQuizViewModel @Inject constructor(
                         collectAddress = quiz.collectAddress,
                         collectPhone = quiz.collectPhone,
                         requireOtpVerification = quiz.requireOtpVerification,
-                        allowMultipleAttempts = quiz.allowMultipleAttempts
+                        allowMultipleAttempts = quiz.allowMultipleAttempts,
+                        startsAt = quiz.startsAt,
+                        endsAt = quiz.endsAt,
+                        visibilityType = quiz.visibilityType,
+                        selectedGroupId = quiz.assignedGroupId
                     )
                 }
             }
@@ -498,10 +537,27 @@ class CreateQuizViewModel @Inject constructor(
     fun onCollectPhoneChange(value: Boolean) { _uiState.value = _uiState.value.copy(collectPhone = value) }
     fun onRequireOtpChange(value: Boolean) { _uiState.value = _uiState.value.copy(requireOtpVerification = value) }
     fun onAllowMultipleAttemptsChange(value: Boolean) { _uiState.value = _uiState.value.copy(allowMultipleAttempts = value) }
+    fun onStartsAtChange(value: Instant?) { _uiState.value = _uiState.value.copy(startsAt = value) }
+    fun onEndsAtChange(value: Instant?) { _uiState.value = _uiState.value.copy(endsAt = value) }
+
+    /** Switching away from "group" clears the picked group so a stale selection can't silently
+     *  ship if the teacher flips back and forth without re-picking. */
+    fun onVisibilityTypeChange(value: String) {
+        _uiState.value = _uiState.value.copy(
+            visibilityType = value,
+            selectedGroupId = if (value == "group") _uiState.value.selectedGroupId else null
+        )
+    }
+
+    fun onSelectedGroupIdChange(value: String) { _uiState.value = _uiState.value.copy(selectedGroupId = value) }
 
     // ---- Step 4 ----
     fun submit() {
         val state = _uiState.value
+        if (state.scheduleError != null) {
+            _uiState.value = state.copy(errorMessage = state.scheduleError)
+            return
+        }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSubmitting = true, errorMessage = null)
             val spec = NewQuizSpec(
@@ -526,7 +582,11 @@ class CreateQuizViewModel @Inject constructor(
                 requireOtpVerification = state.requireOtpVerification,
                 allowMultipleAttempts = state.allowMultipleAttempts,
                 negativeMarkingMode = state.negativeMarkingMode,
-                negativeMarkingValue = state.negativeMarkingValue
+                negativeMarkingValue = state.negativeMarkingValue,
+                startsAt = state.startsAt,
+                endsAt = state.endsAt,
+                visibilityType = state.visibilityType,
+                assignedGroupId = if (state.visibilityType == "group") state.selectedGroupId else null
             )
 
             val result = if (editQuizId != null) {

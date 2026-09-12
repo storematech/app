@@ -13,6 +13,8 @@ import com.quizmaker.android.data.remote.dto.QuizResponseDto
 import com.quizmaker.android.data.remote.dto.QuizResponseInsertDto
 import com.quizmaker.android.data.remote.dto.SendOtpRequest
 import com.quizmaker.android.data.remote.dto.VerifyOtpRequest
+import com.quizmaker.android.data.remote.dto.VerifyQuizAccessRequest
+import com.quizmaker.android.data.remote.dto.VerifyQuizAccessResponse
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.from
@@ -95,6 +97,20 @@ class QuizTakingRepository @Inject constructor(
         }
         val result = json.decodeFromString<OtpFunctionResponse>(response.bodyAsText())
         if (!result.success) error(result.error ?: "Invalid or expired verification code.")
+    }
+
+    /**
+     * Checks whether [userEmail] may take a non-public (all_learners/group) quiz — calls the same
+     * `verify-quiz-access` Edge Function the web app already uses (TakeQuiz.tsx), so the
+     * learner-roster/group-membership lookup lives in one place shared by both apps. Only meaningful
+     * when the quiz's own visibilityType isn't "public" — see TakeQuizViewModel.submitRegistration().
+     */
+    suspend fun verifyQuizAccess(quizId: String, userEmail: String): AppResult<VerifyQuizAccessResponse> = safeCall {
+        val response = supabase.functions.invoke("verify-quiz-access") {
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(VerifyQuizAccessRequest(quizId = quizId, userEmail = userEmail)))
+        }
+        json.decodeFromString<VerifyQuizAccessResponse>(response.bodyAsText())
     }
 
     /**
