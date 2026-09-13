@@ -709,10 +709,16 @@ fun QuizMakerNavGraph(
                 QuizCreatedScreen(
                     onDone = {
                         // Explicitly the Quizzes tab (not just "back", which used to land on
-                        // Dashboard) — same pattern the bottom nav bar itself uses.
+                        // Dashboard). Pops QuizCreated off for good via popUpTo(itself,
+                        // inclusive) rather than the bottom nav bar's saveState=true pattern —
+                        // that saveState call shares its anchor (the graph's start destination)
+                        // with every bottom-tab click, so QuizCreated's back-stack entry was
+                        // getting stashed in the same saved-state slot and could later be
+                        // resurrected by an unrelated tab switch's restoreState=true.
                         navController.navigate(Screen.QuizList.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            popUpTo(Screen.QuizCreated.route) { inclusive = true }
                             launchSingleTop = true
+                            restoreState = true
                         }
                     }
                 )

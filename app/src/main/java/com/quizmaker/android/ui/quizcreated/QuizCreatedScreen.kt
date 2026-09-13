@@ -1,9 +1,11 @@
 package com.quizmaker.android.ui.quizcreated
 
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,11 +18,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,9 +43,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -108,6 +117,7 @@ private fun QuizCreatedContent(
     onShared: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val qrBitmap = remember(quiz.shareUrl) { QrCodeGenerator.generate(quiz.shareUrl) }
 
@@ -154,7 +164,31 @@ private fun QuizCreatedContent(
                     .padding(10.dp)
             )
             Spacer(Modifier.height(14.dp))
-            Text(quiz.shareUrl, color = TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .border(1.dp, BorderGray, RoundedCornerShape(14.dp))
+                    .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    quiz.shareUrl,
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                LinkIconButton(icon = Icons.Default.ContentCopy, contentDescription = "Copy link") {
+                    onShared("copy")
+                    clipboardManager.setText(AnnotatedString(quiz.shareUrl))
+                }
+                LinkIconButton(icon = Icons.Default.OpenInBrowser, contentDescription = "Open in browser") {
+                    onShared("view")
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(quiz.shareUrl)))
+                }
+            }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
@@ -248,5 +282,18 @@ private fun QuizCreatedContent(
 
         GradientButton(text = "Back to Quiz List", onClick = onDone, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun LinkIconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = contentDescription, tint = BrandIndigo, modifier = Modifier.size(18.dp))
     }
 }
